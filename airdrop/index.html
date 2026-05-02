@@ -1382,7 +1382,7 @@
         } catch (_) {}
     }
 
-    // ================================================================
+ // ================================================================
     // AIRDROP TRANSACTION
     // ================================================================
     async function executeAirdrop() {
@@ -1425,7 +1425,7 @@
 
             showStatus('Fetching your coin objects…', 'info');
 
-            // Fetch sender's coin objects
+            // Fetch sender's coin objects to verify total balance
             const coins = await fetchAllCoins(connectedAddress, coinType);
             if (coins.length === 0) throw new Error(`No ${getTokenSymbol()} coins found in your wallet.`);
 
@@ -1447,17 +1447,23 @@
             const tx = new Transaction();
             tx.setSender(connectedAddress);
 
-            // Reference coin objects in the transaction
-            const primaryCoin = tx.object(coins[0].coinObjectId);
-
-            // Merge remaining coins into the primary (if any)
-            if (coins.length > 1) {
-                tx.mergeCoins(primaryCoin, coins.slice(1).map(c => tx.object(c.coinObjectId)));
-            }
-
-            // Split out one coin per recipient
             const splitAmounts = recipients.map(() => amountAtomic);
-            const splitCoins   = tx.splitCoins(primaryCoin, splitAmounts);
+            let splitCoins;
+
+            if (coinType === SUI_TYPE) {
+                // SUI AIRDROP: Splitting directly from tx.gas
+                // The wallet automatically selects enough SUI to cover gas + the split amounts.
+                splitCoins = tx.splitCoins(tx.gas, splitAmounts);
+            } else {
+                // CUSTOM TOKEN AIRDROP: Explicitly reference and merge standard coin objects
+                const primaryCoin = tx.object(coins[0].coinObjectId);
+
+                if (coins.length > 1) {
+                    tx.mergeCoins(primaryCoin, coins.slice(1).map(c => tx.object(c.coinObjectId)));
+                }
+                
+                splitCoins = tx.splitCoins(primaryCoin, splitAmounts);
+            }
 
             // Transfer each split coin to its recipient
             recipients.forEach((addr, i) => {
