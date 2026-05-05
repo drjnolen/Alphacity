@@ -966,8 +966,8 @@
                             <span class="eyebrow">Selected District</span>
                             <h2 class="detail-title" id="detail-name">Awaiting sync</h2>
                             <div class="detail-meta">
-                                <span class="detail-meta-pill is-zone" id="detail-zone" aria-label="Zone and faction information">Zone pending</span>
-                                <span class="detail-meta-pill is-risk" id="detail-risk" aria-label="District risk information">Risk pending</span>
+                                <span class="detail-meta-pill is-zone" id="detail-zone">Zone pending</span>
+                                <span class="detail-meta-pill is-risk" id="detail-risk">Risk pending</span>
                             </div>
                             <p class="detail-copy" id="detail-description">Once intel syncs, select a district to inspect its operatives, unlocked landmarks, and relative war power.</p>
                         </div>
@@ -1491,7 +1491,11 @@
             el('detail-badge').style.color = district.accent;
             el('detail-badge').style.borderColor = `rgba(${district.accentRgb}, 0.45)`;
             el('detail-badge').style.background = `rgba(${district.accentRgb}, 0.12)`;
-            const zoneText = district.zone ? `${district.zone} • ${district.faction || ''}` : 'Zone unavailable';
+            const zoneText = district.zone
+                ? district.faction
+                    ? `${district.zone} • ${district.faction}`
+                    : district.zone
+                : 'Zone unavailable';
             const riskText = district.risk ? `Risk: ${district.risk}` : 'Risk unavailable';
             el('detail-zone').textContent = zoneText;
             el('detail-risk').textContent = riskText;
