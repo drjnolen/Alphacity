@@ -19,11 +19,11 @@
             --yellow: #facc15;
             --danger: #fca5a5;
             --danger-bg: rgba(239, 68, 68, 0.12);
-            --shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
-            --radius-xl: 20px;
-            --radius-2xl: 28px;
+            --shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+            --radius-xl: 18px;
+            --radius-2xl: 24px;
             --radius-pill: 999px;
-            --container: 1320px;
+            --container: 1240px;
         }
 
         * {
@@ -39,6 +39,7 @@
             min-height: 100vh;
             color: var(--text);
             font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.5;
             background:
                 radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 38%),
                 radial-gradient(circle at 85% 20%, rgba(250, 204, 21, 0.08), transparent 30%),
@@ -148,13 +149,15 @@
         }
 
         .page-main {
-            padding: 2.2rem 0 3rem;
+            padding: 1.75rem 0 3rem;
+            display: grid;
+            gap: 1.5rem;
         }
 
         .glass-panel {
             border-radius: var(--radius-2xl);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            background: var(--card-soft);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(31, 41, 55, 0.68);
             backdrop-filter: blur(14px);
             box-shadow: var(--shadow);
         }
@@ -163,9 +166,9 @@
             position: relative;
             overflow: hidden;
             background-image:
-                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-            background-size: 28px 28px;
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 36px 36px;
         }
 
         .blueprint-grid::before {
@@ -178,8 +181,7 @@
 
         .hero-card {
             position: relative;
-            padding: 2rem;
-            margin-bottom: 2rem;
+            padding: 1.75rem;
         }
 
         .hero-orb {
@@ -221,7 +223,7 @@
         .hero-grid {
             position: relative;
             z-index: 1;
-            grid-template-columns: minmax(0, 1.2fr) minmax(330px, 0.8fr);
+            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
             align-items: start;
         }
 
@@ -238,22 +240,22 @@
         .hero-title {
             margin: 0 0 1rem;
             color: white;
-            font-size: clamp(2.5rem, 5vw, 4.4rem);
-            line-height: 0.98;
+            font-size: clamp(2.35rem, 5vw, 4rem);
+            line-height: 1;
             letter-spacing: -0.05em;
         }
 
         .hero-copy {
             color: var(--muted);
-            font-size: 1.08rem;
-            line-height: 1.72;
-            max-width: 62ch;
+            font-size: 1rem;
+            line-height: 1.68;
+            max-width: 56ch;
             margin: 0 0 1.5rem;
         }
 
         .chip-row {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 0.8rem;
             margin-bottom: 1.5rem;
         }
@@ -278,7 +280,7 @@
         }
 
         .stat-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         }
 
         .stat-card,
@@ -313,7 +315,6 @@
 
         .era-card {
             padding: 1.4rem;
-            animation: drift 12s ease-in-out infinite;
         }
 
         .era-header {
@@ -395,13 +396,12 @@
         }
 
         .content-grid {
-            grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+            grid-template-columns: 1fr;
             align-items: start;
-            margin-bottom: 2rem;
         }
 
         .bottom-grid {
-            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             align-items: start;
         }
 
@@ -414,8 +414,8 @@
             position: relative;
             z-index: 1;
             display: flex;
-            justify-content: space-between;
-            align-items: end;
+            flex-direction: column;
+            align-items: start;
             gap: 1rem;
             margin-bottom: 1.2rem;
         }
@@ -426,17 +426,22 @@
             color: white;
         }
 
+        .panel-title-sm {
+            font-size: 1.45rem;
+        }
+
         .panel-copy {
-            max-width: 34rem;
+            max-width: 46rem;
             color: var(--muted);
             font-size: 0.94rem;
             line-height: 1.65;
+            margin: 0;
         }
 
         .district-grid {
             position: relative;
             z-index: 1;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         }
 
         .district-card {
@@ -445,9 +450,9 @@
             width: 100%;
             text-align: left;
             border: 1px solid var(--border);
-            border-radius: 26px;
+            border-radius: 22px;
             background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(17,24,39,0.94));
-            padding: 1.2rem;
+            padding: 1rem;
             color: var(--text);
             cursor: pointer;
             transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
@@ -467,14 +472,15 @@
         .district-card:hover,
         .district-card:focus-visible,
         .district-card.is-active {
-            transform: translateY(-4px);
+            transform: translateY(-2px);
             border-color: rgba(var(--accent-rgb), 0.55);
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(var(--accent-rgb), 0.2);
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(var(--accent-rgb), 0.2);
         }
 
         .district-header {
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
             gap: 1rem;
             margin-bottom: 1rem;
         }
@@ -512,6 +518,7 @@
             display: inline-flex;
             align-items: center;
             white-space: nowrap;
+            flex: 0 0 auto;
             align-self: start;
             border-radius: var(--radius-pill);
             border: 1px solid var(--border);
@@ -525,11 +532,11 @@
         }
 
         .skyline {
-            height: 64px;
+            height: 54px;
             display: flex;
             align-items: flex-end;
             gap: 6px;
-            margin-bottom: 1rem;
+            margin-bottom: 0.85rem;
         }
 
         .skyline span {
@@ -603,13 +610,14 @@
 
         .detail-sidebar {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 1.25rem;
         }
 
         .detail-header {
             display: flex;
-            justify-content: space-between;
             align-items: start;
+            flex-direction: column;
             gap: 1rem;
             margin-bottom: 1rem;
         }
@@ -621,10 +629,41 @@
         }
 
         .detail-copy {
-            margin: 0.75rem 0 0;
+            margin: 0;
             color: var(--muted);
             font-size: 0.95rem;
             line-height: 1.7;
+        }
+
+        .detail-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin: 0.75rem 0 0.9rem;
+        }
+
+        .detail-meta-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: var(--radius-pill);
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+            padding: 0.38rem 0.72rem;
+            font-size: 0.74rem;
+            line-height: 1.2;
+        }
+
+        .detail-meta-pill.is-zone {
+            color: #93C5FD;
+            border-color: rgba(59, 130, 246, 0.24);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .detail-meta-pill.is-risk {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.22);
+            background: rgba(239, 68, 68, 0.08);
         }
 
         .detail-badge {
@@ -798,20 +837,14 @@
             text-align: center;
         }
 
-        @keyframes drift {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-6px); }
-        }
-
         @media (max-width: 1180px) {
             .hero-grid,
-            .content-grid,
             .bottom-grid {
                 grid-template-columns: 1fr;
             }
 
-            .district-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+            .detail-sidebar {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -835,10 +868,6 @@
             .metric-grid,
             .landmark-grid,
             .era-track {
-                grid-template-columns: 1fr;
-            }
-
-            .district-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -936,8 +965,10 @@
                         <div>
                             <span class="eyebrow">Selected District</span>
                             <h2 class="detail-title" id="detail-name">Awaiting sync</h2>
-                            <p class="detail-copy" id="detail-zone" style="color:var(--blue);font-size:0.82rem;margin:0.5rem 0 0;"></p>
-                            <p class="detail-copy" id="detail-risk" style="font-size:0.82rem;margin:0.25rem 0 0;color:var(--danger);"></p>
+                            <div class="detail-meta">
+                                <span class="detail-meta-pill is-zone" id="detail-zone">Zone information pending</span>
+                                <span class="detail-meta-pill is-risk" id="detail-risk">Risk information pending</span>
+                            </div>
                             <p class="detail-copy" id="detail-description">Once intel syncs, select a district to inspect its operatives, unlocked landmarks, and relative war power.</p>
                         </div>
                         <div id="detail-badge" class="detail-badge">No stage</div>
@@ -983,7 +1014,7 @@
                     <div class="panel-header" style="margin-bottom: 1rem;">
                         <div>
                             <p class="panel-kicker">Top Operatives</p>
-                            <h3 class="panel-title" style="font-size:1.45rem;">Who controls this district?</h3>
+                            <h3 class="panel-title panel-title-sm">Who controls this district?</h3>
                         </div>
                         <span class="small-muted">Top 5 operatives by credits</span>
                     </div>
@@ -1417,9 +1448,6 @@
                             </div>
                             <span class="district-stage">${district.stage.name}</span>
                         </div>
-                        <div style="height:48px;overflow:hidden;border-radius:12px;margin-bottom:0.75rem;">
-                            <img src="${district.image || ''}" alt="${district.name}" style="width:100%;height:100%;object-fit:cover;opacity:0.6;" onerror="this.style.display='none'" />
-                        </div>
                         <div class="skyline">
                             ${heights.map((height, idx) => `<span class="${idx < activeBars ? 'is-on' : ''}" style="height:${height}px"></span>`).join('')}
                         </div>
@@ -1463,8 +1491,15 @@
             el('detail-badge').style.color = district.accent;
             el('detail-badge').style.borderColor = `rgba(${district.accentRgb}, 0.45)`;
             el('detail-badge').style.background = `rgba(${district.accentRgb}, 0.12)`;
-            el('detail-zone').textContent = district.zone ? `${district.zone} • ${district.faction || ''}` : '';
-            el('detail-risk').textContent = district.risk ? `Risk: ${district.risk}` : '';
+            let zoneText = 'Zone unavailable';
+            if (district.zone && district.faction) {
+                zoneText = `${district.zone} • ${district.faction}`;
+            } else if (district.zone) {
+                zoneText = district.zone;
+            }
+            const riskText = district.risk ? `Risk: ${district.risk}` : 'Risk unavailable';
+            el('detail-zone').textContent = zoneText;
+            el('detail-risk').textContent = riskText;
             el('detail-credits').textContent = `${formatAtomic(district.creditsAtomic, CREDIT_DECIMALS, 1)} credits`;
             el('detail-residents').textContent = district.residents.toLocaleString();
             el('detail-share').textContent = `${district.shareOfCity.toFixed(1)}%`;
