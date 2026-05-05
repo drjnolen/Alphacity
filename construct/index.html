@@ -426,6 +426,10 @@
             color: white;
         }
 
+        .panel-title-sm {
+            font-size: 1.45rem;
+        }
+
         .panel-copy {
             max-width: 46rem;
             color: var(--muted);
@@ -961,13 +965,13 @@
                          <div>
                              <span class="eyebrow">Selected District</span>
                              <h2 class="detail-title" id="detail-name">Awaiting sync</h2>
-                            <div class="detail-meta">
+                            <div class="detail-meta" aria-live="polite">
                                 <span class="detail-meta-pill is-zone" id="detail-zone" hidden></span>
                                 <span class="detail-meta-pill is-risk" id="detail-risk" hidden></span>
                             </div>
-                             <p class="detail-copy" id="detail-description">Once intel syncs, select a district to inspect its operatives, unlocked landmarks, and relative war power.</p>
-                         </div>
-                         <div id="detail-badge" class="detail-badge">No stage</div>
+                            <p class="detail-copy" id="detail-description">Once intel syncs, select a district to inspect its operatives, unlocked landmarks, and relative war power.</p>
+                        </div>
+                        <div id="detail-badge" class="detail-badge" aria-label="District stage">No stage</div>
                     </div>
 
                     <div class="metric-grid">
@@ -1010,7 +1014,7 @@
                     <div class="panel-header" style="margin-bottom: 1rem;">
                         <div>
                             <p class="panel-kicker">Top Operatives</p>
-                            <h3 class="panel-title" style="font-size:1.45rem;">District control</h3>
+                            <h3 class="panel-title panel-title-sm">District control</h3>
                         </div>
                         <span class="small-muted">Top 5 operatives by credits</span>
                     </div>
@@ -1484,6 +1488,7 @@
             el('detail-name').textContent = district.name;
             el('detail-description').textContent = district.description;
             el('detail-badge').textContent = district.stage.name;
+            el('detail-badge').setAttribute('aria-label', `District stage: ${district.stage.name}`);
             el('detail-badge').style.color = district.accent;
             el('detail-badge').style.borderColor = `rgba(${district.accentRgb}, 0.45)`;
             el('detail-badge').style.background = `rgba(${district.accentRgb}, 0.12)`;
