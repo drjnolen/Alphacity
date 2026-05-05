@@ -654,6 +654,10 @@
             line-height: 1.2;
         }
 
+        .detail-meta-pill.is-empty {
+            display: none;
+        }
+
         .detail-meta-pill.is-zone {
             color: #93C5FD;
             border-color: rgba(59, 130, 246, 0.24);
@@ -966,8 +970,8 @@
                             <span class="eyebrow">Selected District</span>
                             <h2 class="detail-title" id="detail-name">Awaiting sync</h2>
                             <div class="detail-meta">
-                                <span class="detail-meta-pill is-zone" id="detail-zone" hidden></span>
-                                <span class="detail-meta-pill is-risk" id="detail-risk" hidden></span>
+                                <span class="detail-meta-pill is-zone is-empty" id="detail-zone"></span>
+                                <span class="detail-meta-pill is-risk is-empty" id="detail-risk"></span>
                             </div>
                             <p class="detail-copy" id="detail-description">Once intel syncs, select a district to inspect its operatives, unlocked landmarks, and relative war power.</p>
                         </div>
@@ -1495,8 +1499,8 @@
             const riskText = district.risk ? `Risk: ${district.risk}` : '';
             el('detail-zone').textContent = zoneText;
             el('detail-risk').textContent = riskText;
-            el('detail-zone').hidden = zoneText === '';
-            el('detail-risk').hidden = riskText === '';
+            el('detail-zone').classList.toggle('is-empty', !zoneText);
+            el('detail-risk').classList.toggle('is-empty', !riskText);
             el('detail-credits').textContent = `${formatAtomic(district.creditsAtomic, CREDIT_DECIMALS, 1)} credits`;
             el('detail-residents').textContent = district.residents.toLocaleString();
             el('detail-share').textContent = `${district.shareOfCity.toFixed(1)}%`;
