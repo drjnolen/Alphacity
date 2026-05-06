@@ -1,0 +1,22 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#120E05"/>
+  <rect x="80" y="80" width="1040" height="1040" rx="52" fill="url(#bg)"/>
+  <circle cx="600" cy="448" r="220" fill="#1D1607" stroke="#F8C55C" stroke-width="16"/>
+  <path d="M434 832C434 738.112 510.112 662 604 662H596C689.888 662 766 738.112 766 832V900H434V832Z" fill="#1D1607" stroke="#FFF0BF" stroke-width="16"/>
+  <path d="M452 326H748L712 384H488L452 326Z" fill="#FFF0BF" fill-opacity="0.2" stroke="#FFF0BF" stroke-width="16"/>
+  <path d="M458 290L518 250H682L742 290" stroke="#F8C55C" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="520" cy="420" r="28" fill="#FFF7DC"/>
+  <circle cx="680" cy="420" r="28" fill="#FFF7DC"/>
+  <circle cx="520" cy="420" r="11" fill="#391D05"/>
+  <circle cx="680" cy="420" r="11" fill="#391D05"/>
+  <path d="M518 562C560.886 592.751 639.114 592.751 682 562" stroke="#F8C55C" stroke-width="18" stroke-linecap="round"/>
+  <path d="M420 690C478 648 536 626 600 626C664 626 722 648 780 690" stroke="#F8C55C" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 18"/>
+  <text x="600" y="1010" fill="#FFFDF6" font-family="Inter, sans-serif" font-size="82" font-weight="700" text-anchor="middle">Citizen 005</text>
+  <text x="600" y="1088" fill="#D8C28E" font-family="Inter, sans-serif" font-size="42" font-weight="500" text-anchor="middle">Solar Dust • Overcity Strategist</text>
+  <defs>
+    <linearGradient id="bg" x1="165" y1="96" x2="1042" y2="1090" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#725A17"/>
+      <stop offset="1" stop-color="#171004"/>
+    </linearGradient>
+  </defs>
+</svg>

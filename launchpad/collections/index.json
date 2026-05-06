@@ -1,0 +1,10 @@
+{
+  "defaultCollection": "citizens",
+  "collections": [
+    {
+      "id": "citizens",
+      "label": "Citizen NFTs",
+      "config": "./citizens/collection.json"
+    }
+  ]
+}

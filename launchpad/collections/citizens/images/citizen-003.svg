@@ -1,0 +1,21 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#07140F"/>
+  <rect x="80" y="80" width="1040" height="1040" rx="52" fill="url(#bg)"/>
+  <circle cx="600" cy="446" r="220" fill="#101A16" stroke="#92FFB8" stroke-width="16"/>
+  <path d="M438 830C438 735.559 514.559 659 609 659H591C685.441 659 762 735.559 762 830V900H438V830Z" fill="#101A16" stroke="#D0A6FF" stroke-width="16"/>
+  <path d="M466 348L600 236L734 348V392H466V348Z" fill="#92FFB8" fill-opacity="0.18" stroke="#92FFB8" stroke-width="16"/>
+  <circle cx="520" cy="420" r="32" fill="#E6D6FF"/>
+  <circle cx="680" cy="420" r="32" fill="#E6D6FF"/>
+  <circle cx="520" cy="420" r="12" fill="#231731"/>
+  <circle cx="680" cy="420" r="12" fill="#231731"/>
+  <path d="M505 565C558.052 605 641.948 605 695 565" stroke="#92FFB8" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="600" cy="270" r="86" fill="#D0A6FF" fill-opacity="0.18" stroke="#D0A6FF" stroke-width="16" stroke-dasharray="14 18"/>
+  <text x="600" y="1010" fill="#F5FFF9" font-family="Inter, sans-serif" font-size="82" font-weight="700" text-anchor="middle">Citizen 003</text>
+  <text x="600" y="1088" fill="#BFD6CA" font-family="Inter, sans-serif" font-size="42" font-weight="500" text-anchor="middle">Acid Mist • Overcity Enforcer</text>
+  <defs>
+    <linearGradient id="bg" x1="160" y1="90" x2="1080" y2="1100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#164733"/>
+      <stop offset="1" stop-color="#071611"/>
+    </linearGradient>
+  </defs>
+</svg>

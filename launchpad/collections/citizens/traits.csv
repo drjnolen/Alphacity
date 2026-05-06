@@ -1,0 +1,7 @@
+edition,name,image,Background,Faction,Role,Eyes,Accessory
+1,Citizen 001,./images/citizen-001.svg,Signal Blue,Overcity,Scout,Amber,Neon Collar
+2,Citizen 002,./images/citizen-002.svg,Crimson Grid,Underground,Engineer,Ice Blue,Signal Visor
+3,Citizen 003,./images/citizen-003.svg,Acid Mist,Overcity,Enforcer,Violet,Data Halo
+4,Citizen 004,./images/citizen-004.svg,Midnight Alloy,Underground,Smuggler,Emerald,Static Headset
+5,Citizen 005,./images/citizen-005.svg,Solar Dust,Overcity,Strategist,Ruby,Phase Cloak
+6,Citizen 006,./images/citizen-006.svg,Neon Eclipse,Underground,Runner,Silver,Relay Mask
