@@ -11,7 +11,8 @@
   "maxPerTx": 5,
   "network": {
     "name": "Sui Mainnet",
-    "rpcUrl": "https://fullnode.mainnet.sui.io:443",
+    "chain": "sui:mainnet",
+    "rpcUrl": "https://fullnode.mainnet.sui.io",
     "coinType": "0x2::sui::SUI"
   },
   "status": "coming-soon",
