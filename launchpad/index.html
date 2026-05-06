@@ -578,7 +578,7 @@
     async function loadLaunchpad() {
         const registryUrl = '/launchpad/collections/index.json';
         const registry = await fetchJson(registryUrl);
-        registry.__url = registryUrl;
+        registry.__url = resolveUrl(registryUrl, window.location.href);
         state.registry = registry;
         const requestedCollection = readQueryCollection();
         const collectionId = (registry.collections || []).some(collection => collection.id === requestedCollection)
