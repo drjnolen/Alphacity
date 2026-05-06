@@ -1,0 +1,19 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#130A12"/>
+  <rect x="80" y="80" width="1040" height="1040" rx="52" fill="url(#bg)"/>
+  <circle cx="600" cy="450" r="218" fill="#190E16" stroke="#FF8A8A" stroke-width="16"/>
+  <path d="M430 825C430 731.112 506.112 655 600 655C693.888 655 770 731.112 770 825V900H430V825Z" fill="#190E16" stroke="#8DE9FF" stroke-width="16"/>
+  <rect x="462" y="382" width="276" height="86" rx="43" fill="#92EDFF" fill-opacity="0.2" stroke="#92EDFF" stroke-width="16"/>
+  <rect x="486" y="410" width="90" height="30" rx="15" fill="#D5FBFF"/>
+  <rect x="624" y="410" width="90" height="30" rx="15" fill="#D5FBFF"/>
+  <path d="M498 300H702L762 360H438L498 300Z" fill="#FFB3B3" fill-opacity="0.22" stroke="#FF8A8A" stroke-width="16"/>
+  <path d="M520 556C567.289 582 632.711 582 680 556" stroke="#FF8A8A" stroke-width="18" stroke-linecap="round"/>
+  <text x="600" y="1010" fill="#FDF6F8" font-family="Inter, sans-serif" font-size="82" font-weight="700" text-anchor="middle">Citizen 002</text>
+  <text x="600" y="1088" fill="#D3AEBB" font-family="Inter, sans-serif" font-size="42" font-weight="500" text-anchor="middle">Crimson Grid • Underground Engineer</text>
+  <defs>
+    <linearGradient id="bg" x1="180" y1="90" x2="1030" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4A1224"/>
+      <stop offset="1" stop-color="#0F0A13"/>
+    </linearGradient>
+  </defs>
+</svg>

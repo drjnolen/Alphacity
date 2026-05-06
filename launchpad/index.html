@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha City Launchpad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>window.global = window;</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        'brand-primary': tailwind.colors.blue[500],
+                        'brand-primary-hover': tailwind.colors.blue[400],
+                        'brand-secondary': tailwind.colors.yellow[400],
+                        'brand-secondary-hover': tailwind.colors.yellow[300],
+                        'dark-bg': '#111827',
+                        'dark-card': '#1F2937',
+                        'dark-text': '#E5E7EB',
+                        'dark-text-secondary': '#9CA3AF',
+                    },
+                    boxShadow: {
+                        glow: '0 0 0 1px rgba(59, 130, 246, 0.18), 0 24px 60px rgba(15, 23, 42, 0.45)',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            background:
+                radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 35%),
+                linear-gradient(180deg, #111827 0%, #0b1120 100%);
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1F2937; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .grid-fade {
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.07) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-dark-text font-sans antialiased">
+    <header class="sticky top-0 z-50 border-b border-white/5 bg-dark-bg/80 backdrop-blur-sm">
+        <nav class="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+            <a href="/" class="text-2xl font-bold text-white">Alpha<span class="text-brand-secondary"> City</span></a>
+            <div class="flex items-center gap-3">
+                <a href="/" class="hidden text-sm text-dark-text-secondary transition-colors hover:text-white md:block">&larr; Back to Home</a>
+                <button id="connect-wallet-btn" class="flex items-center gap-2 rounded-lg bg-brand-primary px-5 py-2 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:bg-brand-primary-hover">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 010-2z" clip-rule="evenodd" />
+                    </svg>
+                    <span id="wallet-text">Connect Wallet</span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 py-10 sm:px-6 lg:px-8">
+        <section class="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+            <div class="overflow-hidden rounded-3xl border border-white/5 shadow-glow glass-panel">
+                <div class="grid-fade relative aspect-[4/3] overflow-hidden">
+                    <img id="hero-image" alt="Collection preview" class="h-full w-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/45 to-transparent"></div>
+                    <div class="absolute inset-x-0 bottom-0 p-6 md:p-8">
+                        <div class="mb-3 inline-flex rounded-full border border-brand-primary/30 bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-brand-primary" id="collection-eyebrow">Launchpad</div>
+                        <h1 id="collection-headline" class="max-w-3xl text-3xl font-extrabold leading-tight text-white md:text-5xl"></h1>
+                        <p id="collection-tagline" class="mt-4 max-w-2xl text-base text-dark-text-secondary md:text-lg"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="rounded-3xl border border-white/5 p-6 shadow-glow glass-panel">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-brand-secondary" id="status-label">Configurable collection</p>
+                            <h2 id="collection-name" class="mt-2 text-2xl font-bold text-white"></h2>
+                        </div>
+                        <div id="collection-switcher-wrap" class="hidden min-w-[12rem]">
+                            <label for="collection-switcher" class="mb-2 block text-xs uppercase tracking-[0.22em] text-dark-text-secondary">Collection</label>
+                            <select id="collection-switcher" class="w-full rounded-xl border border-gray-700 bg-dark-bg px-3 py-2 text-sm text-white outline-none transition-colors focus:border-brand-primary"></select>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-white/5 bg-dark-bg/70 p-4">
+                            <p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">Supply</p>
+                            <p id="stat-supply" class="mt-2 text-3xl font-bold text-white">—</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/5 bg-dark-bg/70 p-4">
+                            <p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">Mint Price</p>
+                            <p id="stat-price" class="mt-2 text-3xl font-bold text-white">—</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/5 bg-dark-bg/70 p-4">
+                            <p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">Metadata Rows</p>
+                            <p id="stat-rows" class="mt-2 text-3xl font-bold text-white">—</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/5 bg-dark-bg/70 p-4">
+                            <p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">Traits Indexed</p>
+                            <p id="stat-traits" class="mt-2 text-3xl font-bold text-white">—</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 rounded-2xl border border-brand-primary/15 bg-brand-primary/5 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">Mint Progress</p>
+                                <p class="mt-2 text-lg font-semibold text-white"><span id="minted-count">0</span> minted</p>
+                            </div>
+                            <p id="mint-note" class="max-w-xs text-right text-sm text-dark-text-secondary"></p>
+                        </div>
+                        <div class="mt-4 h-2 overflow-hidden rounded-full bg-dark-bg">
+                            <div id="progress-bar" class="h-full rounded-full bg-gradient-to-r from-brand-primary to-brand-secondary transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 rounded-2xl border border-white/5 bg-dark-bg/70 p-4">
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">Quantity</p>
+                                <p class="mt-2 text-sm text-dark-text-secondary">Max per transaction: <span id="max-qty-label">—</span></p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button id="qty-minus" class="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-700 bg-dark-card text-xl text-white transition-colors hover:border-brand-primary">&minus;</button>
+                                <span id="mint-qty" class="w-8 text-center text-xl font-bold text-white">1</span>
+                                <button id="qty-plus" class="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-700 bg-dark-card text-xl text-white transition-colors hover:border-brand-primary">+</button>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-sm">
+                            <span class="text-dark-text-secondary">Wallet Balance</span>
+                            <span id="sui-balance" class="font-medium text-white">—</span>
+                        </div>
+                    </div>
+
+                    <button id="mint-btn" class="mt-6 w-full rounded-2xl bg-gray-700 px-5 py-4 text-lg font-bold text-gray-300 shadow-lg transition-all">Loading launchpad…</button>
+                    <p id="mint-cta-caption" class="mt-3 text-center text-sm text-dark-text-secondary"></p>
+                    <div id="mint-status" class="mt-4 hidden rounded-2xl border px-4 py-3 text-sm"></div>
+                </div>
+
+                <div class="rounded-3xl border border-white/5 p-6 shadow-glow glass-panel">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-dark-text-secondary">Metadata Pipeline</p>
+                            <h3 class="mt-2 text-xl font-bold text-white">CSV-driven trait ingestion</h3>
+                        </div>
+                        <span class="rounded-full border border-brand-secondary/30 bg-brand-secondary/10 px-3 py-1 text-xs font-semibold text-brand-secondary" id="csv-source-label">Ready</span>
+                    </div>
+                    <p id="collection-description" class="mt-4 text-sm leading-6 text-dark-text-secondary"></p>
+                    <dl class="mt-5 space-y-4" id="collection-details"></dl>
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-10 grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+            <div class="rounded-3xl border border-white/5 p-6 shadow-glow glass-panel">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-dark-text-secondary">Mint Phases</p>
+                        <h2 class="mt-2 text-2xl font-bold text-white">Launch flow</h2>
+                    </div>
+                    <p class="max-w-xs text-right text-sm text-dark-text-secondary">Swap collections by updating the launchpad manifest. The page logic stays the same.</p>
+                </div>
+                <div id="phase-list" class="mt-6 space-y-3"></div>
+            </div>
+
+            <div class="rounded-3xl border border-white/5 p-6 shadow-glow glass-panel">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-dark-text-secondary">Trait Explorer</p>
+                        <h2 id="gallery-title" class="mt-2 text-2xl font-bold text-white">Preview uploaded collection</h2>
+                    </div>
+                    <p id="gallery-summary" class="text-sm text-dark-text-secondary"></p>
+                </div>
+                <div id="gallery-grid" class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"></div>
+            </div>
+        </section>
+
+        <section class="mt-10 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
+            <div class="rounded-3xl border border-white/5 p-6 shadow-glow glass-panel">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-dark-text-secondary">Selected NFT</p>
+                <div class="mt-4 overflow-hidden rounded-3xl border border-white/5 bg-dark-bg/60">
+                    <img id="selected-image" alt="Selected NFT preview" class="aspect-square w-full object-cover">
+                </div>
+                <div class="mt-4">
+                    <h3 id="selected-name" class="text-2xl font-bold text-white"></h3>
+                    <p id="selected-token-id" class="mt-2 text-sm text-dark-text-secondary"></p>
+                </div>
+            </div>
+            <div class="rounded-3xl border border-white/5 p-6 shadow-glow glass-panel">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-dark-text-secondary">Trait Breakdown</p>
+                <div id="trait-grid" class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-white/5 py-8">
+        <div class="container mx-auto px-4 text-center text-sm text-dark-text-secondary sm:px-6 lg:px-8">
+            &copy; <span id="current-year"></span> Alpha City. Hidden launchpad build.
+        </div>
+    </footer>
+
+    <script>
+    const SUI_RPC = 'https://fullnode.mainnet.sui.io:443';
+    const SUI_TYPE = '0x2::sui::SUI';
+    const RESERVED_COLUMNS = new Set(['id', 'edition', 'name', 'image', 'description', 'external_url', 'animation_url']);
+
+    const state = {
+        registry: null,
+        activeCollectionId: null,
+        activeCollectionUrl: null,
+        activeCollection: null,
+        collectionItems: [],
+        totalMetadataRows: 0,
+        traitKeys: [],
+        selectedItemIndex: 0,
+        mintQty: 1,
+        connectedAddress: null,
+        connectedAccount: null,
+        connectedWalletEntry: null,
+        suiBalance: null,
+    };
+
+    document.getElementById('current-year').textContent = String(new Date().getFullYear());
+
+    function b(id) { return document.getElementById(id); }
+    function numberFmt(value) { return Number(value || 0).toLocaleString(); }
+    function shortAddr(address) { return (!address || address.length < 11) ? address : address.slice(0, 6) + '...' + address.slice(-4); }
+    function isValidSuiAddress(value) { return /^0x[0-9a-fA-F]{40,64}$/.test((value || '').trim()); }
+    function resolveUrl(path, base) { return new URL(path, base).toString(); }
+    function readQueryCollection() { return new URLSearchParams(window.location.search).get('collection'); }
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+    function showStatus(message, type) {
+        const el = b('mint-status');
+        const styles = {
+            info: 'border-blue-500/30 bg-blue-500/10 text-blue-100',
+            success: 'border-green-500/30 bg-green-500/10 text-green-100',
+            error: 'border-red-500/30 bg-red-500/10 text-red-100',
+        };
+        el.className = 'mt-4 rounded-2xl border px-4 py-3 text-sm ' + (styles[type] || styles.info);
+        el.textContent = message;
+        el.classList.remove('hidden');
+    }
+    function hideStatus() { b('mint-status').classList.add('hidden'); }
+
+    async function fetchJson(url) {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to load ' + url + ' (' + response.status + ')');
+        return response.json();
+    }
+
+    async function fetchText(url) {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to load ' + url + ' (' + response.status + ')');
+        return response.text();
+    }
+
+    function parseCsv(source) {
+        const rows = [];
+        let row = [];
+        let value = '';
+        let inQuotes = false;
+        for (let i = 0; i < source.length; i++) {
+            const char = source[i];
+            const next = source[i + 1];
+            if (char === '"') {
+                if (inQuotes && next === '"') {
+                    value += '"';
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                row.push(value);
+                value = '';
+            } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                if (char === '\r' && next === '\n') i++;
+                row.push(value);
+                value = '';
+                if (row.some(cell => cell.trim() !== '')) rows.push(row);
+                row = [];
+            } else {
+                value += char;
+            }
+        }
+        if (value.length || row.length) {
+            row.push(value);
+            if (row.some(cell => cell.trim() !== '')) rows.push(row);
+        }
+        if (!rows.length) return [];
+        const headers = rows.shift().map(header => header.trim());
+        return rows.map(rowValues => {
+            const result = {};
+            headers.forEach((header, index) => {
+                result[header] = (rowValues[index] || '').trim();
+            });
+            return result;
+        });
+    }
+
+    function getTraitKeys(items) {
+        const keys = new Set();
+        items.forEach(item => {
+            Object.keys(item).forEach(key => {
+                if (!RESERVED_COLUMNS.has(key.toLowerCase()) && item[key]) keys.add(key);
+            });
+        });
+        return [...keys];
+    }
+
+    function collectionSupply() {
+        if (!state.activeCollection) return 0;
+        return Number(state.activeCollection.supply || state.collectionItems.length || 0);
+    }
+
+    function collectionMinted() {
+        return Number(state.activeCollection?.minted || 0);
+    }
+
+    function collectionPrice() {
+        return Number(state.activeCollection?.priceSui || 0);
+    }
+
+    function maxQty() {
+        return Math.max(1, Number(state.activeCollection?.maxPerTx || 1));
+    }
+
+    function selectedItem() {
+        return state.collectionItems[state.selectedItemIndex] || state.collectionItems[0] || null;
+    }
+
+    function updateMintQtyDisplay() {
+        b('mint-qty').textContent = String(state.mintQty);
+    }
+
+    function updateMintBtn() {
+        const button = b('mint-btn');
+        const caption = b('mint-cta-caption');
+        const contract = state.activeCollection?.contract || { mode: 'coming-soon' };
+        const disabledClasses = 'mt-6 w-full rounded-2xl bg-gray-700 px-5 py-4 text-lg font-bold text-gray-300 shadow-lg transition-all cursor-not-allowed';
+        const enabledClasses = 'mt-6 w-full rounded-2xl bg-brand-secondary px-5 py-4 text-lg font-bold text-gray-900 shadow-lg shadow-yellow-500/20 transition-all hover:-translate-y-0.5 hover:bg-brand-secondary-hover';
+
+        if (!state.activeCollection) {
+            button.disabled = true;
+            button.className = disabledClasses;
+            button.textContent = 'Loading launchpad…';
+            caption.textContent = '';
+            return;
+        }
+
+        if (collectionMinted() >= collectionSupply() && collectionSupply() > 0) {
+            button.disabled = true;
+            button.className = disabledClasses;
+            button.textContent = 'Sold Out';
+            caption.textContent = 'All NFTs in this collection have been minted.';
+            return;
+        }
+
+        if (contract.mode !== 'enabled') {
+            button.disabled = true;
+            button.className = disabledClasses;
+            button.textContent = contract.ctaLabel || 'Mint opens soon';
+            caption.textContent = contract.message || 'Update this collection manifest when the mint contract is ready.';
+            return;
+        }
+
+        if (!state.connectedAddress) {
+            button.disabled = true;
+            button.className = disabledClasses;
+            button.textContent = 'Connect Wallet to Mint';
+            caption.textContent = 'Use a Sui wallet to mint from the launchpad.';
+            return;
+        }
+
+        button.disabled = false;
+        button.className = enabledClasses;
+        button.textContent = 'Mint ' + state.mintQty + ' NFT' + (state.mintQty > 1 ? 's' : '') + ' for ' + (state.mintQty * collectionPrice()) + ' SUI';
+        caption.textContent = 'Collection-specific mint wiring is configured from the active manifest.';
+    }
+
+    function renderCollectionSwitcher() {
+        const collections = state.registry?.collections || [];
+        const wrap = b('collection-switcher-wrap');
+        const select = b('collection-switcher');
+        if (collections.length <= 1) {
+            wrap.classList.add('hidden');
+            select.innerHTML = '';
+            return;
+        }
+        wrap.classList.remove('hidden');
+        select.innerHTML = collections.map(collection => {
+            const selected = collection.id === state.activeCollectionId ? ' selected' : '';
+            return '<option value="' + escapeHtml(collection.id) + '"' + selected + '>' + escapeHtml(collection.label || collection.id) + '</option>';
+        }).join('');
+    }
+
+    function renderOverview() {
+        const collection = state.activeCollection;
+        if (!collection) return;
+        const supply = collectionSupply();
+        const minted = collectionMinted();
+        const pct = supply > 0 ? Math.min(100, (minted / supply) * 100) : 0;
+        const selected = selectedItem();
+        const heroImage = collection.heroImageResolved || selected?.imageResolved || '';
+
+        b('collection-eyebrow').textContent = collection.eyebrow || 'Alpha City Launchpad';
+        b('collection-headline').textContent = collection.headline || collection.name || 'Collection';
+        b('collection-tagline').textContent = collection.tagline || '';
+        b('collection-name').textContent = collection.name || 'Unnamed Collection';
+        b('status-label').textContent = collection.statusLabel || 'Configurable collection';
+        b('collection-description').textContent = collection.description || '';
+        b('hero-image').src = heroImage;
+        b('hero-image').alt = (collection.name || 'Collection') + ' hero artwork';
+
+        b('stat-supply').textContent = numberFmt(supply);
+        b('stat-price').textContent = collectionPrice().toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' SUI';
+        b('stat-rows').textContent = numberFmt(state.totalMetadataRows);
+        b('stat-traits').textContent = numberFmt(state.traitKeys.length);
+        b('minted-count').textContent = numberFmt(minted);
+        b('mint-note').textContent = collection.mintNote || 'Upload a new manifest and CSV to update this hidden launchpad.';
+        b('max-qty-label').textContent = String(maxQty());
+        b('progress-bar').style.width = pct + '%';
+        b('csv-source-label').textContent = (state.collectionItems.length ? 'CSV loaded' : 'Awaiting metadata');
+        b('gallery-title').textContent = 'Preview ' + (collection.name || 'uploaded collection');
+
+        const details = collection.details || [];
+        b('collection-details').innerHTML = details.map(detail => (
+            '<div class="flex items-start justify-between gap-4 border-t border-white/5 pt-4 first:border-t-0 first:pt-0">' +
+                '<dt class="text-sm text-dark-text-secondary">' + escapeHtml(detail.label) + '</dt>' +
+                '<dd class="max-w-sm text-right text-sm font-medium text-white">' + escapeHtml(detail.value) + '</dd>' +
+            '</div>'
+        )).join('');
+
+        b('gallery-summary').textContent = state.totalMetadataRows
+            ? 'Showing ' + numberFmt(state.collectionItems.length) + ' preview cards from ' + numberFmt(state.totalMetadataRows) + ' metadata rows parsed from the uploaded CSV.'
+            : 'Upload a CSV with image paths and trait columns to seed the explorer.';
+    }
+
+    function renderPhases() {
+        const phases = state.activeCollection?.phases || [];
+        b('phase-list').innerHTML = phases.map((phase, index) => {
+            const isActive = phase.state === 'active';
+            const isComplete = phase.state === 'complete';
+            const tone = isActive
+                ? 'border-brand-secondary/30 bg-brand-secondary/10 text-white'
+                : isComplete
+                    ? 'border-green-500/20 bg-green-500/10 text-white'
+                    : 'border-white/5 bg-dark-bg/70 text-dark-text-secondary';
+            const badgeTone = isActive
+                ? 'bg-brand-secondary/20 text-brand-secondary'
+                : isComplete
+                    ? 'bg-green-500/20 text-green-300'
+                    : 'bg-gray-700/60 text-gray-400';
+            const badgeLabel = isActive ? 'Active' : isComplete ? 'Complete' : 'Upcoming';
+            return '<div class="rounded-2xl border p-4 ' + tone + '">' +
+                '<div class="flex items-start gap-4">' +
+                    '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-dark-bg text-sm font-bold text-white">' + (index + 1) + '</div>' +
+                    '<div class="min-w-0 flex-1">' +
+                        '<div class="flex flex-wrap items-center gap-2">' +
+                            '<h3 class="text-base font-semibold">' + escapeHtml(phase.name || ('Phase ' + (index + 1))) + '</h3>' +
+                            '<span class="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ' + badgeTone + '">' + badgeLabel + '</span>' +
+                        '</div>' +
+                        '<p class="mt-2 text-sm leading-6 text-dark-text-secondary">' + escapeHtml(phase.description || '') + '</p>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function renderGallery() {
+        const items = state.collectionItems;
+        if (!items.length) {
+            b('gallery-grid').innerHTML = '<div class="rounded-2xl border border-dashed border-white/10 bg-dark-bg/50 p-6 text-sm text-dark-text-secondary sm:col-span-2 xl:col-span-3">No metadata rows were found in the active CSV.</div>';
+            return;
+        }
+        b('gallery-grid').innerHTML = items.map((item, index) => {
+            const active = index === state.selectedItemIndex;
+            const border = active ? 'border-brand-primary shadow-lg shadow-blue-500/10' : 'border-white/5 hover:border-brand-primary/40';
+            const tokenId = escapeHtml(item.edition || item.id || String(index + 1));
+            return '<button type="button" data-gallery-index="' + index + '" class="gallery-card overflow-hidden rounded-2xl border bg-dark-bg/70 text-left transition-all ' + border + '">' +
+                '<img src="' + escapeHtml(item.imageResolved || state.activeCollection.heroImageResolved || '') + '" alt="' + escapeHtml(item.name || ('NFT ' + tokenId)) + '" class="aspect-square w-full object-cover">' +
+                '<div class="p-4">' +
+                    '<p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">Edition ' + tokenId + '</p>' +
+                    '<h3 class="mt-2 text-lg font-semibold text-white">' + escapeHtml(item.name || ('Citizen ' + tokenId)) + '</h3>' +
+                    '<p class="mt-2 text-sm text-dark-text-secondary">' + escapeHtml(state.traitKeys.slice(0, 2).map(key => key + ': ' + (item[key] || '—')).join(' • ')) + '</p>' +
+                '</div>' +
+            '</button>';
+        }).join('');
+        document.querySelectorAll('[data-gallery-index]').forEach(button => {
+            button.addEventListener('click', () => {
+                state.selectedItemIndex = Number(button.getAttribute('data-gallery-index')) || 0;
+                renderGallery();
+                renderSelectedItem();
+            });
+        });
+    }
+
+    function renderSelectedItem() {
+        const item = selectedItem();
+        if (!item) {
+            b('selected-image').src = state.activeCollection?.heroImageResolved || '';
+            b('selected-name').textContent = 'Awaiting metadata';
+            b('selected-token-id').textContent = 'Upload a CSV row to populate this panel.';
+            b('trait-grid').innerHTML = '<div class="rounded-2xl border border-dashed border-white/10 bg-dark-bg/50 p-6 text-sm text-dark-text-secondary sm:col-span-2 xl:col-span-3">Trait cards appear here after CSV parsing.</div>';
+            return;
+        }
+        b('selected-image').src = item.imageResolved || state.activeCollection.heroImageResolved || '';
+        b('selected-name').textContent = item.name || state.activeCollection?.name || 'NFT Preview';
+        b('selected-token-id').textContent = 'Edition ' + (item.edition || item.id || String(state.selectedItemIndex + 1));
+        const cards = state.traitKeys.map(key => (
+            '<div class="rounded-2xl border border-white/5 bg-dark-bg/70 p-4">' +
+                '<p class="text-xs uppercase tracking-[0.2em] text-dark-text-secondary">' + escapeHtml(key) + '</p>' +
+                '<p class="mt-2 text-lg font-semibold text-white">' + escapeHtml(item[key] || '—') + '</p>' +
+            '</div>'
+        ));
+        b('trait-grid').innerHTML = cards.length
+            ? cards.join('')
+            : '<div class="rounded-2xl border border-dashed border-white/10 bg-dark-bg/50 p-6 text-sm text-dark-text-secondary sm:col-span-2 xl:col-span-3">No trait columns were found beyond the reserved metadata fields.</div>';
+    }
+
+    function renderCollection() {
+        renderCollectionSwitcher();
+        renderOverview();
+        renderPhases();
+        renderGallery();
+        renderSelectedItem();
+        updateMintQtyDisplay();
+        updateMintBtn();
+    }
+
+    async function loadCollection(collectionId) {
+        hideStatus();
+        const entry = (state.registry?.collections || []).find(collection => collection.id === collectionId);
+        if (!entry) throw new Error('Unknown collection: ' + collectionId);
+        const collectionUrl = resolveUrl(entry.config, state.registry.__url);
+        const collection = await fetchJson(collectionUrl);
+        const csvUrl = collection.csv ? resolveUrl(collection.csv, collectionUrl) : null;
+        const items = csvUrl ? parseCsv(await fetchText(csvUrl)) : [];
+        items.forEach(item => {
+            if (item.image) item.imageResolved = resolveUrl(item.image, csvUrl);
+        });
+
+        state.activeCollectionId = entry.id;
+        state.activeCollectionUrl = collectionUrl;
+        state.activeCollection = collection;
+        state.activeCollection.heroImageResolved = collection.heroImage ? resolveUrl(collection.heroImage, collectionUrl) : (items[0]?.imageResolved || '');
+        state.totalMetadataRows = items.length;
+        state.collectionItems = items.slice(0, Math.max(1, Number(collection.galleryLimit || items.length || 0)));
+        state.traitKeys = getTraitKeys(items);
+        state.selectedItemIndex = 0;
+        state.mintQty = Math.min(state.mintQty, maxQty());
+        renderCollection();
+    }
+
+    async function loadLaunchpad() {
+        const registryUrl = '/launchpad/collections/index.json';
+        const registry = await fetchJson(registryUrl);
+        registry.__url = registryUrl;
+        state.registry = registry;
+        const requestedCollection = readQueryCollection();
+        const collectionId = (registry.collections || []).some(collection => collection.id === requestedCollection)
+            ? requestedCollection
+            : registry.defaultCollection;
+        await loadCollection(collectionId);
+    }
+
+    b('collection-switcher').addEventListener('change', async (event) => {
+        const nextCollection = event.target.value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('collection', nextCollection);
+        window.history.replaceState({}, '', url.toString());
+        await loadCollection(nextCollection);
+    });
+
+    b('qty-minus').addEventListener('click', () => {
+        if (state.mintQty > 1) {
+            state.mintQty -= 1;
+            updateMintQtyDisplay();
+            updateMintBtn();
+        }
+    });
+
+    b('qty-plus').addEventListener('click', () => {
+        if (state.mintQty < maxQty()) {
+            state.mintQty += 1;
+            updateMintQtyDisplay();
+            updateMintBtn();
+        }
+    });
+
+    async function rpc(method, params) {
+        const response = await fetch(SUI_RPC, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+        });
+        if (!response.ok) throw new Error('SUI RPC HTTP ' + response.status);
+        const payload = await response.json();
+        if (payload.error) throw new Error(payload.error.message || 'SUI RPC error');
+        return payload.result;
+    }
+
+    async function fetchSuiBalance(address) {
+        const result = await rpc('suix_getBalance', [address, SUI_TYPE]);
+        return BigInt(result.totalBalance || '0');
+    }
+
+    function updateBalanceDisplay() {
+        if (state.suiBalance === null) {
+            b('sui-balance').textContent = '—';
+            return;
+        }
+        b('sui-balance').textContent = (Number(state.suiBalance) / 1e9).toFixed(4) + ' SUI';
+    }
+
+    const registeredWallets = new Set();
+    let walletListCache;
+    function registerWallet(wallet) { walletListCache = undefined; registeredWallets.add(wallet); }
+    function getRegisteredWallets() {
+        if (!walletListCache) walletListCache = [...registeredWallets];
+        return walletListCache;
+    }
+    class WalletStandardEvent extends Event {
+        #api;
+        get detail() { return this.#api; }
+        get type() { return 'wallet-standard:app-ready'; }
+        constructor(api) {
+            super('wallet-standard:app-ready', { bubbles: false, cancelable: false, composed: false });
+            this.#api = api;
+        }
+    }
+    function initWalletStandard() {
+        const appApi = Object.freeze({ register: (...wallets) => wallets.forEach(registerWallet) });
+        try { window.addEventListener('wallet-standard:register-wallet', event => event.detail(appApi)); } catch (_) {}
+        try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (_) {}
+    }
+    function isSuiWallet(wallet) {
+        if (!wallet.features?.['standard:connect']) return false;
+        const chains = wallet.chains || [];
+        return chains.length === 0 || chains.some(chain => typeof chain === 'string' && chain.startsWith('sui:'));
+    }
+    function discoverWallets() {
+        const found = [];
+        const seen = new Set();
+        for (const wallet of getRegisteredWallets()) {
+            if (isSuiWallet(wallet) && !seen.has(wallet.name)) {
+                seen.add(wallet.name);
+                found.push({ source: 'standard', name: wallet.name, wallet });
+            }
+        }
+        const legacy = [
+            { name: 'Slush', obj: window.slush?.sui || window.slush },
+            { name: 'Sui Wallet', obj: window.suiWallet },
+            { name: 'Sui', obj: window.sui },
+            { name: 'Martian', obj: window.martian?.sui || window.martian },
+            { name: 'Ethos', obj: window.ethos?.sui || window.ethos },
+        ];
+        legacy.forEach(candidate => {
+            if (candidate.obj && !seen.has(candidate.name)) {
+                seen.add(candidate.name);
+                found.push({ source: 'legacy', name: candidate.name, provider: candidate.obj });
+            }
+        });
+        return found;
+    }
+
+    const connectBtn = b('connect-wallet-btn');
+    const walletLabel = b('wallet-text');
+
+    function makeOverlay() {
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4';
+        return overlay;
+    }
+
+    function pickWallet(wallets) {
+        return new Promise(resolve => {
+            const overlay = makeOverlay();
+            overlay.innerHTML =
+                '<div class="w-full max-w-sm rounded-3xl border border-white/10 bg-dark-card p-6 shadow-2xl">' +
+                    '<h3 class="text-lg font-bold text-white">Select Wallet</h3>' +
+                    '<div id="wallet-picker" class="mt-4 space-y-2"></div>' +
+                    '<button id="wallet-picker-cancel" class="mt-4 w-full rounded-xl border border-white/10 px-4 py-3 text-sm text-dark-text-secondary transition-colors hover:text-white">Cancel</button>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            wallets.forEach(entry => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'w-full rounded-xl border border-white/10 bg-dark-bg px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-primary';
+                button.textContent = entry.name;
+                button.addEventListener('click', () => {
+                    document.body.removeChild(overlay);
+                    resolve(entry);
+                });
+                b('wallet-picker').appendChild(button);
+            });
+            b('wallet-picker-cancel').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                resolve(null);
+            });
+        });
+    }
+
+    function pickAccount(accounts) {
+        return new Promise(resolve => {
+            const overlay = makeOverlay();
+            overlay.innerHTML =
+                '<div class="w-full max-w-sm rounded-3xl border border-white/10 bg-dark-card p-6 shadow-2xl">' +
+                    '<h3 class="text-lg font-bold text-white">Select Account</h3>' +
+                    '<div id="account-picker" class="mt-4 space-y-2"></div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            accounts.forEach(account => {
+                const address = account?.address || account;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'w-full rounded-xl border border-white/10 bg-dark-bg px-4 py-3 text-left font-mono text-sm text-blue-300 transition-colors hover:border-brand-primary';
+                button.textContent = shortAddr(address);
+                button.title = address;
+                button.addEventListener('click', () => {
+                    document.body.removeChild(overlay);
+                    resolve(account);
+                });
+                b('account-picker').appendChild(button);
+            });
+        });
+    }
+
+    function disconnectWallet() {
+        state.connectedAddress = null;
+        state.connectedAccount = null;
+        state.connectedWalletEntry = null;
+        state.suiBalance = null;
+        walletLabel.textContent = 'Connect Wallet';
+        connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+        connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
+        try { localStorage.removeItem('alphacity_wallet'); } catch (_) {}
+        updateBalanceDisplay();
+        updateMintBtn();
+    }
+
+    async function performDisconnect() {
+        if (state.connectedWalletEntry?.source === 'standard') {
+            try {
+                const disconnectFeature = state.connectedWalletEntry.wallet.features?.['standard:disconnect'];
+                if (disconnectFeature?.disconnect) await disconnectFeature.disconnect();
+            } catch (_) {}
+        } else if (state.connectedWalletEntry?.source === 'legacy') {
+            try {
+                if (typeof state.connectedWalletEntry.provider?.disconnect === 'function') await state.connectedWalletEntry.provider.disconnect();
+            } catch (_) {}
+        }
+        disconnectWallet();
+    }
+
+    function showWalletOptions() {
+        return new Promise(resolve => {
+            const overlay = makeOverlay();
+            overlay.innerHTML =
+                '<div class="w-full max-w-sm rounded-3xl border border-white/10 bg-dark-card p-6 shadow-2xl">' +
+                    '<h3 class="text-lg font-bold text-white">Wallet Options</h3>' +
+                    '<div class="mt-4 space-y-2">' +
+                        '<button id="wallet-switch" class="w-full rounded-xl border border-white/10 bg-dark-bg px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:border-brand-primary">Switch Wallet</button>' +
+                        '<button id="wallet-disconnect" class="w-full rounded-xl border border-white/10 bg-dark-bg px-4 py-3 text-left text-sm font-medium text-red-300 transition-colors hover:border-red-400">Disconnect</button>' +
+                    '</div>' +
+                    '<button id="wallet-cancel" class="mt-4 w-full rounded-xl border border-white/10 px-4 py-3 text-sm text-dark-text-secondary transition-colors hover:text-white">Cancel</button>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            b('wallet-switch').addEventListener('click', async () => {
+                document.body.removeChild(overlay);
+                await performDisconnect();
+                try { await connectWallet(); } catch (error) { showStatus('Wallet error: ' + (error?.message || error), 'error'); }
+                resolve('switch');
+            });
+            b('wallet-disconnect').addEventListener('click', async () => {
+                document.body.removeChild(overlay);
+                await performDisconnect();
+                resolve('disconnect');
+            });
+            b('wallet-cancel').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                resolve(null);
+            });
+        });
+    }
+
+    async function connectWallet() {
+        let wallets = discoverWallets();
+        if (!wallets.length) {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            wallets = discoverWallets();
+        }
+        if (!wallets.length) {
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            wallets = discoverWallets();
+        }
+        if (!wallets.length) throw new Error('No Sui wallet found. Install Slush, Sui Wallet, or another Sui-compatible wallet.');
+
+        const walletEntry = wallets.length === 1 ? wallets[0] : await pickWallet(wallets);
+        if (!walletEntry) return;
+
+        walletLabel.textContent = 'Connecting…';
+        connectBtn.disabled = true;
+        try {
+            let accounts;
+            if (walletEntry.source === 'standard') {
+                try {
+                    const disconnectFeature = walletEntry.wallet.features?.['standard:disconnect'];
+                    if (disconnectFeature?.disconnect) await disconnectFeature.disconnect();
+                } catch (_) {}
+                const connectResult = await walletEntry.wallet.features['standard:connect'].connect();
+                accounts = connectResult?.accounts || walletEntry.wallet.accounts || [];
+            } else {
+                const provider = walletEntry.provider;
+                if (typeof provider.connect === 'function') await provider.connect();
+                let addresses = [];
+                if (typeof provider.getAccounts === 'function') {
+                    const providerAccounts = await provider.getAccounts();
+                    addresses = (providerAccounts || []).map(account => account?.address || account).filter(Boolean);
+                }
+                if (!addresses.length && Array.isArray(provider.accounts)) addresses = provider.accounts.map(account => account?.address || account).filter(Boolean);
+                if (!addresses.length && typeof provider.account === 'string') addresses = [provider.account];
+                accounts = addresses.map(address => ({ address }));
+            }
+
+            const suiAccounts = accounts.filter(account => !account.chains || account.chains.includes('sui:mainnet'));
+            const availableAccounts = suiAccounts.length ? suiAccounts : accounts;
+            if (!availableAccounts.length) throw new Error('Wallet provided no Sui accounts.');
+            const account = availableAccounts.length === 1 ? availableAccounts[0] : await pickAccount(availableAccounts);
+            const address = String(account?.address || account || '').trim();
+            if (!isValidSuiAddress(address)) throw new Error('Wallet did not provide a valid Sui address.');
+
+            state.connectedAddress = address;
+            state.connectedAccount = account;
+            state.connectedWalletEntry = walletEntry;
+            state.suiBalance = await fetchSuiBalance(address);
+
+            walletLabel.textContent = shortAddr(address);
+            connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+            connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+            try { localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: walletEntry.name, address })); } catch (_) {}
+            updateBalanceDisplay();
+            updateMintBtn();
+        } finally {
+            connectBtn.disabled = false;
+            if (!state.connectedAddress) walletLabel.textContent = 'Connect Wallet';
+        }
+    }
+
+    async function tryAutoReconnect() {
+        try {
+            const saved = localStorage.getItem('alphacity_wallet');
+            if (!saved) return;
+            const parsed = JSON.parse(saved);
+            if (!parsed?.walletName || !isValidSuiAddress(parsed.address)) return;
+            await new Promise(resolve => setTimeout(resolve, 400));
+            const wallets = discoverWallets();
+            const walletEntry = wallets.find(wallet => wallet.name === parsed.walletName);
+            if (!walletEntry) return;
+            walletLabel.textContent = 'Connecting…';
+            let accounts;
+            if (walletEntry.source === 'standard') {
+                const connectResult = await walletEntry.wallet.features['standard:connect'].connect({ silent: true });
+                accounts = connectResult?.accounts || walletEntry.wallet.accounts || [];
+            } else {
+                const provider = walletEntry.provider;
+                if (typeof provider.connect === 'function') await provider.connect();
+                let addresses = [];
+                if (typeof provider.getAccounts === 'function') {
+                    const providerAccounts = await provider.getAccounts();
+                    addresses = (providerAccounts || []).map(account => account?.address || account).filter(Boolean);
+                }
+                if (!addresses.length && Array.isArray(provider.accounts)) addresses = provider.accounts.map(account => account?.address || account).filter(Boolean);
+                if (!addresses.length && typeof provider.account === 'string') addresses = [provider.account];
+                accounts = addresses.map(address => ({ address }));
+            }
+            const account = accounts.find(candidate => String(candidate?.address || candidate).trim() === parsed.address) || accounts[0];
+            const address = String(account?.address || account || '').trim();
+            if (!isValidSuiAddress(address)) return;
+            state.connectedAddress = address;
+            state.connectedAccount = account;
+            state.connectedWalletEntry = walletEntry;
+            state.suiBalance = await fetchSuiBalance(address);
+            walletLabel.textContent = shortAddr(address);
+            connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+            connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+            updateBalanceDisplay();
+            updateMintBtn();
+        } catch (_) {
+            walletLabel.textContent = 'Connect Wallet';
+        }
+    }
+
+    connectBtn.addEventListener('click', () => {
+        if (state.connectedAddress) {
+            showWalletOptions();
+        } else {
+            connectWallet().catch(error => showStatus('Wallet connection failed: ' + (error?.message || error), 'error'));
+        }
+    });
+
+    b('mint-btn').addEventListener('click', () => {
+        const contract = state.activeCollection?.contract || { mode: 'coming-soon' };
+        if (contract.mode !== 'enabled') {
+            showStatus(contract.message || 'Mint contract integration is still pending for this collection.', 'info');
+            return;
+        }
+        showStatus('Mint execution wiring will be added from the active collection manifest.', 'info');
+    });
+
+    initWalletStandard();
+    updateBalanceDisplay();
+    loadLaunchpad().catch(error => {
+        showStatus(error?.message || 'Failed to load launchpad data.', 'error');
+        b('collection-headline').textContent = 'Launchpad unavailable';
+        b('collection-tagline').textContent = 'Check the collection manifest or CSV paths and reload the page.';
+        b('mint-btn').textContent = 'Launchpad unavailable';
+    });
+    tryAutoReconnect();
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#090D15"/>
+  <rect x="80" y="80" width="1040" height="1040" rx="52" fill="url(#bg)"/>
+  <circle cx="600" cy="450" r="220" fill="#141B26" stroke="#A7B8D9" stroke-width="16"/>
+  <path d="M432 826C432 733.216 507.216 658 600 658C692.784 658 768 733.216 768 826V900H432V826Z" fill="#141B26" stroke="#4EF2D8" stroke-width="16"/>
+  <path d="M470 360C500 304 552 272 600 272C648 272 700 304 730 360" stroke="#A7B8D9" stroke-width="18" stroke-linecap="round"/>
+  <rect x="458" y="386" width="110" height="58" rx="29" fill="#E8F6FF"/>
+  <rect x="632" y="386" width="110" height="58" rx="29" fill="#E8F6FF"/>
+  <circle cx="513" cy="415" r="14" fill="#09101A"/>
+  <circle cx="687" cy="415" r="14" fill="#09101A"/>
+  <path d="M510 554C551.59 585.916 648.41 585.916 690 554" stroke="#4EF2D8" stroke-width="18" stroke-linecap="round"/>
+  <path d="M420 312L480 266M780 312L720 266" stroke="#4EF2D8" stroke-width="14" stroke-linecap="round"/>
+  <text x="600" y="1010" fill="#F4F8FF" font-family="Inter, sans-serif" font-size="82" font-weight="700" text-anchor="middle">Citizen 004</text>
+  <text x="600" y="1088" fill="#A3B2C8" font-family="Inter, sans-serif" font-size="42" font-weight="500" text-anchor="middle">Midnight Alloy • Underground Smuggler</text>
+  <defs>
+    <linearGradient id="bg" x1="160" y1="96" x2="1040" y2="1090" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#263141"/>
+      <stop offset="1" stop-color="#0B111C"/>
+    </linearGradient>
+  </defs>
+</svg>

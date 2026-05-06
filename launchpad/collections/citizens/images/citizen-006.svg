@@ -1,0 +1,20 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#090910"/>
+  <rect x="80" y="80" width="1040" height="1040" rx="52" fill="url(#bg)"/>
+  <circle cx="600" cy="446" r="220" fill="#10111A" stroke="#B2B9FF" stroke-width="16"/>
+  <path d="M432 828C432 735.216 507.216 660 600 660C692.784 660 768 735.216 768 828V900H432V828Z" fill="#10111A" stroke="#7FF3FF" stroke-width="16"/>
+  <rect x="456" y="392" width="288" height="70" rx="35" fill="#B2B9FF" fill-opacity="0.16" stroke="#B2B9FF" stroke-width="16"/>
+  <rect x="486" y="414" width="94" height="26" rx="13" fill="#EEF0FF"/>
+  <rect x="620" y="414" width="94" height="26" rx="13" fill="#EEF0FF"/>
+  <path d="M452 306L600 234L748 306" stroke="#7FF3FF" stroke-width="18" stroke-linecap="round"/>
+  <path d="M520 558C560.095 589.903 639.905 589.903 680 558" stroke="#7FF3FF" stroke-width="18" stroke-linecap="round"/>
+  <path d="M410 514H790" stroke="#B2B9FF" stroke-width="10" stroke-linecap="round" stroke-dasharray="10 18"/>
+  <text x="600" y="1010" fill="#F7F9FF" font-family="Inter, sans-serif" font-size="82" font-weight="700" text-anchor="middle">Citizen 006</text>
+  <text x="600" y="1088" fill="#A5AED7" font-family="Inter, sans-serif" font-size="42" font-weight="500" text-anchor="middle">Neon Eclipse • Underground Runner</text>
+  <defs>
+    <linearGradient id="bg" x1="160" y1="94" x2="1060" y2="1092" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2A2F72"/>
+      <stop offset="1" stop-color="#0B0D16"/>
+    </linearGradient>
+  </defs>
+</svg>

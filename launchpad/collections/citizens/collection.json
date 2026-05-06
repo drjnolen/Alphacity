@@ -1,0 +1,54 @@
+{
+  "id": "citizens",
+  "name": "Citizen NFTs",
+  "eyebrow": "Alpha City Launchpad",
+  "headline": "Mint the founding Citizens of Alpha City",
+  "tagline": "A hidden, collection-driven mint page that can be repointed to future drops without rewriting the launchpad UI.",
+  "description": "This initial collection demonstrates the launchpad infrastructure: one manifest, one uploaded CSV, and a matching image bundle. Swap in a new collection folder and update the registry when the next mint is ready.",
+  "supply": 1690,
+  "minted": 0,
+  "priceSui": 9,
+  "maxPerTx": 5,
+  "status": "coming-soon",
+  "statusLabel": "Configurable collection",
+  "heroImage": "./images/citizen-001.svg",
+  "csv": "./traits.csv",
+  "galleryLimit": 6,
+  "mintNote": "Traits and preview art are loaded directly from the active collection folder.",
+  "contract": {
+    "mode": "coming-soon",
+    "ctaLabel": "Mint Citizens",
+    "message": "Mint contract wiring is still pending. When the Sui mint flow is ready, update this collection manifest and the launchpad script will use the new settings."
+  },
+  "phases": [
+    {
+      "name": "Allowlist",
+      "description": "Guaranteed access for the earliest Citizens supporters and curated wallets.",
+      "state": "active"
+    },
+    {
+      "name": "Priority",
+      "description": "A first-come phase for any remaining Citizens after the allowlist window closes.",
+      "state": "upcoming"
+    },
+    {
+      "name": "Public",
+      "description": "Any unminted Citizens open to the public once the private windows complete.",
+      "state": "upcoming"
+    }
+  ],
+  "details": [
+    {
+      "label": "Network",
+      "value": "Sui Mainnet"
+    },
+    {
+      "label": "Metadata source",
+      "value": "Uploaded CSV + image bundle"
+    },
+    {
+      "label": "Collection switch",
+      "value": "Change /launchpad/collections/index.json to point at a different manifest"
+    }
+  ]
+}
