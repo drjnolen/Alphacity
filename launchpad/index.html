@@ -259,6 +259,13 @@
         return Number(state.activeCollection?.priceSui || 0);
     }
 
+    function formatPrice(value) {
+        return Number(value || 0).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
     function maxQty() {
         return Math.max(1, Number(state.activeCollection?.maxPerTx || 1));
     }
@@ -308,7 +315,7 @@
 
         button.disabled = false;
         button.className = enabledClasses;
-        const totalPrice = (state.mintQty * collectionPrice()).toLocaleString(undefined, { maximumFractionDigits: 2 });
+        const totalPrice = formatPrice(state.mintQty * collectionPrice());
         button.textContent = 'Mint ' + state.mintQty + ' NFT' + (state.mintQty > 1 ? 's' : '') + ' for ' + totalPrice + ' SUI';
         caption.textContent = 'Review your quantity, then confirm the mint in your wallet.';
     }
@@ -349,7 +356,7 @@
         b('hero-image').alt = (collection.name || 'Collection') + ' hero artwork';
 
         b('stat-supply').textContent = numberFmt(supply);
-        b('stat-price').textContent = collectionPrice().toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' SUI';
+        b('stat-price').textContent = formatPrice(collectionPrice()) + ' SUI';
         b('stat-max-qty').textContent = String(maxQty());
         b('stat-network').textContent = collection.network?.name || 'Sui';
         b('minted-count').textContent = numberFmt(minted);
