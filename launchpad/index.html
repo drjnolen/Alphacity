@@ -191,8 +191,6 @@
     <script>
     const DEFAULT_SUI_RPC = 'https://fullnode.mainnet.sui.io';
     const DEFAULT_SUI_TYPE = '0x2::sui::SUI';
-    const RESERVED_COLUMNS = new Set(['id', 'edition', 'name', 'image', 'description', 'external_url', 'animation_url']);
-
     const state = {
         registry: null,
         activeCollectionId: null,
@@ -310,7 +308,8 @@
 
         button.disabled = false;
         button.className = enabledClasses;
-        button.textContent = 'Mint ' + state.mintQty + ' NFT' + (state.mintQty > 1 ? 's' : '') + ' for ' + (state.mintQty * collectionPrice()) + ' SUI';
+        const totalPrice = (state.mintQty * collectionPrice()).toLocaleString(undefined, { maximumFractionDigits: 2 });
+        button.textContent = 'Mint ' + state.mintQty + ' NFT' + (state.mintQty > 1 ? 's' : '') + ' for ' + totalPrice + ' SUI';
         caption.textContent = 'Review your quantity, then confirm the mint in your wallet.';
     }
 
