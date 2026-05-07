@@ -2,12 +2,12 @@
   "id": "citizens",
   "name": "Citizen NFTs",
   "eyebrow": "Alpha City Launchpad",
-  "headline": "Mint the founding Citizens of Alpha City",
-  "tagline": "A 1,690-piece NFT collection celebrating the founding Citizens of Alpha City.",
-  "description": "Citizen NFTs blend bold city-inspired artwork with collectible traits across the founding Alpha City drop. Explore the previews below, review the mint schedule, and get your wallet ready for launch.",
-  "supply": 1690,
+  "headline": "Mint your Citizen. Secure your future.",
+  "tagline": "",
+  "description": "Citizen NFTs blend bold city-inspired artwork with founding-member energy across Alpha City. Review the mint schedule and get your wallet ready for launch.",
+  "supply": 969,
   "minted": 0,
-  "priceSui": 9,
+  "priceSui": 9.69,
   "maxPerTx": 5,
   "network": {
     "name": "Sui Mainnet",
@@ -17,7 +17,7 @@
   },
   "status": "coming-soon",
   "statusLabel": "Coming Soon",
-  "heroImage": "./images/citizen-001.svg",
+  "heroImage": "https://i.postimg.cc/4NRJ9j4D/meat-king-Front-facing-cyberpunk-NFT-character-portrait-High-e09a4857-42dd-42f5-ad41-8263023e07d6-3.png",
   "csv": "./traits.csv",
   "galleryLimit": 6,
   "mintNote": "Each Citizen features a unique combination of traits. Connect your wallet now so you're ready as soon as minting opens.",
@@ -50,11 +50,11 @@
     },
     {
       "label": "Collection Size",
-      "value": "1,690 Citizens"
+      "value": "969 Citizens"
     },
     {
       "label": "Mint Price",
-      "value": "9 SUI"
+      "value": "9.69 SUI"
     },
     {
       "label": "Wallet Limit",
