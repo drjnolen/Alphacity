@@ -284,7 +284,7 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider">CSV Upload</label>
-                                    <p class="mt-1 text-xs text-dark-text-secondary">Column 1 wallet, column 2 amount. Uploading a file replaces the pasted list.</p>
+                                    <p class="mt-1 text-xs text-dark-text-secondary">Column 1 wallet, column 2 amount. Uploading a file replaces the pasted list, and typing in the box will clear the CSV.</p>
                                 </div>
                                 <button id="custom-csv-clear" type="button" class="hidden text-xs text-dark-text-secondary hover:text-red-400 transition-colors shrink-0">Clear CSV</button>
                             </div>
@@ -1344,11 +1344,18 @@
             const next = text[i + 1];
 
             if (char === '"') {
-                if (inQuotes && next === '"') {
-                    field += '"';
-                    i++;
+                if (inQuotes) {
+                    if (next === '"') {
+                        field += '"';
+                        i++;
+                    } else if (next === ',' || next === '\n' || next === '\r' || typeof next === 'undefined') {
+                        inQuotes = false;
+                    } else {
+                        field += char;
+                    }
                 } else {
-                    inQuotes = !inQuotes;
+                    if (field === '') inQuotes = true;
+                    else field += char;
                 }
                 continue;
             }
@@ -2289,7 +2296,14 @@
 
     // Custom airdrop pane — address textarea
     document.getElementById('custom-addresses-input').addEventListener('input', event => {
-        if (customCsvRecipients.length && event.target.value.trim()) clearCustomCsv(true);
+        if (customCsvRecipients.length && event.target.value.trim()) {
+            const confirmed = window.confirm('Typing addresses will clear the loaded CSV recipients. Continue?');
+            if (!confirmed) {
+                event.target.value = '';
+                return;
+            }
+            clearCustomCsv(true);
+        }
         renderCustomAddresses();
     });
 
