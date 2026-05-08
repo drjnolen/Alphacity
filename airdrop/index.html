@@ -284,7 +284,7 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider">CSV Upload</label>
-                                    <p class="mt-1 text-xs text-dark-text-secondary">Column 1 wallet, column 2 amount. Uploading a file replaces the pasted list, and typing in the box will clear the CSV.</p>
+                                    <p class="mt-1 text-xs text-dark-text-secondary">Column 1 wallet, column 2 amount. Uploading a file replaces the pasted list, and typing in the recipient addresses box will clear the CSV.</p>
                                 </div>
                                 <button id="custom-csv-clear" type="button" class="hidden text-xs text-dark-text-secondary hover:text-red-400 transition-colors shrink-0">Clear CSV</button>
                             </div>
@@ -432,6 +432,7 @@
     const CITY_DECIMALS = 9;
     const SUI_DECIMALS  = 9;
     const AIRDROP_BATCH_SIZE = 100; // Conservative chunk size to keep large airdrops within Sui transaction limits.
+    const AMOUNT_REGEX = /^\d+(?:\.\d+)?$/;
 
     // Known prominent SUI coins for the searchable dropdown
     const KNOWN_COINS = [
@@ -560,7 +561,7 @@
 
     function amountStringToAtomic(amount, decimals) {
         const amountStr = normalizeAmountString(amount);
-        if (!/^\d+(?:\.\d+)?$/.test(amountStr)) return 0n;
+        if (!AMOUNT_REGEX.test(amountStr)) return 0n;
         const [wholePart, fracPart = ''] = amountStr.split('.');
         const mult = 10n ** BigInt(decimals);
         const fracPadded = fracPart.slice(0, decimals).padEnd(decimals, '0');
@@ -569,7 +570,7 @@
 
     function isPositiveAmountString(amount) {
         const normalized = normalizeAmountString(amount);
-        if (!/^\d+(?:\.\d+)?$/.test(normalized)) return false;
+        if (!AMOUNT_REGEX.test(normalized)) return false;
         return /[1-9]/.test(normalized.replace('.', ''));
     }
 
@@ -1348,7 +1349,7 @@
                     if (next === '"') {
                         field += '"';
                         i++;
-                    } else if (next === ',' || next === '\n' || next === '\r' || typeof next === 'undefined') {
+                    } else if (next === ',' || next === '\n' || next === '\r' || next === undefined) {
                         inQuotes = false;
                     } else {
                         field += char;
@@ -1477,7 +1478,7 @@
             return;
         }
 
-        const skippedText = customCsvSkippedRows ? ` • ${customCsvSkippedRows} skipped` : '';
+        const skippedText = customCsvSkippedRows ? ` • ${customCsvSkippedRows} invalid rows skipped` : '';
         status.textContent = `${customCsvFileName || 'CSV loaded'} • ${customCsvRecipients.length} recipients${skippedText}`;
         status.classList.remove('hidden');
         clearBtn.classList.remove('hidden');
@@ -1519,7 +1520,7 @@
 
         if (!entries.length) {
             clearCustomCsv(true);
-            showStatus('No valid wallet and amount rows were found in the uploaded CSV.', 'error');
+            showStatus('No valid wallet and amount rows were found in the uploaded CSV. Ensure column 1 contains SUI addresses and column 2 contains positive amounts.', 'error');
             return;
         }
 
@@ -1659,8 +1660,10 @@
             amountText: entry.amountText,
             amountAtomic: amountStringToAtomic(entry.amountText, decimals),
         }));
-        if (amountEntries.some(entry => entry.amountAtomic <= 0n)) {
-            showStatus('One or more recipient amounts are invalid. Please review the shared amount or CSV file.', 'error');
+        const invalidAmountEntries = amountEntries.filter(entry => entry.amountAtomic <= 0n);
+        if (invalidAmountEntries.length) {
+            const examples = invalidAmountEntries.slice(0, 3).map(entry => shortAddr(entry.address)).join(', ');
+            showStatus(`One or more recipient amounts are invalid. Review the shared amount or CSV file${examples ? ` (for example: ${examples})` : ''}.`, 'error');
             return;
         }
 
