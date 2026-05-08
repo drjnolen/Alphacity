@@ -352,7 +352,7 @@
                                 class="bg-transparent text-white text-lg font-bold w-full outline-none placeholder-gray-700">
                             <span id="token-symbol" class="text-dark-text-secondary text-sm font-medium shrink-0">$CITY</span>
                         </div>
-                        <p id="amount-mode-hint" class="hidden mt-2 text-xs text-dark-text-secondary">CSV uploads provide per-wallet amounts. This field is disabled while a CSV file is active.</p>
+                        <p id="amount-mode-hint" class="hidden mt-2 text-xs text-dark-text-secondary">When a CSV is loaded, per-wallet amounts are used from the file. Clear the CSV to enable this field.</p>
                     </div>
 
                     <!-- Sender Balance -->
@@ -1478,7 +1478,11 @@
             return;
         }
 
-        const skippedRowsMessage = customCsvSkippedRows ? ` • ${customCsvSkippedRows} invalid rows skipped` : '';
+        const skippedRowsMessage = customCsvSkippedRows === 1
+            ? ' • 1 invalid row skipped'
+            : customCsvSkippedRows > 1
+                ? ` • ${customCsvSkippedRows} invalid rows skipped`
+                : '';
         status.textContent = `${customCsvFileName || 'CSV loaded'} • ${customCsvRecipients.length} recipients${skippedRowsMessage}`;
         status.classList.remove('hidden');
         clearBtn.classList.remove('hidden');
@@ -1537,8 +1541,13 @@
         updateAmountInputState();
         updateExecuteBtn();
 
-        const skippedMessage = skippedRows ? ` ${skippedRows} invalid or duplicate row(s) were skipped.` : '';
-        showStatus(`Loaded ${entries.length} CSV recipient(s) from ${file.name}.${skippedMessage}`, skippedRows ? 'warning' : 'success');
+        const skippedMessage = skippedRows === 1
+            ? ' 1 invalid or duplicate row was skipped.'
+            : skippedRows > 1
+                ? ` ${skippedRows} invalid or duplicate rows were skipped.`
+                : '';
+        const recipientLabel = entries.length === 1 ? 'recipient' : 'recipients';
+        showStatus(`Loaded ${entries.length} CSV ${recipientLabel} from ${file.name}.${skippedMessage}`, skippedRows ? 'warning' : 'success');
     }
 
     function updateSummary() {
@@ -1663,7 +1672,7 @@
         const invalidAmountEntries = amountEntries.filter(entry => entry.amountAtomic <= 0n);
         if (invalidAmountEntries.length) {
             const examples = invalidAmountEntries.slice(0, 3).map(entry => shortAddr(entry.address)).join(', ');
-            showStatus(`One or more recipient amounts are invalid. Review the shared amount or CSV file${examples ? ` (for example: ${examples})` : ''}.`, 'error');
+            showStatus(`One or more recipient amounts are invalid and must be positive numbers. Review the shared amount or CSV file${examples ? ` (for example: ${examples})` : ''}.`, 'error');
             return;
         }
 
@@ -1700,7 +1709,7 @@
             for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
                 const batch = batches[batchIndex];
                 btn.textContent = `Building batch ${batchIndex + 1}/${batches.length}…`;
-                showStatus(`Batch ${batchIndex + 1} of ${batches.length}: preparing ${batch.length} recipient(s)…`, 'info');
+                showStatus(`Batch ${batchIndex + 1} of ${batches.length}: preparing ${batch.length === 1 ? '1 recipient' : `${batch.length} recipients`}…`, 'info');
 
                 let coins = [];
                 if (coinType !== SUI_TYPE) {
@@ -1740,16 +1749,18 @@
                 if (digest) appendTxLog(digest);
 
                 if (batchIndex < batches.length - 1) {
-                    showStatus(`Batch ${batchIndex + 1} confirmed. ${completedRecipients}/${amountEntries.length} recipient(s) sent.`, 'success');
+                    showStatus(`Batch ${batchIndex + 1} confirmed. ${completedRecipients}/${amountEntries.length} ${completedRecipients === 1 ? 'recipient' : 'recipients'} sent.`, 'success');
                 }
             }
 
-            showStatus(`✅ Airdrop successful! Sent ${getTokenSymbol()} to ${amountEntries.length} addresses across ${batches.length} transaction(s).`, 'success');
+            showStatus(`✅ Airdrop successful! Sent ${getTokenSymbol()} to ${amountEntries.length} addresses across ${batches.length} ${batches.length === 1 ? 'transaction' : 'transactions'}.`, 'success');
 
         } catch (err) {
             console.error('[airdrop] executeAirdrop error:', err);
             const partial = completedRecipients > 0
-                ? ` ${completedRecipients} recipient(s) were already sent before the failure.`
+                ? completedRecipients === 1
+                    ? ' 1 recipient was already sent before the failure.'
+                    : ` ${completedRecipients} recipients were already sent before the failure.`
                 : '';
             showStatus('Airdrop failed: ' + (err?.message || String(err)) + partial, 'error');
         } finally {
