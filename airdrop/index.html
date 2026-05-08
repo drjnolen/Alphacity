@@ -431,7 +431,7 @@
     const STAKING_PKGS = ['0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9'];
     const CITY_DECIMALS = 9;
     const SUI_DECIMALS  = 9;
-    const AIRDROP_BATCH_SIZE = 100; // Conservative chunk size to keep large airdrops within Sui transaction limits.
+    const AIRDROP_BATCH_SIZE = 100; // Keep each PTB comfortably below common wallet/transaction-size failure cases on large airdrops.
     const AMOUNT_REGEX = /^\d+(?:\.\d+)?$/;
 
     // Known prominent SUI coins for the searchable dropdown
@@ -1349,7 +1349,7 @@
                     if (next === '"') {
                         field += '"';
                         i++;
-                    } else if (next === ',' || next === '\n' || next === '\r' || next === undefined) {
+                    } else if (next === ',' || next === '\n' || next === '\r' || i + 1 >= text.length) {
                         inQuotes = false;
                     } else {
                         field += char;
@@ -1395,8 +1395,8 @@
 
             const looksLikeHeader = idx === 0
                 && !isValidSuiAddress(wallet)
-                && /wallet|address/i.test(wallet)
-                && /amount|token/i.test(cols[1] || '');
+                && /\b(wallet|address)\b/i.test(wallet)
+                && /\b(amount|token)\b/i.test(cols[1] || '');
 
             if (looksLikeHeader) return;
             if (!wallet && !amountText) return;
@@ -1478,8 +1478,8 @@
             return;
         }
 
-        const skippedText = customCsvSkippedRows ? ` • ${customCsvSkippedRows} invalid rows skipped` : '';
-        status.textContent = `${customCsvFileName || 'CSV loaded'} • ${customCsvRecipients.length} recipients${skippedText}`;
+        const skippedRowsMessage = customCsvSkippedRows ? ` • ${customCsvSkippedRows} invalid rows skipped` : '';
+        status.textContent = `${customCsvFileName || 'CSV loaded'} • ${customCsvRecipients.length} recipients${skippedRowsMessage}`;
         status.classList.remove('hidden');
         clearBtn.classList.remove('hidden');
 
