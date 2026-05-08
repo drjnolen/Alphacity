@@ -267,7 +267,7 @@
                 <div class="bg-dark-card rounded-2xl border border-gray-800 overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-700">
                         <h2 class="text-white font-bold text-lg">Custom Airdrop</h2>
-                        <p class="text-dark-text-secondary text-xs mt-0.5">Paste up to 20 SUI addresses — one per line, or comma-separated</p>
+                        <p class="text-dark-text-secondary text-xs mt-0.5">Paste up to 20 SUI addresses, or upload a CSV where column 1 is the wallet and column 2 is the amount.</p>
                     </div>
                     <div class="p-6">
                         <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Recipient Addresses</label>
@@ -279,6 +279,36 @@
                             <button id="custom-addr-clear" class="text-xs text-dark-text-secondary hover:text-red-400 transition-colors">Clear All</button>
                         </div>
                         <div id="custom-addr-list" class="mt-4 space-y-1.5"></div>
+
+                        <div class="mt-5 pt-5 border-t border-gray-700/60 space-y-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider">CSV Upload</label>
+                                    <p class="mt-1 text-xs text-dark-text-secondary">Column 1: wallet, column 2: amount. Uploading a file replaces the pasted list, and typing in the recipient addresses box will clear the CSV.</p>
+                                </div>
+                                <button id="custom-csv-clear" type="button" class="hidden text-xs text-dark-text-secondary hover:text-red-400 transition-colors shrink-0">Clear CSV</button>
+                            </div>
+                            <input id="custom-csv-input" type="file" accept=".csv,text/csv"
+                                class="block w-full text-xs text-dark-text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-dark-bg file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-gray-800">
+                            <div class="rounded-lg border border-gray-700/70 bg-dark-bg/60 p-3 text-[11px]">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="font-semibold uppercase tracking-wide text-dark-text-secondary">Sample CSV</span>
+                                    <span class="font-mono text-dark-text-secondary">wallet,amount</span>
+                                </div>
+                                <div class="mt-2 space-y-1 font-mono text-dark-text-secondary">
+                                    <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                                        <span class="truncate">0x1234...abcd</span>
+                                        <span class="text-white">1250</span>
+                                    </div>
+                                    <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                                        <span class="truncate">0x5678...ef90</span>
+                                        <span class="text-white">2500.5</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="custom-csv-status" class="hidden rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-2 text-xs text-white"></div>
+                            <div id="custom-csv-preview" class="hidden rounded-lg border border-gray-700/70 bg-dark-bg/60 p-3"></div>
+                        </div>
                     </div>
                 </div>
                 </div><!-- end custom-pane -->
@@ -316,12 +346,13 @@
 
                     <!-- Amount Per Recipient -->
                     <div class="mb-5">
-                        <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Amount Per Recipient</label>
-                        <div class="bg-dark-bg border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 focus-within:border-brand-primary transition-colors">
+                        <label id="amount-label" class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Amount Per Recipient</label>
+                        <div id="amount-input-wrap" class="bg-dark-bg border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 focus-within:border-brand-primary transition-colors">
                             <input id="amount-input" type="number" placeholder="0" min="0"
                                 class="bg-transparent text-white text-lg font-bold w-full outline-none placeholder-gray-700">
                             <span id="token-symbol" class="text-dark-text-secondary text-sm font-medium shrink-0">$CITY</span>
                         </div>
+                        <p id="amount-mode-hint" class="hidden mt-2 text-xs text-dark-text-secondary">When a CSV is loaded, per-wallet amounts are used from the file. Clear the CSV to enable this field.</p>
                     </div>
 
                     <!-- Sender Balance -->
@@ -363,9 +394,9 @@
                     </h3>
                     <ol class="space-y-2 text-xs text-dark-text-secondary list-none">
                         <li class="flex gap-2"><span class="text-brand-primary font-bold">1.</span> Load the leaderboard to pull live staking credit data from the Sui blockchain.</li>
-                        <li class="flex gap-2"><span class="text-brand-primary font-bold">2.</span> Select the recipients using Top-N presets or individual checkboxes.</li>
-                        <li class="flex gap-2"><span class="text-brand-primary font-bold">3.</span> Choose the token and amount to send per address.</li>
-                        <li class="flex gap-2"><span class="text-brand-primary font-bold">4.</span> Click Execute — your wallet will ask you to confirm a single transaction that distributes to all selected addresses.</li>
+                        <li class="flex gap-2"><span class="text-brand-primary font-bold">2.</span> Select recipients from the leaderboard, paste addresses, or upload a wallet/amount CSV.</li>
+                        <li class="flex gap-2"><span class="text-brand-primary font-bold">3.</span> Choose the token and either enter one shared amount or let the CSV supply per-wallet amounts.</li>
+                        <li class="flex gap-2"><span class="text-brand-primary font-bold">4.</span> Click Execute — your wallet will ask you to confirm one or more batch transactions until the full airdrop is complete.</li>
                     </ol>
                 </div>
 
@@ -400,6 +431,8 @@
     const STAKING_PKGS = ['0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9'];
     const CITY_DECIMALS = 9;
     const SUI_DECIMALS  = 9;
+    const AIRDROP_BATCH_SIZE = 100; // Keep each PTB comfortably below common wallet/transaction-size failure cases on large airdrops.
+    const AMOUNT_REGEX = /^\d+(?:\.\d+)?$/;
 
     // Known prominent SUI coins for the searchable dropdown
     const KNOWN_COINS = [
@@ -431,6 +464,9 @@
     let selectedAddresses    = new Set();
     let currentTokenType     = 'city';  // 'city' | 'sui' | 'custom'
     let customAddresses      = [];      // up to 20 manually-entered SUI addresses
+    let customCsvRecipients  = [];      // [{address, amountText}]
+    let customCsvFileName    = '';
+    let customCsvSkippedRows = 0;
     let customTokenDecimals  = 9;       // auto-fetched from coin metadata
 
     // ================================================================
@@ -455,11 +491,19 @@
     }
 
     function getRecipients() {
+        if (activeTab === 'custom' && customCsvRecipients.length) {
+            return customCsvRecipients.map(entry => entry.address);
+        }
         return activeTab === 'custom' ? [...customAddresses] : [...selectedAddresses];
     }
 
     function getRecipientCount() {
+        if (activeTab === 'custom' && customCsvRecipients.length) return customCsvRecipients.length;
         return activeTab === 'custom' ? customAddresses.length : selectedAddresses.size;
+    }
+
+    function isUsingCsvAmounts() {
+        return activeTab === 'custom' && customCsvRecipients.length > 0;
     }
 
     function switchTab(tab) {
@@ -488,6 +532,7 @@
         if (tab !== 'custom') selectedAddresses.clear();
         updateSelectedCount();
         updateSelectAllState();
+        updateAmountInputState();
         updateExecuteBtn();
     }
 
@@ -508,18 +553,51 @@
         return `${whole.toLocaleString()}.${fracStr}`;
     }
 
-    function formatAmount(amount, decimals) {
-        // Use string-based parsing to avoid floating-point precision loss with BigInt
-        const amountStr = typeof amount === 'string' ? amount : amount.toString();
+    function normalizeAmountString(amount) {
+        const cleaned = String(amount ?? '').trim().replace(/,/g, '');
+        if (!cleaned) return '';
+        return cleaned.startsWith('.') ? `0${cleaned}` : cleaned;
+    }
+
+    function amountStringToAtomic(amount, decimals) {
+        const amountStr = normalizeAmountString(amount);
+        if (!AMOUNT_REGEX.test(amountStr)) return 0n;
         const [wholePart, fracPart = ''] = amountStr.split('.');
-        const mult       = 10n ** BigInt(decimals);
+        const mult = 10n ** BigInt(decimals);
         const fracPadded = fracPart.slice(0, decimals).padEnd(decimals, '0');
-        const atomic     = BigInt(wholePart || '0') * mult + BigInt(fracPadded || '0');
-        const whole = atomic / mult;
-        const frac  = atomic % mult;
+        return BigInt(wholePart || '0') * mult + BigInt(fracPadded || '0');
+    }
+
+    function isPositiveAmountString(amount) {
+        const normalized = normalizeAmountString(amount);
+        if (!AMOUNT_REGEX.test(normalized)) return false;
+        return /[1-9]/.test(normalized.replace('.', ''));
+    }
+
+    function formatAtomicAmount(atomic, decimals, maxFractionDigits = decimals) {
+        const n = typeof atomic === 'bigint' ? atomic : BigInt(atomic);
+        const mult = 10n ** BigInt(decimals);
+        const whole = n / mult;
+        const frac = n % mult;
         if (frac === 0n) return whole.toLocaleString();
-        const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '');
+        let fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '');
+        if (typeof maxFractionDigits === 'number') {
+            fracStr = fracStr.slice(0, maxFractionDigits).replace(/0+$/, '');
+        }
+        if (!fracStr) return whole.toLocaleString();
         return `${whole.toLocaleString()}.${fracStr}`;
+    }
+
+    function formatAmount(amount, decimals) {
+        return formatAtomicAmount(amountStringToAtomic(amount, decimals), decimals);
+    }
+
+    function getRecipientEntries() {
+        if (activeTab === 'custom' && customCsvRecipients.length) {
+            return customCsvRecipients.map(entry => ({ address: entry.address, amountText: entry.amountText }));
+        }
+        const sharedAmount = document.getElementById('amount-input')?.value?.trim() || '';
+        return getRecipients().map(address => ({ address, amountText: sharedAmount }));
     }
 
     function makeOverlay() {
@@ -1067,13 +1145,7 @@
     }
 
     function formatCityAmount(atomic) {
-        const n = typeof atomic === 'bigint' ? atomic : BigInt(atomic);
-        const divisor = 10n ** BigInt(CITY_DECIMALS);
-        const whole = n / divisor;
-        const frac  = n % divisor;
-        if (frac === 0n) return whole.toLocaleString();
-        const fracStr = frac.toString().padStart(CITY_DECIMALS, '0').replace(/0+$/, '').slice(0, 4);
-        return `${whole.toLocaleString()}.${fracStr}`;
+        return formatAtomicAmount(atomic, CITY_DECIMALS, 4);
     }
 
     function renderHoldersLeaderboard() {
@@ -1262,6 +1334,90 @@
         return result;
     }
 
+    function parseCsvText(text) {
+        const rows = [];
+        let row = [];
+        let field = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const next = text[i + 1];
+
+            if (char === '"') {
+                if (inQuotes) {
+                    if (next === '"') {
+                        field += '"';
+                        i++;
+                    } else if (next === ',' || next === '\n' || next === '\r' || i + 1 >= text.length) {
+                        inQuotes = false;
+                    } else {
+                        field += char;
+                    }
+                } else {
+                    if (field === '') inQuotes = true;
+                    else field += char;
+                }
+                continue;
+            }
+            if (char === ',' && !inQuotes) {
+                row.push(field);
+                field = '';
+                continue;
+            }
+            if ((char === '\n' || char === '\r') && !inQuotes) {
+                if (char === '\r' && next === '\n') i++;
+                row.push(field);
+                rows.push(row);
+                row = [];
+                field = '';
+                continue;
+            }
+            field += char;
+        }
+
+        row.push(field);
+        rows.push(row);
+        return rows
+            .map(cols => cols.map(col => col.trim()))
+            .filter(cols => cols.some(col => col.length > 0));
+    }
+
+    function parseCustomCsv(text) {
+        const rows = parseCsvText(text);
+        const entries = [];
+        const seen = new Set();
+        let skippedRows = 0;
+
+        rows.forEach((cols, idx) => {
+            const wallet = (cols[0] || '').trim();
+            const amountText = normalizeAmountString(cols[1] || '');
+
+            const looksLikeHeader = idx === 0
+                && !isValidSuiAddress(wallet)
+                && /\b(wallet|address)\b/i.test(wallet)
+                && /\b(amount|token)\b/i.test(cols[1] || '');
+
+            if (looksLikeHeader) return;
+            if (!wallet && !amountText) return;
+            if (!isValidSuiAddress(wallet) || !isPositiveAmountString(amountText)) {
+                skippedRows++;
+                return;
+            }
+
+            const lower = wallet.toLowerCase();
+            if (seen.has(lower)) {
+                skippedRows++;
+                return;
+            }
+
+            seen.add(lower);
+            entries.push({ address: wallet, amountText });
+        });
+
+        return { entries, skippedRows };
+    }
+
     function renderCustomAddresses() {
         customAddresses = parseCustomAddresses();
         const list    = document.getElementById('custom-addr-list');
@@ -1305,22 +1461,139 @@
             list.appendChild(row);
         });
         updateSummary();
+        updateAmountInputState();
         updateExecuteBtn();
     }
 
+    function renderCustomCsvPreview() {
+        const status = document.getElementById('custom-csv-status');
+        const preview = document.getElementById('custom-csv-preview');
+        const clearBtn = document.getElementById('custom-csv-clear');
+        if (!status || !preview || !clearBtn) return;
+
+        if (!customCsvRecipients.length) {
+            status.classList.add('hidden');
+            preview.classList.add('hidden');
+            clearBtn.classList.add('hidden');
+            return;
+        }
+
+        const skippedRowsMessage = customCsvSkippedRows === 1
+            ? ' • 1 invalid row skipped'
+            : customCsvSkippedRows > 1
+                ? ` • ${customCsvSkippedRows} invalid rows skipped`
+                : '';
+        status.textContent = `${customCsvFileName || 'CSV loaded'} • ${customCsvRecipients.length} recipients${skippedRowsMessage}`;
+        status.classList.remove('hidden');
+        clearBtn.classList.remove('hidden');
+
+        const rows = customCsvRecipients.slice(0, 5).map(entry => `
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3 font-mono text-[11px] text-dark-text-secondary">
+                <span class="truncate">${entry.address}</span>
+                <span class="text-white">${entry.amountText}</span>
+            </div>
+        `).join('');
+
+        preview.innerHTML = `
+            <div class="flex items-center justify-between gap-3 mb-2">
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-dark-text-secondary">Preview</span>
+                <span class="text-[11px] text-dark-text-secondary">Showing ${Math.min(5, customCsvRecipients.length)} of ${customCsvRecipients.length}</span>
+            </div>
+            <div class="space-y-1">${rows}</div>
+        `;
+        preview.classList.remove('hidden');
+    }
+
+    function clearCustomCsv(silent = false) {
+        customCsvRecipients = [];
+        customCsvFileName = '';
+        customCsvSkippedRows = 0;
+        const input = document.getElementById('custom-csv-input');
+        if (input) input.value = '';
+        renderCustomCsvPreview();
+        updateSummary();
+        updateAmountInputState();
+        updateExecuteBtn();
+        if (!silent) showStatus('CSV recipients cleared.', 'info');
+    }
+
+    async function loadCustomCsv(file) {
+        if (!file) return;
+        const text = await file.text();
+        const { entries, skippedRows } = parseCustomCsv(text);
+
+        if (!entries.length) {
+            clearCustomCsv(true);
+            showStatus('No valid wallet and amount rows were found in the uploaded CSV. Ensure column 1 contains SUI addresses and column 2 contains positive amounts.', 'error');
+            return;
+        }
+
+        customCsvRecipients = entries;
+        customCsvFileName = file.name;
+        customCsvSkippedRows = skippedRows;
+
+        const textarea = document.getElementById('custom-addresses-input');
+        if (textarea) textarea.value = '';
+        customAddresses = [];
+        renderCustomAddresses();
+        renderCustomCsvPreview();
+        updateSummary();
+        updateAmountInputState();
+        updateExecuteBtn();
+
+        const skippedMessage = skippedRows === 1
+            ? ' 1 invalid or duplicate row was skipped.'
+            : skippedRows > 1
+                ? ` ${skippedRows} invalid or duplicate rows were skipped.`
+                : '';
+        const recipientLabel = entries.length === 1 ? 'recipient' : 'recipients';
+        showStatus(`Loaded ${entries.length} CSV ${recipientLabel} from ${file.name}.${skippedMessage}`, skippedRows ? 'warning' : 'success');
+    }
+
     function updateSummary() {
-        const count  = getRecipientCount();
-        const amount = parseFloat(document.getElementById('amount-input').value) || 0;
+        const count = getRecipientCount();
+        const decimals = getSelectedDecimals();
         const sym    = getTokenSymbol();
+        const entries = getRecipientEntries();
+        const usingCsv = isUsingCsvAmounts();
+        const eachText = usingCsv
+            ? `CSV file (${count} custom amounts)`
+            : `${formatAmount(document.getElementById('amount-input').value || '0', decimals)} ${sym}`;
+        const totalAtomic = entries.reduce((sum, entry) => sum + amountStringToAtomic(entry.amountText, decimals), 0n);
         document.getElementById('summary-count').textContent = count;
-        document.getElementById('summary-each').textContent  = `${amount.toLocaleString()} ${sym}`;
-        document.getElementById('summary-total').textContent = `${(count * amount).toLocaleString()} ${sym}`;
+        document.getElementById('summary-each').textContent  = eachText;
+        document.getElementById('summary-total').textContent = `${formatAtomicAmount(totalAtomic, decimals)} ${sym}`;
+    }
+
+    function updateAmountInputState() {
+        const label = document.getElementById('amount-label');
+        const wrap = document.getElementById('amount-input-wrap');
+        const input = document.getElementById('amount-input');
+        const hint = document.getElementById('amount-mode-hint');
+        if (!label || !wrap || !input || !hint) return;
+
+        if (activeTab !== 'custom') {
+            label.textContent = 'Amount Per Recipient';
+            input.disabled = false;
+            wrap.classList.remove('opacity-60', 'border-brand-primary');
+            hint.classList.add('hidden');
+            return;
+        }
+
+        const usingCsv = customCsvRecipients.length > 0;
+        label.textContent = usingCsv ? 'Amount Source' : 'Amount Per Recipient';
+        input.disabled = usingCsv;
+        wrap.classList.toggle('opacity-60', usingCsv);
+        wrap.classList.toggle('border-brand-primary', usingCsv);
+        hint.classList.toggle('hidden', !usingCsv);
     }
 
     function updateExecuteBtn() {
         const btn     = document.getElementById('execute-btn');
         const count   = getRecipientCount();
-        const amount  = parseFloat(document.getElementById('amount-input').value) || 0;
+        const hasAmount = isUsingCsvAmounts()
+            ? customCsvRecipients.length > 0
+            : amountStringToAtomic(document.getElementById('amount-input').value || '0', getSelectedDecimals()) > 0n;
         const coinType = getSelectedCoinType();
 
         if (!connectedAddress) {
@@ -1336,13 +1609,13 @@
             return;
         }
         if (count === 0) {
-            btn.textContent = activeTab === 'custom' ? 'Enter Addresses' : 'Select Recipients';
+            btn.textContent = activeTab === 'custom' ? 'Enter Addresses or Upload CSV' : 'Select Recipients';
             btn.disabled    = true;
             btn.className   = 'w-full py-4 bg-gray-700 text-gray-400 font-bold rounded-xl cursor-not-allowed transition-all text-base';
             return;
         }
-        if (amount <= 0) {
-            btn.textContent = 'Enter Amount';
+        if (!hasAmount) {
+            btn.textContent = isUsingCsvAmounts() ? 'Review CSV Amounts' : 'Enter Amount';
             btn.disabled    = true;
             btn.className   = 'w-full py-4 bg-gray-700 text-gray-400 font-bold rounded-xl cursor-not-allowed transition-all text-base';
             return;
@@ -1367,16 +1640,7 @@
             const bal     = await fetchCoinBalance(connectedAddress, coinType);
             const dec     = getSelectedDecimals();
             const sym     = getTokenSymbol();
-            const divisor = 10n ** BigInt(dec);
-            const whole   = bal / divisor;
-            const frac    = bal % divisor;
-            let display;
-            if (frac === 0n) {
-                display = whole.toLocaleString();
-            } else {
-                const fracStr = frac.toString().padStart(dec, '0').replace(/0+$/, '');
-                display = `${whole.toLocaleString()}.${fracStr}`;
-            }
+            const display = formatAtomicAmount(bal, dec);
             document.getElementById('sender-balance-display').textContent = `${display} ${sym}`;
             document.getElementById('sender-balance-row').classList.remove('hidden');
         } catch (_) {}
@@ -1386,12 +1650,12 @@
     // AIRDROP TRANSACTION
     // ================================================================
     async function executeAirdrop() {
-        const recipients = getRecipients();
-        const amount     = parseFloat(document.getElementById('amount-input').value) || 0;
+        const entries    = getRecipientEntries();
+        const recipients = entries.map(entry => entry.address);
         const coinType   = getSelectedCoinType();
         const decimals   = getSelectedDecimals();
 
-        if (!recipients.length || amount <= 0 || !coinType || !connectedAddress) return;
+        if (!entries.length || !coinType || !connectedAddress) return;
 
         // Validate all recipient addresses
         const invalidAddrs = recipients.filter(a => !isValidSuiAddress(a));
@@ -1400,9 +1664,22 @@
             return;
         }
 
+        const amountEntries = entries.map(entry => ({
+            address: entry.address,
+            amountText: entry.amountText,
+            amountAtomic: amountStringToAtomic(entry.amountText, decimals),
+        }));
+        const invalidAmountEntries = amountEntries.filter(entry => entry.amountAtomic <= 0n);
+        if (invalidAmountEntries.length) {
+            const examples = invalidAmountEntries.slice(0, 3).map(entry => shortAddr(entry.address)).join(', ');
+            showStatus(`One or more recipient amounts are invalid and must be positive numbers. Review the shared amount or CSV file${examples ? ` (for example: ${examples})` : ''}.`, 'error');
+            return;
+        }
+
         const btn = document.getElementById('execute-btn');
         btn.disabled  = true;
         btn.textContent = 'Building transaction…';
+        let completedRecipients = 0;
 
         try {
             // Load @mysten/sui Transaction
@@ -1413,80 +1690,79 @@
             }
             if (!Transaction) throw new Error('@mysten/sui SDK not loaded — please refresh and try again.');
 
-            // Convert amount to atomic units
-            const mult         = 10n ** BigInt(decimals);
-            // Use integer arithmetic to avoid floating-point precision issues
-            const amountStr    = document.getElementById('amount-input').value.trim();
-            const [whole, frac = ''] = amountStr.split('.');
-            const fracPadded   = frac.slice(0, decimals).padEnd(decimals, '0');
-            const amountAtomic = BigInt(whole || '0') * mult + BigInt(fracPadded || '0');
+            showStatus('Checking wallet balance…', 'info');
 
-            if (amountAtomic <= 0n) throw new Error('Amount must be greater than zero.');
-
-            showStatus('Fetching your coin objects…', 'info');
-
-            // Fetch sender's coin objects to verify total balance
-            const coins = await fetchAllCoins(connectedAddress, coinType);
-            if (coins.length === 0) throw new Error(`No ${getTokenSymbol()} coins found in your wallet.`);
-
-            const totalBalance = coins.reduce((s, c) => s + BigInt(c.balance), 0n);
-            const totalNeeded  = amountAtomic * BigInt(recipients.length);
+            const totalBalance = await fetchCoinBalance(connectedAddress, coinType);
+            const totalNeeded  = amountEntries.reduce((sum, entry) => sum + entry.amountAtomic, 0n);
             if (totalBalance < totalNeeded) {
                 const sym = getTokenSymbol();
-                const dec = getSelectedDecimals();
-                const div = 10n ** BigInt(dec);
-                const haveDisplay = `${(totalBalance / div).toLocaleString()}`;
-                const needDisplay = `${(totalNeeded  / div).toLocaleString()}`;
+                const haveDisplay = formatAtomicAmount(totalBalance, decimals);
+                const needDisplay = formatAtomicAmount(totalNeeded, decimals);
                 throw new Error(`Insufficient balance. Have ${haveDisplay} ${sym}, need ${needDisplay} ${sym}.`);
             }
 
-            showStatus('Please confirm the transaction in your wallet…', 'info');
-            btn.textContent = 'Confirm in wallet…';
+            const batches = [];
+            for (let i = 0; i < amountEntries.length; i += AIRDROP_BATCH_SIZE) {
+                batches.push(amountEntries.slice(i, i + AIRDROP_BATCH_SIZE));
+            }
 
-            // Build PTB
-            const tx = new Transaction();
-            tx.setSender(connectedAddress);
+            for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+                const batch = batches[batchIndex];
+                btn.textContent = `Building batch ${batchIndex + 1}/${batches.length}…`;
+                showStatus(`Batch ${batchIndex + 1} of ${batches.length}: preparing ${batch.length === 1 ? '1 recipient' : `${batch.length} recipients`}…`, 'info');
 
-            const splitAmounts = recipients.map(() => amountAtomic);
-            let splitCoins;
-
-            if (coinType === SUI_TYPE) {
-                // SUI AIRDROP: Splitting directly from tx.gas
-                // The wallet automatically selects enough SUI to cover gas + the split amounts.
-                splitCoins = tx.splitCoins(tx.gas, splitAmounts);
-            } else {
-                // CUSTOM TOKEN AIRDROP: Explicitly reference and merge standard coin objects
-                const primaryCoin = tx.object(coins[0].coinObjectId);
-
-                if (coins.length > 1) {
-                    tx.mergeCoins(primaryCoin, coins.slice(1).map(c => tx.object(c.coinObjectId)));
+                let coins = [];
+                if (coinType !== SUI_TYPE) {
+                    coins = await fetchAllCoins(connectedAddress, coinType);
+                    if (coins.length === 0) throw new Error(`No ${getTokenSymbol()} coins found in your wallet.`);
                 }
-                
-                splitCoins = tx.splitCoins(primaryCoin, splitAmounts);
+
+                const tx = new Transaction();
+                tx.setSender(connectedAddress);
+
+                const splitAmounts = batch.map(entry => entry.amountAtomic);
+                let splitCoins;
+
+                if (coinType === SUI_TYPE) {
+                    splitCoins = tx.splitCoins(tx.gas, splitAmounts);
+                } else {
+                    const primaryCoin = tx.object(coins[0].coinObjectId);
+                    if (coins.length > 1) {
+                        tx.mergeCoins(primaryCoin, coins.slice(1).map(c => tx.object(c.coinObjectId)));
+                    }
+                    splitCoins = tx.splitCoins(primaryCoin, splitAmounts);
+                }
+
+                batch.forEach((entry, idx) => {
+                    tx.transferObjects([splitCoins[idx]], entry.address);
+                });
+
+                btn.textContent = `Confirm batch ${batchIndex + 1}/${batches.length}…`;
+                showStatus(`Batch ${batchIndex + 1} of ${batches.length}: confirm in your wallet…`, 'info');
+
+                const txResult = await signAndExecuteTx(tx);
+                const digest = txResult?.digest
+                            ?? txResult?.certificate?.transactionDigest
+                            ?? txResult?.effects?.transactionDigest;
+
+                completedRecipients += batch.length;
+                if (digest) appendTxLog(digest);
+
+                if (batchIndex < batches.length - 1) {
+                    showStatus(`Batch ${batchIndex + 1} confirmed. ${completedRecipients}/${amountEntries.length} ${completedRecipients === 1 ? 'recipient' : 'recipients'} sent.`, 'success');
+                }
             }
 
-            // Transfer each split coin to its recipient
-            recipients.forEach((addr, i) => {
-                tx.transferObjects([splitCoins[i]], addr);
-            });
-
-            // Sign and execute
-            const txResult = await signAndExecuteTx(tx);
-
-            const digest = txResult?.digest
-                        ?? txResult?.certificate?.transactionDigest
-                        ?? txResult?.effects?.transactionDigest;
-
-            if (digest) {
-                showStatus(`✅ Airdrop successful! Sent ${getTokenSymbol()} to ${recipients.length} addresses.`, 'success');
-                appendTxLog(digest);
-            } else {
-                showStatus('Transaction submitted. Check your wallet for confirmation.', 'info');
-            }
+            showStatus(`✅ Airdrop successful! Sent ${getTokenSymbol()} to ${amountEntries.length} addresses across ${batches.length} ${batches.length === 1 ? 'transaction' : 'transactions'}.`, 'success');
 
         } catch (err) {
             console.error('[airdrop] executeAirdrop error:', err);
-            showStatus('Airdrop failed: ' + (err?.message || String(err)), 'error');
+            const partial = completedRecipients > 0
+                ? completedRecipients === 1
+                    ? ' 1 recipient was already sent before the failure.'
+                    : ` ${completedRecipients} recipients were already sent before the failure.`
+                : '';
+            showStatus('Airdrop failed: ' + (err?.message || String(err)) + partial, 'error');
         } finally {
             btn.disabled = false;
             updateExecuteBtn();
@@ -2033,7 +2309,17 @@
     });
 
     // Custom airdrop pane — address textarea
-    document.getElementById('custom-addresses-input').addEventListener('input', renderCustomAddresses);
+    document.getElementById('custom-addresses-input').addEventListener('input', event => {
+        if (customCsvRecipients.length && event.target.value.trim()) {
+            const confirmed = window.confirm('Typing addresses will clear the loaded CSV recipients. Continue?');
+            if (!confirmed) {
+                event.target.value = '';
+                return;
+            }
+            clearCustomCsv(true);
+        }
+        renderCustomAddresses();
+    });
 
     // Custom airdrop pane — clear button
     document.getElementById('custom-addr-clear').addEventListener('click', () => {
@@ -2041,6 +2327,20 @@
         if (textarea) textarea.value = '';
         renderCustomAddresses();
     });
+
+    // Custom airdrop pane — CSV upload
+    document.getElementById('custom-csv-input').addEventListener('change', async event => {
+        const file = event.target.files?.[0];
+        try {
+            await loadCustomCsv(file);
+        } catch (err) {
+            console.error('[airdrop] CSV upload error:', err);
+            clearCustomCsv(true);
+            showStatus('CSV upload failed: ' + (err?.message || String(err)), 'error');
+        }
+    });
+
+    document.getElementById('custom-csv-clear').addEventListener('click', () => clearCustomCsv());
 
     // Execute button
     document.getElementById('execute-btn').addEventListener('click', () => {
@@ -2050,6 +2350,9 @@
     // ================================================================
     // INIT
     // ================================================================
+    renderCustomCsvPreview();
+    updateAmountInputState();
+    updateSummary();
     initWalletStandard();
     tryAutoReconnect();
 
