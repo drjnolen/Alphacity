@@ -431,7 +431,7 @@
     const STAKING_PKGS = ['0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9'];
     const CITY_DECIMALS = 9;
     const SUI_DECIMALS  = 9;
-    const AIRDROP_BATCH_SIZE = 100;
+    const AIRDROP_BATCH_SIZE = 100; // Conservative chunk size to keep large airdrops within Sui transaction limits.
 
     // Known prominent SUI coins for the searchable dropdown
     const KNOWN_COINS = [
@@ -1555,7 +1555,15 @@
         const hint = document.getElementById('amount-mode-hint');
         if (!label || !wrap || !input || !hint) return;
 
-        const usingCsv = isUsingCsvAmounts();
+        if (activeTab !== 'custom') {
+            label.textContent = 'Amount Per Recipient';
+            input.disabled = false;
+            wrap.classList.remove('opacity-60', 'border-brand-primary');
+            hint.classList.add('hidden');
+            return;
+        }
+
+        const usingCsv = customCsvRecipients.length > 0;
         label.textContent = usingCsv ? 'Amount Source' : 'Amount Per Recipient';
         input.disabled = usingCsv;
         wrap.classList.toggle('opacity-60', usingCsv);
@@ -1567,7 +1575,7 @@
         const btn     = document.getElementById('execute-btn');
         const count   = getRecipientCount();
         const hasAmount = isUsingCsvAmounts()
-            ? customCsvRecipients.every(entry => isPositiveAmountString(entry.amountText))
+            ? customCsvRecipients.length > 0
             : amountStringToAtomic(document.getElementById('amount-input').value || '0', getSelectedDecimals()) > 0n;
         const coinType = getSelectedCoinType();
 
