@@ -41,6 +41,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          set -euo pipefail
+
           if [ -n "${OPENAI_PROXY_URL}" ]; then
             echo "OPENAI_PROXY_URL=${OPENAI_PROXY_URL}" >> "$GITHUB_ENV"
             exit 0
@@ -56,10 +58,11 @@ jobs:
             exit 1
           fi
 
-          printf '%s' "${OPENAI_API_KEY}" | npx wrangler secret put OPENAI_API_KEY --config api/openai-proxy/wrangler.toml
+          echo "${OPENAI_API_KEY}" | npx wrangler secret put OPENAI_API_KEY --stdin --config api/openai-proxy/wrangler.toml
 
-          DEPLOY_OUTPUT="$(npx wrangler deploy --config api/openai-proxy/wrangler.toml 2>&1 | tee /dev/stderr)"
-          DEPLOYED_URL="$(printf '%s\n' "${DEPLOY_OUTPUT}" | grep -Eo 'https://[^[:space:]]+workers.dev' | tail -n 1)"
+          DEPLOYED_URL="$(
+            npx wrangler deploy --config api/openai-proxy/wrangler.toml --json | jq -r '.url // empty'
+          )"
 
           if [ -z "${DEPLOYED_URL}" ]; then
             echo "::error::Unable to determine deployed OpenAI proxy URL from wrangler output."
