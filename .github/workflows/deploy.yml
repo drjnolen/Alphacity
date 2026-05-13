@@ -47,6 +47,7 @@ jobs:
           set -euo pipefail
 
           if [ -n "${OPENAI_PROXY_URL}" ]; then
+            # Use the pre-provisioned proxy when one is already configured.
             echo "OPENAI_PROXY_URL=${OPENAI_PROXY_URL}" >> "$GITHUB_ENV"
             exit 0
           fi
@@ -57,12 +58,12 @@ jobs:
           fi
 
           if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_API_TOKEN so the workflow can deploy api/openai-proxy with the OPENAI_API_KEY secret."
+            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_API_TOKEN so the workflow can deploy the OpenAI proxy with the OPENAI_API_KEY secret."
             exit 1
           fi
 
           if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
-            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_ACCOUNT_ID so the workflow can deploy api/openai-proxy with the OPENAI_API_KEY secret."
+            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_ACCOUNT_ID so the workflow can deploy the OpenAI proxy with the OPENAI_API_KEY secret."
             exit 1
           fi
 
