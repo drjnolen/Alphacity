@@ -60,8 +60,10 @@ jobs:
 
           echo "${OPENAI_API_KEY}" | npx wrangler secret put OPENAI_API_KEY --stdin --config api/openai-proxy/wrangler.toml
 
+          DEPLOY_RESPONSE="$(npx wrangler deploy --config api/openai-proxy/wrangler.toml --json)"
+          export DEPLOY_RESPONSE
           DEPLOYED_URL="$(
-            npx wrangler deploy --config api/openai-proxy/wrangler.toml --json | jq -r '.url // empty'
+            node -e "const data = JSON.parse(process.env.DEPLOY_RESPONSE || '{}'); process.stdout.write(data.url || '')"
           )"
 
           if [ -z "${DEPLOYED_URL}" ]; then
