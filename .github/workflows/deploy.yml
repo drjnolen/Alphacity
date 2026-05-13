@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Wrangler
+        run: npm install --global wrangler@4
+
       - name: Resolve OpenAI proxy URL
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -63,12 +66,24 @@ jobs:
             exit 1
           fi
 
-          echo "${OPENAI_API_KEY}" | npx wrangler secret put OPENAI_API_KEY --stdin --config api/openai-proxy/wrangler.toml
+          echo "${OPENAI_API_KEY}" | wrangler secret put OPENAI_API_KEY --stdin --config api/openai-proxy/wrangler.toml
 
-          DEPLOY_RESPONSE="$(npx wrangler deploy --config api/openai-proxy/wrangler.toml --json)"
-          export DEPLOY_RESPONSE
+          DEPLOY_RESPONSE_FILE="$(mktemp)"
+          wrangler deploy --config api/openai-proxy/wrangler.toml --json > "${DEPLOY_RESPONSE_FILE}"
           DEPLOYED_URL="$(
-            node -e "try { const data = JSON.parse(process.env.DEPLOY_RESPONSE || '{}'); if (!data.url || typeof data.url !== 'string') process.exit(1); process.stdout.write(data.url); } catch (_) { process.exit(1); }"
+            python - "${DEPLOY_RESPONSE_FILE}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], 'r', encoding='utf-8') as fh:
+    data = json.load(fh)
+
+url = data.get('url')
+if not isinstance(url, str) or not url:
+    raise SystemExit(1)
+
+print(url, end='')
+PY
           )"
 
           if [ -z "${DEPLOYED_URL}" ]; then
