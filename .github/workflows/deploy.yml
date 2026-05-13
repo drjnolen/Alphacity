@@ -53,8 +53,13 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
-            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID so the workflow can deploy api/openai-proxy with the OPENAI_API_KEY secret."
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_API_TOKEN so the workflow can deploy api/openai-proxy with the OPENAI_API_KEY secret."
+            exit 1
+          fi
+
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_ACCOUNT_ID so the workflow can deploy api/openai-proxy with the OPENAI_API_KEY secret."
             exit 1
           fi
 
@@ -63,7 +68,7 @@ jobs:
           DEPLOY_RESPONSE="$(npx wrangler deploy --config api/openai-proxy/wrangler.toml --json)"
           export DEPLOY_RESPONSE
           DEPLOYED_URL="$(
-            node -e "const data = JSON.parse(process.env.DEPLOY_RESPONSE || '{}'); process.stdout.write(data.url || '')"
+            node -e "try { const data = JSON.parse(process.env.DEPLOY_RESPONSE || '{}'); if (!data.url || typeof data.url !== 'string') process.exit(1); process.stdout.write(data.url); } catch (_) { process.exit(1); }"
           )"
 
           if [ -z "${DEPLOYED_URL}" ]; then
