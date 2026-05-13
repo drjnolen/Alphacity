@@ -57,26 +57,18 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_API_TOKEN so the workflow can deploy the OpenAI proxy with the OPENAI_API_KEY secret."
-            exit 1
-          fi
+          if [ -n "${CLOUDFLARE_API_TOKEN}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            # Deploy a Cloudflare Worker proxy to keep the API key server-side.
+            umask 077
+            OPENAI_KEY_FILE="$(mktemp)"
+            printf '%s' "${OPENAI_API_KEY}" > "${OPENAI_KEY_FILE}"
+            wrangler secret put OPENAI_API_KEY --stdin --config api/openai-proxy/wrangler.toml < "${OPENAI_KEY_FILE}"
+            rm -f "${OPENAI_KEY_FILE}"
 
-          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
-            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_ACCOUNT_ID so the workflow can deploy the OpenAI proxy with the OPENAI_API_KEY secret."
-            exit 1
-          fi
-
-          umask 077
-          OPENAI_KEY_FILE="$(mktemp)"
-          printf '%s' "${OPENAI_API_KEY}" > "${OPENAI_KEY_FILE}"
-          wrangler secret put OPENAI_API_KEY --stdin --config api/openai-proxy/wrangler.toml < "${OPENAI_KEY_FILE}"
-          rm -f "${OPENAI_KEY_FILE}"
-
-          DEPLOY_RESPONSE_FILE="$(mktemp)"
-          wrangler deploy --config api/openai-proxy/wrangler.toml --json > "${DEPLOY_RESPONSE_FILE}"
-          DEPLOYED_URL="$(
-            python - "${DEPLOY_RESPONSE_FILE}" <<'PY'
+            DEPLOY_RESPONSE_FILE="$(mktemp)"
+            wrangler deploy --config api/openai-proxy/wrangler.toml --json > "${DEPLOY_RESPONSE_FILE}"
+            DEPLOYED_URL="$(
+              python - "${DEPLOY_RESPONSE_FILE}" <<'PY'
 import json
 import sys
 
@@ -90,24 +82,37 @@ if not isinstance(url, str) or not url:
 
 print(url, end='')
 PY
-          )"
+            )"
 
-          if [ -z "${DEPLOYED_URL}" ]; then
-            echo "::error::Unable to determine deployed OpenAI proxy URL from wrangler output."
-            exit 1
+            if [ -z "${DEPLOYED_URL}" ]; then
+              echo "::error::Unable to determine deployed OpenAI proxy URL from wrangler output."
+              exit 1
+            fi
+
+            echo "OPENAI_PROXY_URL=${DEPLOYED_URL}" >> "$GITHUB_ENV"
+          else
+            # No Cloudflare credentials — fall back to calling OpenAI directly from the
+            # browser.  The API key will be embedded in the deployed HTML, so consider
+            # adding CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID for a server-side proxy.
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set. The OpenAI API key will be embedded in the deployed HTML. Add Cloudflare secrets for a server-side proxy."
+            echo "OPENAI_API_KEY_DIRECT=${OPENAI_API_KEY}" >> "$GITHUB_ENV"
           fi
-
-          echo "OPENAI_PROXY_URL=${DEPLOYED_URL}" >> "$GITHUB_ENV"
 
       - name: Inject OpenAI proxy URL
         env:
           OPENAI_PROXY_URL: ${{ env.OPENAI_PROXY_URL }}
+          OPENAI_API_KEY_DIRECT: ${{ env.OPENAI_API_KEY_DIRECT }}
         run: |
-          if [ -z "${OPENAI_PROXY_URL}" ]; then
-            echo "::error::OPENAI_PROXY_URL is not available for site deployment."
+          if [ -z "${OPENAI_PROXY_URL}" ] && [ -z "${OPENAI_API_KEY_DIRECT}" ]; then
+            echo "::error::Neither OPENAI_PROXY_URL nor OPENAI_API_KEY_DIRECT is available for site deployment."
             exit 1
           fi
-          sed -i "s|__OPENAI_PROXY_URL__|${OPENAI_PROXY_URL}|g" analyze/index.html
+          if [ -n "${OPENAI_PROXY_URL}" ]; then
+            sed -i "s|__OPENAI_PROXY_URL__|${OPENAI_PROXY_URL}|g" analyze/index.html
+          fi
+          if [ -n "${OPENAI_API_KEY_DIRECT}" ]; then
+            sed -i "s|__OPENAI_API_KEY__|${OPENAI_API_KEY_DIRECT}|g" analyze/index.html
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
