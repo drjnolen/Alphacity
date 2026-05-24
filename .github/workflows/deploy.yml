@@ -53,18 +53,18 @@ jobs:
           fi
 
           if [ -z "${OPENAI_API_KEY}" ]; then
-            echo "::error::OPENAI_API_KEY secret is not set. Add your OpenAI API key under Settings → Secrets and variables → Actions."
-            exit 1
+            echo "::warning::OPENAI_API_KEY secret is not set. The AI analyzer feature will be unavailable. Add it under Settings → Secrets and variables → Actions."
+            exit 0
           fi
 
           if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_API_TOKEN so the workflow can deploy the OpenAI proxy with the OPENAI_API_KEY secret."
-            exit 1
+            echo "::warning::CLOUDFLARE_API_TOKEN not set. Cannot deploy the OpenAI proxy. The AI analyzer feature will be unavailable."
+            exit 0
           fi
 
           if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
-            echo "::error::Set OPENAI_PROXY_URL or provide CLOUDFLARE_ACCOUNT_ID so the workflow can deploy the OpenAI proxy with the OPENAI_API_KEY secret."
-            exit 1
+            echo "::warning::CLOUDFLARE_ACCOUNT_ID not set. Cannot deploy the OpenAI proxy. The AI analyzer feature will be unavailable."
+            exit 0
           fi
 
           umask 077
@@ -75,22 +75,10 @@ jobs:
 
           DEPLOY_RESPONSE_FILE="$(mktemp)"
           wrangler deploy --config api/openai-proxy/wrangler.toml --json > "${DEPLOY_RESPONSE_FILE}"
-          DEPLOYED_URL="$(
-            python - "${DEPLOY_RESPONSE_FILE}" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], 'r', encoding='utf-8') as fh:
-    data = json.load(fh)
-
-url = data.get('url')
-if not isinstance(url, str) or not url:
-    sys.stderr.write('Error: Invalid or missing url in wrangler output\n')
-    raise SystemExit(1)
-
-print(url, end='')
-PY
-          )"
+          if ! DEPLOYED_URL="$(jq -r '.url // empty' "${DEPLOY_RESPONSE_FILE}")"; then
+            echo "::error::Failed to parse wrangler deploy output as JSON."
+            exit 1
+          fi
 
           if [ -z "${DEPLOYED_URL}" ]; then
             echo "::error::Unable to determine deployed OpenAI proxy URL from wrangler output."
@@ -104,10 +92,10 @@ PY
           OPENAI_PROXY_URL: ${{ env.OPENAI_PROXY_URL }}
         run: |
           if [ -z "${OPENAI_PROXY_URL}" ]; then
-            echo "::error::OPENAI_PROXY_URL is not available for site deployment."
-            exit 1
+            echo "::notice::No OpenAI proxy URL configured — skipping injection. The AI analyzer feature will be unavailable."
+          else
+            sed -i "s|__OPENAI_PROXY_URL__|${OPENAI_PROXY_URL}|g" analyze/index.html
           fi
-          sed -i "s|__OPENAI_PROXY_URL__|${OPENAI_PROXY_URL}|g" analyze/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
