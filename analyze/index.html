@@ -670,12 +670,18 @@
     const MAX_BALANCE_FRACTION_DIGITS = 6;     // fractional precision used for numeric balance calculations
 
     // The OpenAI proxy URL is injected at deploy time by the GitHub Actions workflow.
-    const OPENAI_PROXY_URL = '__OPENAI_PROXY_URL__';
+    // When a Cloudflare Worker proxy is deployed this will be the worker URL; when only
+    // OPENAI_API_KEY is set (no Cloudflare credentials) it is set to the OpenAI endpoint
+    // directly and OPENAI_API_KEY_DIRECT is injected with the raw key.
+    const OPENAI_PROXY_URL       = '__OPENAI_PROXY_URL__';
+    const OPENAI_API_KEY_DIRECT  = '__OPENAI_API_KEY__';
 
-    // Detect if the placeholder was never replaced (e.g. running from source without
-    // going through the deploy workflow, or the OPENAI proxy was not configured).
+    // Detect if the placeholders were never replaced.
     const PROXY_PLACEHOLDER = '__OPENAI_PROXY' + '_URL__';
-    const isAiConfigured = OPENAI_PROXY_URL !== PROXY_PLACEHOLDER && OPENAI_PROXY_URL.length > 0;
+    const KEY_PLACEHOLDER   = '__OPENAI_API'   + '_KEY__';
+    const isProxyConfigured = OPENAI_PROXY_URL      !== PROXY_PLACEHOLDER && OPENAI_PROXY_URL.length      > 0;
+    const isDirectKeySet    = OPENAI_API_KEY_DIRECT !== KEY_PLACEHOLDER   && OPENAI_API_KEY_DIRECT.length > 0;
+    const isAiConfigured    = isProxyConfigured || isDirectKeySet;
 
     // =========================================================
     // APPLICATION STATE
@@ -1352,11 +1358,15 @@ Return ONLY a valid JSON object with two string keys:
   "yield": "<markdown: 4-6 specific yield strategies tailored to these holdings — include protocol, strategy, estimated APY, risk level (Low/Medium/High), and one action item each. Always mention Alpha City $CITY staking if they hold SUI or CITY. Include native SUI staking as a baseline.>"
 }`;
 
-        const resp = await fetch(OPENAI_PROXY_URL, {
+        const aiEndpoint = isProxyConfigured
+            ? OPENAI_PROXY_URL
+            : 'https://api.openai.com/v1/chat/completions';
+        const aiHeaders = { 'Content-Type': 'application/json' };
+        if (isDirectKeySet) aiHeaders['Authorization'] = `Bearer ${OPENAI_API_KEY_DIRECT}`;
+
+        const resp = await fetch(aiEndpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: aiHeaders,
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
