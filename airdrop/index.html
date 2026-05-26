@@ -9,6 +9,8 @@
 
     <!-- Fix for SUI SDK globals -->
     <script>window.global = window;</script>
+    <!-- Shared wallet connection sync -->
+    <script src="/shared/wallet-sync.js"></script>
 
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1954,7 +1956,7 @@
         connectedAddress     = null;
         connectedAccount     = null;
         connectedWalletEntry = null;
-        try { localStorage.removeItem('alphacity_airdrop_wallet'); } catch (_) {}
+        try { localStorage.removeItem('alphacity_wallet'); } catch (_) {}
         walletLabel.textContent = 'Connect Wallet';
         connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
         connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
@@ -2008,7 +2010,7 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            try { localStorage.setItem('alphacity_airdrop_wallet', JSON.stringify({ walletName: entry.name, address })); } catch (_) {}
+            try { localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: entry.name, address })); } catch (_) {}
 
             updateExecuteBtn();
             refreshSenderBalance();
@@ -2090,7 +2092,7 @@
     // ================================================================
     async function tryAutoReconnect() {
         try {
-            const saved = localStorage.getItem('alphacity_airdrop_wallet');
+            const saved = localStorage.getItem('alphacity_wallet');
             if (!saved) return;
             const { walletName, address } = JSON.parse(saved);
             if (!walletName || !isValidSuiAddress(address)) return;
@@ -2135,7 +2137,7 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            try { localStorage.setItem('alphacity_airdrop_wallet', JSON.stringify({ walletName, address: reconnectAddress })); } catch (_) {}
+            try { localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName, address: reconnectAddress })); } catch (_) {}
 
             updateExecuteBtn();
             refreshSenderBalance();
