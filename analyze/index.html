@@ -7,6 +7,11 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Shared Alpha City utilities -->
+    <script src="/shared/utils.js"></script>
+    <script src="/shared/toast.js"></script>
+    <script src="/shared/wallet.js"></script>
+
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -615,8 +620,8 @@
 
     function initWalletStandard() {
         const appApi = Object.freeze({ register: (...ws) => ws.forEach(registerWallet) });
-        try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (_) {}
-        try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (_) {}
+        try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (e) { console.warn("[analyze] Operation failed:", e); }
+        try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (e) { console.warn("[analyze] Operation failed:", e); }
     }
 
     function isSuiWallet(w) {
@@ -695,7 +700,7 @@
         try {
             if (providerName) window.localStorage.setItem(STORAGE_KEY_PROVIDER, providerName);
             if (accountAddress) window.localStorage.setItem(STORAGE_KEY_ACCOUNT, accountAddress);
-        } catch (_) {}
+        } catch (e) { console.warn("[analyze] Operation failed:", e); }
     }
 
     function loadPersistedSession() {
@@ -703,14 +708,14 @@
             const providerName  = window.localStorage.getItem(STORAGE_KEY_PROVIDER) || '';
             const accountAddress = window.localStorage.getItem(STORAGE_KEY_ACCOUNT) || '';
             return providerName ? { providerName, accountAddress } : null;
-        } catch (_) { return null; }
+        } catch (e) { console.warn("[analyze] Fetch failed:", e); return null; }
     }
 
     function clearPersistedSession() {
         try {
             window.localStorage.removeItem(STORAGE_KEY_PROVIDER);
             window.localStorage.removeItem(STORAGE_KEY_ACCOUNT);
-        } catch (_) {}
+        } catch (e) { console.warn("[analyze] Operation failed:", e); }
     }
 
     // =========================================================
@@ -765,16 +770,16 @@
             try {
                 const disc = connectedWalletEntry.wallet.features?.['standard:disconnect'];
                 if (disc?.disconnect) await disc.disconnect();
-            } catch (_) {}
+            } catch (e) { console.warn("[analyze] Operation failed:", e); }
         } else if (connectedWalletEntry?.source === 'legacy') {
             try {
                 if (typeof connectedWalletEntry.provider?.disconnect === 'function')
                     await connectedWalletEntry.provider.disconnect();
-            } catch (_) {}
+            } catch (e) { console.warn("[analyze] Operation failed:", e); }
         }
         // Also try legacy global disconnect methods
-        try { if (window.slush?.sui?.disconnect) await window.slush.sui.disconnect(); } catch (_) {}
-        try { if (window.suiWallet?.disconnect) await window.suiWallet.disconnect(); } catch (_) {}
+        try { if (window.slush?.sui?.disconnect) await window.slush.sui.disconnect(); } catch (e) { console.warn("[analyze] Operation failed:", e); }
+        try { if (window.suiWallet?.disconnect) await window.suiWallet.disconnect(); } catch (e) { console.warn("[analyze] Operation failed:", e); }
 
         disconnectWallet();
     }
@@ -826,7 +831,7 @@
                 try {
                     const disc = entry.wallet.features?.['standard:disconnect'];
                     if (disc?.disconnect) await disc.disconnect();
-                } catch (_) {}
+                } catch (e) { console.warn("[analyze] Operation failed:", e); }
                 const r = await entry.wallet.features['standard:connect'].connect();
                 accounts = r?.accounts || entry.wallet.accounts || [];
             } else {
@@ -992,7 +997,7 @@
             const dec = (meta && typeof meta.decimals === 'number') ? meta.decimals : 9;
             coinMetadataCache[coinType] = dec;
             return dec;
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             coinMetadataCache[coinType] = 9;
             return 9;
         }
@@ -1020,7 +1025,7 @@
             );
             const pj = await pr.json();
             latestSuiPriceUsd = (typeof pj?.sui?.usd === 'number') ? pj.sui.usd : null;
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             latestSuiPriceUsd = null;
         }
         return latestSuiPriceUsd;
@@ -1057,7 +1062,7 @@
                 if (amt) total += BigInt(amt);
             }
             return total;
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             return 0n;
         }
     }
@@ -1078,7 +1083,7 @@
                 }
             }
             return { totalPrincipal, totalReward, positionCount };
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             return { totalPrincipal: 0n, totalReward: 0n, positionCount: 0 };
         }
     }
@@ -1383,7 +1388,7 @@ Return ONLY a valid JSON object with two string keys:
 
         try {
             return JSON.parse(content);
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             return { portfolio: content, yield: '' };
         }
     }
@@ -1572,7 +1577,7 @@ Return ONLY a valid JSON object with two string keys:
 
             // Also update the module-level SUI price
             if (typeof sui.usd === 'number') latestSuiPriceUsd = sui.usd;
-        } catch (_) {}
+        } catch (e) { console.warn("[analyze] Operation failed:", e); }
     }
 
     async function fetchTvl() {
@@ -1582,7 +1587,7 @@ Return ONLY a valid JSON object with two string keys:
             const sui = (chains || []).find(c => (c.name || '').toLowerCase() === 'sui');
             const tvlEl = document.getElementById('pulse-tvl');
             tvlEl.textContent = sui?.tvl != null ? fmtUsd(sui.tvl) : '—';
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             document.getElementById('pulse-tvl').textContent = '—';
         }
     }
@@ -1606,7 +1611,7 @@ Return ONLY a valid JSON object with two string keys:
             const tokens = await resp.json();
             ecosystemCache = { tokens, ts: Date.now() };
             return tokens;
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             return ecosystemCache.tokens || [];
         }
     }
@@ -1652,7 +1657,7 @@ Return ONLY a valid JSON object with two string keys:
                 return;
             }
             el.innerHTML = renderEcoTableHeader() + tokens.map(renderEcoTokenRow).join('');
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load ecosystem data.</p>';
         }
     }
@@ -1690,7 +1695,7 @@ Return ONLY a valid JSON object with two string keys:
             }
             dexCache = { pairs, ts: Date.now() };
             return pairs;
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             return dexCache.pairs || [];
         }
     }
@@ -1775,7 +1780,7 @@ Return ONLY a valid JSON object with two string keys:
                 return;
             }
             el.innerHTML = renderTableHeader() + sorted.map(renderTokenRow).join('');
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load trending data.</p>';
         }
     }
@@ -1796,7 +1801,7 @@ Return ONLY a valid JSON object with two string keys:
             losersEl.innerHTML = losers.length
                 ? losers.map(renderMoverRow).join('')
                 : '<p class="text-xs text-gray-500 py-4 text-center">No data.</p>';
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             gainersEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load data.</p>';
             losersEl.innerHTML  = '<p class="text-xs text-red-400 py-4 text-center">Failed to load data.</p>';
         }
@@ -1840,7 +1845,7 @@ Return ONLY a valid JSON object with two string keys:
                         <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(p.liquidity?.usd)}</div>
                     </div>`;
                 }).join('');
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load new pools.</p>';
         }
     }
@@ -1852,11 +1857,11 @@ Return ONLY a valid JSON object with two string keys:
         try {
             const raw = localStorage.getItem(WATCHLIST_STORAGE);
             return raw ? JSON.parse(raw) : [];
-        } catch (_) { return []; }
+        } catch (e) { console.warn("[analyze] Fetch failed:", e); return []; }
     }
 
     function saveWatchlist(list) {
-        try { localStorage.setItem(WATCHLIST_STORAGE, JSON.stringify(list)); } catch (_) {}
+        try { localStorage.setItem(WATCHLIST_STORAGE, JSON.stringify(list)); } catch (e) { console.warn("[analyze] Operation failed:", e); }
     }
 
     function addToWatchlist(address) {
@@ -2082,7 +2087,7 @@ Return ONLY a valid JSON object with two string keys:
                     // silent:true reconnects without prompting the user
                     const r = await entry.wallet.features['standard:connect'].connect({ silent: true });
                     accounts = r?.accounts || entry.wallet.accounts || [];
-                } catch (_) {
+                } catch (e) { console.warn("[analyze]", e);
                     // Some wallets don't support silent mode — fall back to persisted address
                 }
             } else {
@@ -2097,7 +2102,7 @@ Return ONLY a valid JSON object with two string keys:
                     if (!addrs.length && Array.isArray(p.accounts)) addrs = p.accounts.map(a => a?.address || a).filter(Boolean);
                     if (!addrs.length && typeof p.account === 'string') addrs = [p.account];
                     accounts = addrs.map(addr => ({ address: addr }));
-                } catch (_) {}
+                } catch (e) { console.warn("[analyze] Operation failed:", e); }
             }
 
             // Prefer the persisted address so reconnect works even when silent mode returns nothing
@@ -2117,11 +2122,12 @@ Return ONLY a valid JSON object with two string keys:
             document.getElementById('connected-address').textContent = address;
 
             await loadPortfolioData(address);
-        } catch (_) {
+        } catch (e) { console.warn("[analyze]", e);
             // Only clear on auth/address validation failures (handled above).
             // Network errors from loadPortfolioData should not clear the session.
         }
     })();
     </script>
+    <script src="/shared/nav.js" data-ac-nav-active="analyze" defer></script>
 </body>
 </html>
