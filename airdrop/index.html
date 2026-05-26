@@ -7,11 +7,6 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Shared Alpha City utilities -->
-    <script src="/shared/utils.js"></script>
-    <script src="/shared/toast.js"></script>
-    <script src="/shared/wallet.js"></script>
-
     <!-- Fix for SUI SDK globals -->
     <script>window.global = window;</script>
 
@@ -384,7 +379,6 @@
 
                     <!-- Execute Button -->
                     <button id="execute-btn" disabled
-                        aria-label="Execute airdrop transaction"
                         class="w-full py-4 bg-gray-700 text-gray-400 font-bold rounded-xl cursor-not-allowed transition-all text-base">
                         Connect Wallet to Continue
                     </button>
@@ -410,7 +404,7 @@
         </div>
 
         <!-- Status Log -->
-        <div id="status-area" class="mt-8 hidden" role="status" aria-live="polite">
+        <div id="status-area" class="mt-8 hidden">
             <div id="status-box" class="p-4 rounded-xl text-sm border"></div>
         </div>
 
@@ -694,8 +688,7 @@
         try {
             const r = await rpc('suix_getBalance', [address, coinType]);
             return BigInt(r.totalBalance || '0');
-        } catch (e) {
-            console.warn('[airdrop] Balance fetch failed:', e);
+        } catch (_) {
             return 0n;
         }
     }
@@ -1252,8 +1245,7 @@
         try {
             const r = await rpc('suix_getCoinMetadata', [coinType]);
             return typeof r?.decimals === 'number' ? r.decimals : 9;
-        } catch (e) {
-            console.warn('[airdrop] Coin metadata fetch failed:', e);
+        } catch (_) {
             return 9;
         }
     }
@@ -1651,7 +1643,7 @@
             const display = formatAtomicAmount(bal, dec);
             document.getElementById('sender-balance-display').textContent = `${display} ${sym}`;
             document.getElementById('sender-balance-row').classList.remove('hidden');
-        } catch (e) { console.warn("[airdrop] Operation failed:", e); }
+        } catch (_) {}
     }
 
  // ================================================================
@@ -1683,16 +1675,6 @@
             showStatus(`One or more recipient amounts are invalid and must be positive numbers. Review the shared amount or CSV file${examples ? ` (for example: ${examples})` : ''}.`, 'error');
             return;
         }
-
-        // Confirmation dialog before executing airdrop
-        const confirmed = await AlphaCity.confirm({
-            title: 'Confirm Airdrop',
-            message: 'You are about to send tokens to <strong>' + entries.length + ' recipient(s)</strong>. This action cannot be undone once confirmed in your wallet.',
-            confirmText: 'Execute Airdrop',
-            cancelText: 'Cancel',
-            confirmClass: 'bg-green-600 hover:bg-green-500'
-        });
-        if (!confirmed) return;
 
         const btn = document.getElementById('execute-btn');
         btn.disabled  = true;
@@ -1860,8 +1842,8 @@
 
     function initWalletStandard() {
         const appApi = Object.freeze({ register: (...ws) => ws.forEach(registerWallet) });
-        try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (e) { console.warn("[airdrop] Operation failed:", e); }
-        try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (e) { console.warn("[airdrop] Operation failed:", e); }
+        try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (_) {}
+        try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (_) {}
     }
 
     function isSuiWallet(w) {
@@ -1958,12 +1940,12 @@
             try {
                 const disc = connectedWalletEntry.wallet.features?.['standard:disconnect'];
                 if (disc?.disconnect) await disc.disconnect();
-            } catch (e) { console.warn("[airdrop] Operation failed:", e); }
+            } catch (_) {}
         } else if (connectedWalletEntry?.source === 'legacy') {
             try {
                 if (typeof connectedWalletEntry.provider?.disconnect === 'function')
                     await connectedWalletEntry.provider.disconnect();
-            } catch (e) { console.warn("[airdrop] Operation failed:", e); }
+            } catch (_) {}
         }
         disconnectWallet();
     }
@@ -1972,7 +1954,7 @@
         connectedAddress     = null;
         connectedAccount     = null;
         connectedWalletEntry = null;
-        try { localStorage.removeItem('alphacity_wallet'); } catch (e) { console.warn("[airdrop] Operation failed:", e); }
+        try { localStorage.removeItem('alphacity_airdrop_wallet'); } catch (_) {}
         walletLabel.textContent = 'Connect Wallet';
         connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
         connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
@@ -1995,7 +1977,7 @@
         try {
             let accounts;
             if (entry.source === 'standard') {
-                try { const disc = entry.wallet.features?.['standard:disconnect']; if (disc?.disconnect) await disc.disconnect(); } catch (e) { console.warn("[airdrop] Operation failed:", e); }
+                try { const disc = entry.wallet.features?.['standard:disconnect']; if (disc?.disconnect) await disc.disconnect(); } catch (_) {}
                 const r = await entry.wallet.features['standard:connect'].connect();
                 accounts = r?.accounts || entry.wallet.accounts || [];
             } else {
@@ -2026,7 +2008,7 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            AlphaCity.storageSet('alphacity_wallet', { walletName: entry.name, address });
+            try { localStorage.setItem('alphacity_airdrop_wallet', JSON.stringify({ walletName: entry.name, address })); } catch (_) {}
 
             updateExecuteBtn();
             refreshSenderBalance();
@@ -2108,9 +2090,9 @@
     // ================================================================
     async function tryAutoReconnect() {
         try {
-            const saved = AlphaCity.storageGet('alphacity_wallet');
+            const saved = localStorage.getItem('alphacity_airdrop_wallet');
             if (!saved) return;
-            const { walletName, address } = saved;
+            const { walletName, address } = JSON.parse(saved);
             if (!walletName || !isValidSuiAddress(address)) return;
 
             await new Promise(r => setTimeout(r, 400));
@@ -2153,15 +2135,16 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            AlphaCity.storageSet('alphacity_wallet', { walletName, address: reconnectAddress });
+            try { localStorage.setItem('alphacity_airdrop_wallet', JSON.stringify({ walletName, address: reconnectAddress })); } catch (_) {}
 
             updateExecuteBtn();
             refreshSenderBalance();
 
-        } catch (e) {
-            console.warn('[airdrop] Auto-reconnect failed:', e);
+        } catch (_) {
             walletLabel.textContent = 'Connect Wallet';
         }
+    }
+
     // ================================================================
     // EVENT LISTENERS
     // ================================================================
@@ -2374,6 +2357,5 @@
     tryAutoReconnect();
 
     </script>
-    <script src="/shared/nav.js" data-ac-nav-active="airdrop" defer></script>
 </body>
 </html>
