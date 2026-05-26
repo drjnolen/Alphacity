@@ -7,11 +7,6 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Shared Alpha City utilities -->
-    <script src="/shared/utils.js"></script>
-    <script src="/shared/toast.js"></script>
-    <script src="/shared/wallet.js"></script>
-
     <!-- Fix for SUI SDK globals -->
     <script>window.global = window;</script>
 
@@ -92,10 +87,6 @@
     </script>
 </head>
 <body class="bg-dark-bg text-dark-text font-sans antialiased min-h-screen flex flex-col">
-    <!-- Skip to main content link for keyboard/screen reader users -->
-    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[99999] focus:bg-brand-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
-        Skip to main content
-    </a>
 
     <!-- ============================================================
          Navigation
@@ -111,7 +102,6 @@
                         ← Back to Home
                     </a>
                     <button id="connect-wallet-btn"
-                        aria-label="Connect Sui wallet"
                         class="bg-brand-primary text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 010-2z" clip-rule="evenodd" />
@@ -126,7 +116,7 @@
     <!-- ============================================================
          Main
          ============================================================ -->
-    <main id="main-content" class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div class="max-w-lg mx-auto">
 
             <!-- Page title -->
@@ -157,7 +147,6 @@
                                 placeholder="0.0"
                                 min="0"
                                 step="any"
-                                aria-label="Amount of SUI to swap"
                                 class="bg-transparent text-2xl font-bold text-white flex-1 outline-none placeholder-gray-600 min-w-0"
                             >
                             <!-- SUI token badge -->
@@ -235,7 +224,6 @@
                         Get Quote
                     </button>
                     <button id="swap-btn"
-                        aria-label="Execute token swap"
                         class="w-full py-4 bg-gray-700 text-gray-400 font-bold text-lg rounded-xl cursor-not-allowed transition-all shadow-lg"
                         disabled>
                         Connect Wallet to Swap
@@ -243,7 +231,7 @@
                 </div>
 
                 <!-- Status message -->
-                <div id="swap-status" class="hidden mt-4 p-3 rounded-lg text-sm text-center" role="status" aria-live="polite"></div>
+                <div id="swap-status" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
             </div>
 
             <!-- ================================================
@@ -894,16 +882,6 @@
         const amtSui = parseFloat(document.getElementById('amount-in').value) || 0;
         if (amtSui <= 0) return;
 
-        // Confirmation dialog before executing swap
-        const confirmed = await AlphaCity.confirm({
-            title: 'Confirm Swap',
-            message: 'You are about to swap <strong>' + amtSui.toFixed(4) + ' SUI</strong> for $CITY. This action cannot be undone.',
-            confirmText: 'Execute Swap',
-            cancelText: 'Cancel',
-            confirmClass: 'bg-blue-600 hover:bg-blue-500'
-        });
-        if (!confirmed) return;
-
         const swapBtn        = document.getElementById('swap-btn');
         swapBtn.disabled     = true;
         swapBtn.textContent  = 'Preparing swap…';
@@ -919,11 +897,7 @@
             showStatus('Please confirm in your wallet…', 'info');
             swapBtn.textContent = 'Confirm in wallet…';
 
-            const txResult = await AlphaCity.withTimeout(
-                signAndExecuteTx(txOrBytes),
-                60000,
-                'Swap transaction'
-            );
+            const txResult = await signAndExecuteTx(txOrBytes);
 
             // ── Extract digest from result ──
             const digest = txResult?.digest
@@ -1040,12 +1014,12 @@
             try {
                 const disc = connectedWalletEntry.wallet.features?.['standard:disconnect'];
                 if (disc?.disconnect) await disc.disconnect();
-            } catch (e) { console.warn('[swap] Standard wallet disconnect failed:', e); }
+            } catch (_) {}
         } else if (connectedWalletEntry?.source === 'legacy') {
             try {
                 if (typeof connectedWalletEntry.provider?.disconnect === 'function')
                     await connectedWalletEntry.provider.disconnect();
-            } catch (e) { console.warn('[swap] Legacy wallet disconnect failed:', e); }
+            } catch (_) {}
         }
         disconnectWallet();
     }
@@ -1055,7 +1029,7 @@
         connectedAccount     = null;
         connectedWalletEntry = null;
         suiBalance           = null;
-        AlphaCity.storageRemove('alphacity_wallet');
+        try { localStorage.removeItem('alphacity_wallet'); } catch (_) {}
         walletLabel.textContent = 'Connect Wallet';
         connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
         connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
@@ -1092,7 +1066,7 @@
                 try {
                     const disc = entry.wallet.features?.['standard:disconnect'];
                     if (disc?.disconnect) await disc.disconnect();
-                } catch (e) { console.warn('[swap] Pre-connect disconnect failed:', e); }
+                } catch (_) {}
                 const r = await entry.wallet.features['standard:connect'].connect();
                 accounts = r?.accounts || entry.wallet.accounts || [];
             } else {
@@ -1123,7 +1097,7 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            AlphaCity.storageSet('alphacity_wallet', { walletName: entry.name, address });
+            try { localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: entry.name, address })); } catch (_) {}
 
             suiBalance = await fetchSuiBalance(address);
             updateBalanceDisplay();
@@ -1197,9 +1171,9 @@
     // ================================================================
     async function tryAutoReconnect() {
         try {
-            const saved = AlphaCity.storageGet('alphacity_wallet');
+            const saved = localStorage.getItem('alphacity_wallet');
             if (!saved) return;
-            const { walletName, address } = saved;
+            const { walletName, address } = JSON.parse(saved);
             if (!walletName || !isValidSuiAddress(address)) return;
 
             // Brief delay to allow wallet extensions to register
@@ -1244,13 +1218,13 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            AlphaCity.storageSet('alphacity_wallet', { walletName, address: reconnectAddress });
+            try { localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName, address: reconnectAddress })); } catch (_) {}
 
             suiBalance = await fetchSuiBalance(reconnectAddress);
             updateBalanceDisplay();
             updateSwapBtn();
-        } catch (e) {
-            console.warn('[swap] Auto-reconnect failed:', e);
+        } catch (_) {
+            // Silent fail — auto-reconnect errors must not disrupt the user
             walletLabel.textContent = 'Connect Wallet';
         }
     }
@@ -1263,6 +1237,5 @@
     tryAutoReconnect();
 
     </script>
-    <script src="/shared/nav.js" data-ac-nav-active="swap" defer></script>
 </body>
 </html>

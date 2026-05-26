@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GuildSafe Wallet Verify</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Shared Alpha City utilities -->
-  <script src="/shared/utils.js"></script>
-  <script src="/shared/toast.js"></script>
   <style>
     :root {
       --bg: #0b1220;
@@ -604,7 +601,7 @@ Wallet: ${addr}`;
           tg.sendData(payload);
           setStatus('&#x2705; Wallet verified! Returning to Telegram&hellip;');
           // Brief delay so sendData() completes before the WebApp is closed.
-          setTimeout(() => { try { tg.close(); } catch (e) { console.warn("[verify] Operation failed:", e); } }, 500);
+          setTimeout(() => { try { tg.close(); } catch (_) {} }, 500);
         } catch (e) {
           console.error('sendData failed:', e);
           showTelegramFallback(address);
