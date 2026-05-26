@@ -384,6 +384,7 @@
 
                     <!-- Execute Button -->
                     <button id="execute-btn" disabled
+                        aria-label="Execute airdrop transaction"
                         class="w-full py-4 bg-gray-700 text-gray-400 font-bold rounded-xl cursor-not-allowed transition-all text-base">
                         Connect Wallet to Continue
                     </button>
@@ -409,7 +410,7 @@
         </div>
 
         <!-- Status Log -->
-        <div id="status-area" class="mt-8 hidden">
+        <div id="status-area" class="mt-8 hidden" role="status" aria-live="polite">
             <div id="status-box" class="p-4 rounded-xl text-sm border"></div>
         </div>
 
