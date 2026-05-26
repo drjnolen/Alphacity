@@ -7,6 +7,11 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Shared Alpha City utilities -->
+    <script src="/shared/utils.js"></script>
+    <script src="/shared/toast.js"></script>
+    <script src="/shared/wallet.js"></script>
+
     <!-- Fix for SUI SDK globals -->
     <script>window.global = window;</script>
 
@@ -366,8 +371,8 @@
 
     function initWalletStandard() {
         const appApi = Object.freeze({ register: (...ws) => ws.forEach(registerWallet) });
-        try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (_) {}
-        try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (_) {}
+        try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (e) { console.warn("[mint] Operation failed:", e); }
+        try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (e) { console.warn("[mint] Operation failed:", e); }
     }
 
     function isSuiWallet(w) {
@@ -616,12 +621,12 @@
             try {
                 const disc = connectedWalletEntry.wallet.features?.['standard:disconnect'];
                 if (disc?.disconnect) await disc.disconnect();
-            } catch (_) {}
+            } catch (e) { console.warn("[mint] Operation failed:", e); }
         } else if (connectedWalletEntry?.source === 'legacy') {
             try {
                 if (typeof connectedWalletEntry.provider?.disconnect === 'function')
                     await connectedWalletEntry.provider.disconnect();
-            } catch (_) {}
+            } catch (e) { console.warn("[mint] Operation failed:", e); }
         }
         disconnectWallet();
     }
@@ -631,7 +636,7 @@
         connectedAccount     = null;
         connectedWalletEntry = null;
         suiBalance           = null;
-        try { localStorage.removeItem('alphacity_wallet'); } catch (_) {}
+        AlphaCity.storageRemove('alphacity_wallet');
         walletLabel.textContent = 'Connect Wallet';
         connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
         connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
@@ -668,7 +673,7 @@
                 try {
                     const disc = entry.wallet.features?.['standard:disconnect'];
                     if (disc?.disconnect) await disc.disconnect();
-                } catch (_) {}
+                } catch (e) { console.warn("[mint] Operation failed:", e); }
                 const connResult = await entry.wallet.features['standard:connect'].connect();
                 accounts = connResult?.accounts || entry.wallet.accounts || [];
             } else {
@@ -699,7 +704,7 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            try { localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: entry.name, address: address })); } catch (_) {}
+            AlphaCity.storageSet('alphacity_wallet', { walletName: entry.name, address: address });
 
             suiBalance = await fetchSuiBalance(address);
             updateBalanceDisplay();
@@ -771,11 +776,10 @@
     // ================================================================
     async function tryAutoReconnect() {
         try {
-            const saved = localStorage.getItem('alphacity_wallet');
+            const saved = AlphaCity.storageGet('alphacity_wallet');
             if (!saved) return;
-            const parsed = JSON.parse(saved);
-            const walletName = parsed.walletName;
-            const address = parsed.address;
+            const walletName = saved.walletName;
+            const address = saved.address;
             if (!walletName || !isValidSuiAddress(address)) return;
 
             await new Promise(function(r) { setTimeout(r, 400); });
@@ -818,12 +822,13 @@
             connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
             connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
 
-            try { localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: walletName, address: reconnectAddress })); } catch (_) {}
+            AlphaCity.storageSet('alphacity_wallet', { walletName: walletName, address: reconnectAddress });
 
             suiBalance = await fetchSuiBalance(reconnectAddress);
             updateBalanceDisplay();
             updateMintBtn();
-        } catch (_) {
+        } catch (e) {
+            console.warn('[mint] Auto-reconnect failed:', e);
             walletLabel.textContent = 'Connect Wallet';
         }
     }
@@ -837,5 +842,6 @@
     tryAutoReconnect();
 
     </script>
+    <script src="/shared/nav.js" data-ac-nav-active="mint" defer></script>
 </body>
 </html>
