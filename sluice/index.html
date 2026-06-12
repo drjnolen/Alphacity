@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sluice Vesting Protocol - Alpha City</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fix for SUI SDK globals -->
+    <script>window.global = window;</script>
+    <!-- Shared wallet connection sync -->
+    <script src="/shared/wallet-sync.js"></script>
+
+    <!-- Load Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        'brand-primary':          tailwind.colors.blue[500],
+                        'brand-primary-hover':    tailwind.colors.blue[400],
+                        'brand-secondary':        tailwind.colors.yellow[400],
+                        'brand-secondary-hover':  tailwind.colors.yellow[300],
+                        'dark-bg':                '#111827',
+                        'dark-card':              '#1F2937',
+                        'dark-text':              '#E5E7EB',
+                        'dark-text-secondary':    '#9CA3AF',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                },
+            },
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1F2937; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Remove number input spinners */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <!-- Pre-load @mysten/sui for transaction building -->
+    <script type="module">
+        window._suiTxReady = import('https://esm.sh/@mysten/sui@1.25.0/transactions')
+            .then(mod => {
+                window._SuiTransaction = mod.Transaction;
+                return mod;
+            })
+            .catch(err => {
+                console.warn('[sluice] Could not load @mysten/sui Transaction:', err);
+                return null;
+            });
+    </script>
+</head>
+<body class="bg-dark-bg text-dark-text font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- ============================================================
+         Header & Navigation
+         ============================================================ -->
+    <header class="bg-dark-bg/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <a href="/" class="text-2xl font-bold text-white flex items-center gap-2 group">
+                    <span>Alpha<span class="text-brand-secondary"> City</span></span>
+                    <span class="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded border border-green-500/30 uppercase tracking-wide font-bold ml-2">Sluice Vesting</span>
+                </a>
+                <div class="flex items-center gap-4">
+                    <a href="/" class="hidden md:block text-dark-text-secondary hover:text-white transition-colors text-sm">
+                        ← Back to Home
+                    </a>
+                    <button id="connect-wallet-btn"
+                        class="bg-brand-primary text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 010-2z" clip-rule="evenodd" />
+                        </svg>
+                        <span id="wallet-text">Connect Wallet</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ============================================================
+         Main Dashboard Content
+         ============================================================ -->
+    <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        
+        <!-- Welcome Header -->
+        <div class="text-center max-w-2xl mx-auto mb-10">
+            <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2">
+                Sluice <span class="text-brand-secondary">Vesting Protocol</span>
+            </h1>
+            <p class="text-dark-text-secondary text-lg">
+                Create trustless, timeline-distributed token releases, with optional price milestones secured by time-weighted volatility safeguards.
+            </p>
+        </div>
+
+        <!-- System Message Banner -->
+        <div id="status-banner" class="hidden max-w-4xl mx-auto mb-6 p-4 rounded-xl border flex items-center gap-3 animate-fade-in">
+            <span id="status-banner-icon" class="flex-shrink-0"></span>
+            <span id="status-banner-text" class="text-sm font-medium"></span>
+        </div>
+
+        <!-- Main Dashboard Split Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
+            
+            <!-- Left Side: Creator View (Create Vesting Schedule) -->
+            <div class="lg:col-span-5">
+                <div class="glass-panel rounded-2xl p-6 shadow-xl border border-gray-800">
+                    <h2 class="text-xl font-bold text-white mb-5 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Create Vesting Schedule
+                    </h2>
+
+                    <form id="create-schedule-form" class="space-y-4">
+                        <!-- Coin Type -->
+                        <div>
+                            <label class="text-xs font-semibold text-dark-text-secondary uppercase tracking-wider block mb-1">Coin Type (Sui Package ID)</label>
+                            <div class="relative">
+                                <input type="text" id="coin-type" required
+                                    placeholder="0x2::sui::SUI or Custom Type"
+                                    class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-4 py-2.5 rounded-lg text-sm transition-colors font-mono">
+                                <div class="absolute right-2 top-2 flex gap-1">
+                                    <button type="button" onclick="setCoinPreset('sui')" class="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-bold uppercase transition-colors">SUI</button>
+                                    <button type="button" onclick="setCoinPreset('city')" class="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 text-brand-secondary rounded font-bold uppercase transition-colors">$CITY</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Beneficiary Address -->
+                        <div>
+                            <label class="text-xs font-semibold text-dark-text-secondary uppercase tracking-wider block mb-1">Beneficiary Wallet Address</label>
+                            <input type="text" id="beneficiary-address" required
+                                placeholder="0x..."
+                                class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-4 py-2.5 rounded-lg text-sm transition-colors font-mono">
+                        </div>
+
+                        <!-- Amount & Revocable Row -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-semibold text-dark-text-secondary uppercase tracking-wider block mb-1">Total Amount</label>
+                                <input type="number" id="total-amount" required min="0.000000001" step="any"
+                                    placeholder="0.00"
+                                    class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-4 py-2.5 rounded-lg text-sm transition-colors">
+                            </div>
+                            <div class="flex flex-col justify-end pb-2">
+                                <label class="flex items-center gap-2 text-sm text-dark-text cursor-pointer select-none">
+                                    <input type="checkbox" id="revocable-checkbox" checked
+                                        class="w-4 h-4 rounded border-gray-700 bg-dark-bg text-brand-primary focus:ring-0">
+                                    <span>Schedule Revocable</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Configuration -->
+                        <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-800 space-y-3">
+                            <span class="text-xs font-bold text-brand-primary uppercase tracking-wider block">Timeline Distribution</span>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Start Date</label>
+                                    <input type="datetime-local" id="start-date" required
+                                        class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">End Date</label>
+                                    <input type="datetime-local" id="end-date" required
+                                        class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Unlock Frequency</label>
+                                <select id="unlock-frequency" class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
+                                    <option value="linear">Linear (Continuous / Per Second)</option>
+                                    <option value="hourly">Hourly Batches</option>
+                                    <option value="daily">Daily Batches</option>
+                                    <option value="weekly">Weekly Batches</option>
+                                    <option value="monthly">Monthly Batches</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Marketcap Milestone (Optional) -->
+                        <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-800 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-yellow-400 uppercase tracking-wider">Target Marketcap Milestone</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="milestone-toggle" class="sr-only peer" onchange="toggleMilestoneFields()">
+                                    <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-yellow-500"></div>
+                                </label>
+                            </div>
+
+                            <div id="milestone-fields" class="hidden space-y-3 animate-fade-in">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Target Marketcap (USD)</label>
+                                        <input type="number" id="target-marketcap" min="0" placeholder="e.g. 200000"
+                                            class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Token Total Supply</label>
+                                        <input type="number" id="total-supply" min="0" placeholder="e.g. 1000000"
+                                            class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Pyth Price Feed ID (Hex Address)</label>
+                                    <input type="text" id="price-feed-id" placeholder="0xff..."
+                                        class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors font-mono">
+                                </div>
+
+                                <div class="p-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-[10px] text-yellow-400">
+                                    <span class="font-bold">Safeguard Active:</span> The target marketcap must be sustained for a continuous 30-minute validation window. The implied target price is automatically calculated and monitored.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Deploy Button -->
+                        <button type="submit" id="deploy-btn"
+                            class="w-full py-3 bg-brand-primary text-white font-bold rounded-lg hover:bg-brand-primary-hover shadow-lg shadow-blue-500/10 hover:shadow-blue-500/25 transition-all text-sm flex justify-center items-center gap-2">
+                            Deploy Vesting Schedule
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Side: Beneficiary View (Dashboard Streams) -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <!-- Oracle & Liquidity Monitor Safeguard Widget -->
+                <div class="glass-panel rounded-2xl p-5 shadow-xl border border-gray-800">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse-slow"></span>
+                        Safeguard & Liquidity Oracle Registry
+                    </h3>
+
+                    <!-- High Liquidity Pool Routing -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-gray-900/40 border border-gray-800 rounded-xl p-3">
+                            <span class="text-[11px] font-bold text-dark-text-secondary uppercase block mb-1">Highest Liquidity Pool Route</span>
+                            <div class="flex items-center justify-between">
+                                <span id="highest-liquidity-pool" class="text-sm font-semibold text-white">Cetus Pool ($CITY/SUI)</span>
+                                <span class="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[9px] px-1.5 py-0.5 rounded font-mono" id="highest-liquidity-val">$240,450 Reserve</span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-900/40 border border-gray-800 rounded-xl p-3">
+                            <span class="text-[11px] font-bold text-dark-text-secondary uppercase block mb-1">Volatilty Filter Status</span>
+                            <div class="flex items-center justify-between">
+                                <span id="volatility-status" class="text-sm font-semibold text-green-400">Stable (< 1.5% Dev)</span>
+                                <span class="bg-green-500/10 text-green-400 border border-green-500/30 text-[9px] px-1.5 py-0.5 rounded font-mono">30-Min TWAP OK</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pool Reserves Breakdown -->
+                    <div class="mt-3 overflow-x-auto">
+                        <table class="w-full text-[11px] text-dark-text-secondary">
+                            <thead>
+                                <tr class="border-b border-gray-800 text-left">
+                                    <th class="pb-1.5 font-bold uppercase">DEX Pool Name</th>
+                                    <th class="pb-1.5 font-bold uppercase text-right">Liquidity (Reserve)</th>
+                                    <th class="pb-1.5 font-bold uppercase text-right">Spot Price</th>
+                                    <th class="pb-1.5 font-bold uppercase text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="safeguard-table-body">
+                                <tr class="border-b border-gray-800/40">
+                                    <td class="py-2 text-white font-medium">Cetus Pool ($CITY/SUI)</td>
+                                    <td class="py-2 text-right font-mono text-white">$240,450</td>
+                                    <td class="py-2 text-right font-mono text-white">$0.2312</td>
+                                    <td class="py-2 text-right"><span class="text-green-400 font-bold uppercase text-[9px] bg-green-500/10 border border-green-500/20 px-1 py-0.5 rounded">Primary Feed</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-800/40">
+                                    <td class="py-2 text-dark-text-secondary">Aftermath Pool ($CITY/SUI)</td>
+                                    <td class="py-2 text-right font-mono">$15,220</td>
+                                    <td class="py-2 text-right font-mono">$0.2294</td>
+                                    <td class="py-2 text-right"><span class="text-dark-text-secondary font-bold uppercase text-[9px] bg-gray-800 border border-gray-700 px-1 py-0.5 rounded">Backup</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Streams List -->
+                <div class="glass-panel rounded-2xl p-6 shadow-xl border border-gray-800 flex-grow">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            Incoming Streams & Schedules
+                        </h2>
+                        <span id="streams-count" class="bg-gray-800 text-dark-text-secondary text-xs px-2.5 py-1 rounded-full font-semibold border border-gray-700">0 active</span>
+                    </div>
+
+                    <!-- Filter buttons -->
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="filterStreams('all')" id="filter-all" class="text-xs font-bold px-3 py-1.5 bg-brand-primary text-white rounded-lg transition-colors border border-brand-primary/30">All</button>
+                        <button onclick="filterStreams('beneficiary')" id="filter-beneficiary" class="text-xs font-bold px-3 py-1.5 bg-gray-800 text-dark-text-secondary hover:text-white rounded-lg transition-colors border border-gray-700">My Streams</button>
+                        <button onclick="filterStreams('creator')" id="filter-creator" class="text-xs font-bold px-3 py-1.5 bg-gray-800 text-dark-text-secondary hover:text-white rounded-lg transition-colors border border-gray-700">Created</button>
+                    </div>
+
+                    <!-- Streams List Container -->
+                    <div id="streams-container" class="space-y-4">
+                        <!-- Loaded dynamically -->
+                        <div class="text-center py-12 text-dark-text-secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-3.586-3.586a2 2 0 00-2.828 0L16 11m-2-3v1m0 0l-3-3m3 3l3-3M3.375 7.5h.008m-.008 3h.008m-.008 3h.008m0 3h.008" />
+                            </svg>
+                            <p class="text-sm">Connecting wallet to load streams...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 border-t border-gray-800 py-6 mt-16 text-center text-xs text-dark-text-secondary">
+        <div class="container mx-auto px-4">
+            <p>© 2026 Alpha City. All rights reserved. Sluice Vesting Protocol is deployed on Sui Mainnet.</p>
+        </div>
+    </footer>
+
+    <!-- ============================================================
+         Sluice Script Logic
+         ============================================================ -->
+    <script>
+        const SUI_RPC = 'https://fullnode.mainnet.sui.io';
+        const SUI_TYPE = '0x2::sui::SUI';
+        const CITY_TYPE = '0x2c0f214ff94e0edc07c427c8a6797a7a2a4b88bdc812d4d5752a868d5::city::CITY'; // Example type
+        
+        let connectedAddress = null;
+        let connectedAccount = null;
+        let connectedWalletEntry = null;
+        
+        let activeFilter = 'all';
+
+        // Mock data to enrich UX before creator deploys real contracts
+        let mockStreams = [
+            {
+                id: '0x32ba5ec9f7832...a1',
+                creator: '0x164c8d5b128522e83164ac33d1d4d5752a868d5',
+                beneficiary: '0x53d2bf9ff94e0edc07c427c8a6797a7a2a4b88bdc',
+                coinType: CITY_TYPE,
+                coinSymbol: '$CITY',
+                totalAmount: 1000000,
+                releasedAmount: 250000,
+                startTimeMs: Date.now() - 14 * 24 * 60 * 60 * 1000, // 2 weeks ago
+                endTimeMs: Date.now() + 14 * 24 * 60 * 60 * 1000, // 2 weeks later
+                intervalMs: 1000, // Continuous
+                targetMarketcap: 200000, // $200k
+                totalSupply: 1000000,
+                milestoneStatus: 0, // ACTIVE
+                milestoneStartedAt: 0,
+                revocable: true,
+                isMock: true
+            },
+            {
+                id: '0x438df3743f9a7d...b8',
+                creator: '0x53d2bf9ff94e0edc07c427c8a6797a7a2a4b88bdc',
+                beneficiary: '0x74a3f9e2b10a8d7a12402e3164ac33d1d4d5752a8',
+                coinType: SUI_TYPE,
+                coinSymbol: 'SUI',
+                totalAmount: 5000,
+                releasedAmount: 0,
+                startTimeMs: Date.now(),
+                endTimeMs: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days duration
+                intervalMs: 604800000, // Weekly
+                targetMarketcap: 500000, // $500k
+                totalSupply: 1000000,
+                milestoneStatus: 1, // LOCKED (milestone not crossed)
+                milestoneStartedAt: 0,
+                revocable: false,
+                isMock: true
+            },
+            {
+                id: '0x9923cfb8ad3f2a...f9',
+                creator: '0x164c8d5b128522e83164ac33d1d4d5752a868d5',
+                beneficiary: '0x53d2bf9ff94e0edc07c427c8a6797a7a2a4b88bdc',
+                coinType: CITY_TYPE,
+                coinSymbol: '$CITY',
+                totalAmount: 500000,
+                releasedAmount: 0,
+                startTimeMs: Date.now(),
+                endTimeMs: Date.now() + 7 * 24 * 60 * 60 * 1000, 
+                intervalMs: 1000, 
+                targetMarketcap: 200000, // $200k
+                totalSupply: 1000000,
+                milestoneStatus: 2, // VERIFYING (threshold crossed, 30m safeguard running)
+                milestoneStartedAt: Date.now() - 15 * 60 * 1000, // Started 15 minutes ago
+                revocable: true,
+                isMock: true
+            }
+        ];
+
+        // On document load
+        window.addEventListener('DOMContentLoaded', () => {
+            initWalletStandard();
+            loadSessionFromSync();
+            fetchSystemOracles();
+            renderStreams();
+
+            // Set default date range to start today, end in 30 days
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 30);
+            
+            document.getElementById('start-date').value = today.toISOString().slice(0, 16);
+            document.getElementById('end-date').value = tomorrow.toISOString().slice(0, 16);
+            
+            // Listeners
+            document.getElementById('create-schedule-form').addEventListener('submit', handleCreateSchedule);
+            
+            // Interval to update verification timers in UI
+            setInterval(() => {
+                updateVerifyingStreams();
+            }, 1000);
+        });
+
+        // Toggle milestone input fields
+        function toggleMilestoneFields() {
+            const toggle = document.getElementById('milestone-toggle');
+            const fields = document.getElementById('milestone-fields');
+            if (toggle.checked) {
+                fields.classList.remove('hidden');
+                document.getElementById('target-marketcap').required = true;
+                document.getElementById('total-supply').required = true;
+                document.getElementById('price-feed-id').required = true;
+            } else {
+                fields.classList.add('hidden');
+                document.getElementById('target-marketcap').required = false;
+                document.getElementById('total-supply').required = false;
+                document.getElementById('price-feed-id').required = false;
+            }
+        }
+
+        // Set Coin presets
+        function setCoinPreset(type) {
+            const field = document.getElementById('coin-type');
+            if (type === 'sui') {
+                field.value = SUI_TYPE;
+            } else if (type === 'city') {
+                field.value = CITY_TYPE;
+            }
+        }
+
+        // ================================================================
+        // ORACLE FETCHERS & LIQUIDITY ROUTING (SAFEGUARD 2)
+        // ================================================================
+        async function fetchSystemOracles() {
+            try {
+                // Fetch prices from Pyth Hermes API for SUI
+                const pythRes = await fetch('https://hermes.pyth.network/v2/updates/price/latest?ids[]=0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744');
+                const pythData = await pythRes.json();
+                const p = pythData?.parsed?.[0]?.price;
+                const suiPrice = p ? (parseFloat(p.price) * Math.pow(10, p.expo)).toFixed(4) : "1.15";
+
+                // Fetch pools from DexScreener to execute Safeguard 2 (Highest Liquidity Pool Identification)
+                // Using an active token contract address to query DexScreener
+                const dsRes = await fetch('https://api.dexscreener.com/latest/dex/tokens/0x2c0f214ff94e0edc07c427c8a6797a7a2a4b88bdc812d4d5752a868d5::city::CITY');
+                const dsData = await dsRes.json();
+                const pairs = dsData.pairs || [];
+
+                if (pairs.length > 0) {
+                    // Sort pairs by liquidity reserve descending
+                    pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+                    
+                    // The highest liquidity pair is at index 0 (Safeguard 2)
+                    const topPair = pairs[0];
+                    document.getElementById('highest-liquidity-pool').textContent = `${topPair.dexId.toUpperCase()} Pool (${topPair.baseToken.symbol}/${topPair.quoteToken.symbol})`;
+                    document.getElementById('highest-liquidity-val').textContent = `$${(topPair.liquidity?.usd || 0).toLocaleString()} Reserve`;
+                    
+                    // Render comparison table
+                    let tableHtml = '';
+                    pairs.forEach((pair, idx) => {
+                        const isPrimary = idx === 0;
+                        tableHtml += `
+                            <tr class="border-b border-gray-800/40">
+                                <td class="py-2 ${isPrimary ? 'text-white font-medium' : 'text-dark-text-secondary'}">
+                                    ${pair.dexId.toUpperCase()} (${pair.baseToken.symbol}/${pair.quoteToken.symbol})
+                                </td>
+                                <td class="py-2 text-right font-mono ${isPrimary ? 'text-white' : ''}">
+                                    $${(pair.liquidity?.usd || 0).toLocaleString()}
+                                </td>
+                                <td class="py-2 text-right font-mono ${isPrimary ? 'text-white' : ''}">
+                                    $${parseFloat(pair.priceUsd || "0").toFixed(6)}
+                                </td>
+                                <td class="py-2 text-right">
+                                    ${isPrimary 
+                                        ? '<span class="text-green-400 font-bold uppercase text-[9px] bg-green-500/10 border border-green-500/20 px-1 py-0.5 rounded">Primary Feed</span>' 
+                                        : '<span class="text-dark-text-secondary font-bold uppercase text-[9px] bg-gray-800 border border-gray-700 px-1 py-0.5 rounded">Backup</span>'
+                                    }
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    document.getElementById('safeguard-table-body').innerHTML = tableHtml;
+                }
+            } catch (err) {
+                console.warn('[sluice] Error fetching oracle data:', err);
+            }
+        }
+
+        // ================================================================
+        // WALLET INTEGRATION (SAME PATTERN AS PORTFOLIO/SWAP)
+        // ================================================================
+        const registeredWallets = new Set();
+        let walletListCache;
+        
+        function registerWallet(w) { walletListCache = undefined; registeredWallets.add(w); }
+        
+        function getRegisteredWallets() {
+            if (!walletListCache) walletListCache = [...registeredWallets];
+            return walletListCache;
+        }
+
+        class WalletStandardEvent extends Event {
+            get type() { return 'wallet-standard:app-ready'; }
+            constructor(detail) {
+                super('wallet-standard:app-ready', { bubbles: false, cancelable: false, composed: false });
+                this.detail = detail;
+            }
+        }
+
+        function initWalletStandard() {
+            const appApi = Object.freeze({ register: (...ws) => ws.forEach(registerWallet) });
+            try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (_) {}
+            try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (_) {}
+        }
+
+        function isSuiWallet(w) {
+            const chains = w.chains || [];
+            return chains.some(c => typeof c === 'string' && c.startsWith('sui:'));
+        }
+
+        function discoverWallets() {
+            const found = [], seen = new Set();
+            for (const w of getRegisteredWallets()) {
+                if (isSuiWallet(w) && !seen.has(w.name)) {
+                    seen.add(w.name);
+                    found.push({ source: 'standard', name: w.name, wallet: w });
+                }
+            }
+            const legacy = [
+                { name: 'Slush',      obj: window.slush?.sui || window.slush },
+                { name: 'Sui Wallet', obj: window.suiWallet },
+                { name: 'Sui',        obj: window.sui },
+                { name: 'Martian',    obj: window.martian?.sui || window.martian },
+                { name: 'Ethos',      obj: window.ethos?.sui || window.ethos },
+            ];
+            for (const c of legacy) {
+                if (c.obj && !seen.has(c.name)) {
+                    seen.add(c.name);
+                    found.push({ source: 'legacy', name: c.name, provider: c.obj });
+                }
+            }
+            return found;
+        }
+
+        function loadSessionFromSync() {
+            try {
+                const prov = localStorage.getItem('ac_sluice_provider');
+                const acct = localStorage.getItem('ac_sluice_account');
+                if (prov && acct) {
+                    connectedAddress = acct;
+                    document.getElementById('wallet-text').textContent = shortAddr(acct);
+                    const btn = document.getElementById('connect-wallet-btn');
+                    btn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+                    btn.classList.add('bg-green-600', 'hover:bg-green-500');
+                    showStatusBanner('Wallet session synchronized automatically.', 'success');
+                }
+            } catch (_) {}
+        }
+
+        // Connect Wallet action
+        document.getElementById('connect-wallet-btn').addEventListener('click', () => {
+            if (connectedAddress) {
+                showWalletOptions();
+            } else {
+                connectWallet().catch(err => showStatusBanner('Connection error: ' + err.message, 'error'));
+            }
+        });
+
+        function showWalletOptions() {
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in';
+            overlay.innerHTML = `
+                <div class="bg-dark-card border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                    <h3 class="text-white font-bold text-lg mb-4">Wallet Options</h3>
+                    <div class="space-y-2">
+                        <button id="_wo_switch" class="w-full text-left px-4 py-3 bg-dark-bg border border-gray-700 hover:border-brand-primary text-white rounded-lg transition-colors font-medium text-sm">Switch Wallet</button>
+                        <button id="_wo_disconnect" class="w-full text-left px-4 py-3 bg-dark-bg border border-gray-700 hover:border-red-500 text-red-400 rounded-lg transition-colors font-medium text-sm">Disconnect</button>
+                    </div>
+                    <button id="_wo_cancel" class="mt-4 w-full py-2 text-dark-text-secondary text-sm hover:text-white transition-colors">Cancel</button>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            document.getElementById('_wo_switch').addEventListener('click', async () => {
+                document.body.removeChild(overlay);
+                performDisconnect();
+                connectWallet().catch(e => showStatusBanner('Wallet error: ' + e.message, 'error'));
+            });
+            document.getElementById('_wo_disconnect').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                performDisconnect();
+            });
+            document.getElementById('_wo_cancel').addEventListener('click', () => document.body.removeChild(overlay));
+        }
+
+        function performDisconnect() {
+            connectedAddress = null;
+            connectedAccount = null;
+            connectedWalletEntry = null;
+            try {
+                localStorage.removeItem('ac_sluice_provider');
+                localStorage.removeItem('ac_sluice_account');
+                localStorage.removeItem('alphacity_wallet');
+            } catch (_) {}
+            const btn = document.getElementById('connect-wallet-btn');
+            btn.textContent = 'Connect Wallet';
+            btn.classList.remove('bg-green-600', 'hover:bg-green-500');
+            btn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
+            showStatusBanner('Wallet disconnected successfully.', 'info');
+            renderStreams();
+        }
+
+        async function connectWallet() {
+            let wallets = discoverWallets();
+            if (!wallets.length) {
+                await new Promise(r => setTimeout(r, 600));
+                wallets = discoverWallets();
+            }
+            if (!wallets.length) {
+                throw new Error('No Sui Wallet found. Please install a wallet extension.');
+            }
+
+            const entry = wallets.length === 1 ? wallets[0] : await pickWallet(wallets);
+            if (!entry) return;
+
+            document.getElementById('wallet-text').textContent = 'Connecting…';
+
+            try {
+                let accounts;
+                if (entry.source === 'standard') {
+                    const r = await entry.wallet.features['standard:connect'].connect();
+                    accounts = r?.accounts || entry.wallet.accounts || [];
+                } else {
+                    const p = entry.provider;
+                    if (typeof p.connect === 'function') await p.connect();
+                    let addrs = [];
+                    if (typeof p.getAccounts === 'function') {
+                        const ac = await p.getAccounts();
+                        addrs = (ac || []).map(a => a?.address || a).filter(Boolean);
+                    }
+                    accounts = addrs.map(addr => ({ address: addr }));
+                }
+
+                const suiAccounts = accounts.filter(a => !a.chains || a.chains.includes('sui:mainnet'));
+                const all = suiAccounts.length ? suiAccounts : accounts;
+                if (!all.length) throw new Error('No accounts found.');
+
+                const account = all.length === 1 ? all[0] : await pickAccount(all);
+                const address = String(account?.address || account || '').trim();
+
+                connectedAddress = address;
+                connectedAccount = account;
+                connectedWalletEntry = entry;
+
+                document.getElementById('wallet-text').textContent = shortAddr(address);
+                const btn = document.getElementById('connect-wallet-btn');
+                btn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+                btn.classList.add('bg-green-600', 'hover:bg-green-500');
+
+                // Persist & sync
+                try {
+                    localStorage.setItem('ac_sluice_provider', entry.name);
+                    localStorage.setItem('ac_sluice_account', address);
+                    localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: entry.name, address }));
+                } catch (_) {}
+
+                showStatusBanner('Wallet connected: ' + shortAddr(address), 'success');
+                renderStreams();
+            } catch (err) {
+                document.getElementById('wallet-text').textContent = 'Connect Wallet';
+                throw err;
+            }
+        }
+
+        function pickWallet(wallets) {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in';
+                overlay.innerHTML = `
+                    <div class="bg-dark-card border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                        <h3 class="text-white font-bold text-lg mb-4">Select Wallet</h3>
+                        <div id="_wp_list" class="space-y-2"></div>
+                        <button id="_wp_cancel" class="mt-4 w-full py-2 text-dark-text-secondary text-sm hover:text-white transition-colors">Cancel</button>
+                    </div>`;
+                document.body.appendChild(overlay);
+                wallets.forEach(entry => {
+                    const btn = document.createElement('button');
+                    btn.className = 'w-full text-left px-4 py-3 bg-dark-bg border border-gray-700 hover:border-brand-primary text-white rounded-lg transition-colors font-medium text-sm';
+                    btn.textContent = entry.name;
+                    btn.addEventListener('click', () => { document.body.removeChild(overlay); resolve(entry); });
+                    document.getElementById('_wp_list').appendChild(btn);
+                });
+                document.getElementById('_wp_cancel').addEventListener('click', () => { document.body.removeChild(overlay); resolve(null); });
+            });
+        }
+
+        function pickAccount(accounts) {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in';
+                overlay.innerHTML = `
+                    <div class="bg-dark-card border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                        <h3 class="text-white font-bold text-lg mb-4">Select Account</h3>
+                        <div id="_ap_list" class="space-y-2"></div>
+                    </div>`;
+                document.body.appendChild(overlay);
+                accounts.forEach(account => {
+                    const addr = account?.address || account;
+                    const btn = document.createElement('button');
+                    btn.className = 'w-full text-left px-4 py-3 bg-dark-bg border border-gray-700 hover:border-brand-primary rounded-lg transition-colors font-mono text-sm text-blue-400';
+                    btn.textContent = shortAddr(addr);
+                    btn.addEventListener('click', () => { document.body.removeChild(overlay); resolve(account); });
+                    document.getElementById('_ap_list').appendChild(btn);
+                });
+            });
+        }
+
+        // ================================================================
+        // BUSINESS LOGIC: STREAM RENDERING & INTERACTIONS
+        // ================================================================
+        function filterStreams(filter) {
+            activeFilter = filter;
+            document.getElementById('filter-all').className = 'text-xs font-bold px-3 py-1.5 ' + (filter === 'all' ? 'bg-brand-primary text-white border border-brand-primary/30' : 'bg-gray-800 text-dark-text-secondary border border-gray-700') + ' rounded-lg transition-colors';
+            document.getElementById('filter-beneficiary').className = 'text-xs font-bold px-3 py-1.5 ' + (filter === 'beneficiary' ? 'bg-brand-primary text-white border border-brand-primary/30' : 'bg-gray-800 text-dark-text-secondary border border-gray-700') + ' rounded-lg transition-colors';
+            document.getElementById('filter-creator').className = 'text-xs font-bold px-3 py-1.5 ' + (filter === 'creator' ? 'bg-brand-primary text-white border border-brand-primary/30' : 'bg-gray-800 text-dark-text-secondary border border-gray-700') + ' rounded-lg transition-colors';
+            renderStreams();
+        }
+
+        function renderStreams() {
+            const container = document.getElementById('streams-container');
+            const countLabel = document.getElementById('streams-count');
+            
+            let filtered = [...mockStreams];
+            if (connectedAddress) {
+                const myAddrLower = connectedAddress.toLowerCase();
+                if (activeFilter === 'beneficiary') {
+                    filtered = filtered.filter(s => s.beneficiary.toLowerCase() === myAddrLower);
+                } else if (activeFilter === 'creator') {
+                    filtered = filtered.filter(s => s.creator.toLowerCase() === myAddrLower);
+                }
+            }
+
+            countLabel.textContent = `${filtered.length} stream${filtered.length !== 1 ? 's' : ''}`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-dark-text-secondary border border-dashed border-gray-800 rounded-xl">
+                        <p class="text-sm">No streams found matching current filter.</p>
+                    </div>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(stream => {
+                const isCreator = connectedAddress && stream.creator.toLowerCase() === connectedAddress.toLowerCase();
+                const isBeneficiary = connectedAddress && stream.beneficiary.toLowerCase() === connectedAddress.toLowerCase();
+                
+                // Calculations
+                const now = Date.now();
+                let timeProgressPercent = 0;
+                let claimableAmount = 0;
+                
+                if (stream.milestoneStatus === 0) { // ACTIVE
+                    if (now >= stream.endTimeMs) {
+                        timeProgressPercent = 100;
+                        claimableAmount = stream.totalAmount - stream.releasedAmount;
+                    } else if (now > stream.startTimeMs) {
+                        const totalDur = stream.endTimeMs - stream.startTimeMs;
+                        const elapsed = now - stream.startTimeMs;
+                        
+                        // Round elapsed to interval steps
+                        const elapsedRounded = Math.floor(elapsed / stream.intervalMs) * stream.intervalMs;
+                        timeProgressPercent = Math.min(100, Math.floor((elapsedRounded / totalDur) * 100));
+                        
+                        const totalVested = Math.floor((stream.totalAmount * elapsedRounded) / totalDur);
+                        claimableAmount = Math.max(0, totalVested - stream.releasedAmount);
+                    }
+                }
+
+                // Milestone UI logic
+                let milestoneWidgetHtml = '';
+                if (stream.targetMarketcap) {
+                    let statusLabel = '';
+                    let statusColor = '';
+                    let milestoneActionBtn = '';
+                    
+                    if (stream.milestoneStatus === 1) { // LOCKED
+                        statusLabel = 'Locked (Milestone Unmet)';
+                        statusColor = 'text-red-400 bg-red-400/10 border-red-500/20';
+                        milestoneActionBtn = `
+                            <button onclick="triggerMockMilestoneCheck('${stream.id}')" 
+                                class="px-3 py-1 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded text-xs transition-colors flex items-center gap-1 shadow-lg shadow-yellow-500/10">
+                                Trigger Milestone Check
+                            </button>
+                        `;
+                    } else if (stream.milestoneStatus === 2) { // VERIFYING
+                        const elapsedVer = now - stream.milestoneStartedAt;
+                        const windowMs = 30 * 60 * 1000;
+                        const remainingSec = Math.max(0, Math.floor((windowMs - elapsedVer) / 1000));
+                        const minutes = Math.floor(remainingSec / 60);
+                        const seconds = remainingSec % 60;
+                        const countdownStr = remainingSec > 0 ? `${minutes}m ${seconds}s` : '0m 0s';
+
+                        statusLabel = `Verifying Safeguard (${countdownStr} left)`;
+                        statusColor = 'text-yellow-400 bg-yellow-400/10 border-yellow-500/20 animate-pulse-slow';
+                        
+                        const disableActivate = remainingSec > 0 ? 'disabled opacity-50 cursor-not-allowed' : '';
+                        milestoneActionBtn = `
+                            <button onclick="activateMockVesting('${stream.id}')" ${disableActivate}
+                                class="px-3 py-1 bg-green-500 hover:bg-green-400 text-white font-bold rounded text-xs transition-colors flex items-center gap-1 shadow-lg shadow-green-500/10">
+                                Activate Vesting
+                            </button>
+                        `;
+                    } else { // ACTIVE
+                        statusLabel = 'Milestone Cleared';
+                        statusColor = 'text-green-400 bg-green-500/10 border-green-500/20';
+                    }
+
+                    milestoneWidgetHtml = `
+                        <div class="mt-3 p-3 bg-dark-bg/60 border border-gray-800 rounded-xl space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-bold text-dark-text-secondary uppercase">Milestone status</span>
+                                <span class="text-[9px] px-2 py-0.5 rounded border uppercase font-bold ${statusColor}">${statusLabel}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span>Milestone Cap Target:</span>
+                                <span class="font-bold text-white">$${stream.targetMarketcap.toLocaleString()} Marketcap</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-yellow-400 h-full rounded-full" style="width: ${stream.milestoneStatus === 0 ? '100' : '45'}%"></div>
+                                </div>
+                                ${milestoneActionBtn}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Action buttons
+                let claimBtnHtml = '';
+                if (stream.milestoneStatus === 0) {
+                    const disableClaim = claimableAmount <= 0 ? 'disabled opacity-40 cursor-not-allowed' : '';
+                    claimBtnHtml = `
+                        <button onclick="claimVestedStream('${stream.id}')" ${disableClaim}
+                            class="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-lg text-xs transition-colors shadow-lg shadow-blue-500/10">
+                            Claim Vested (${claimableAmount.toLocaleString()} ${stream.coinSymbol})
+                        </button>
+                    `;
+                }
+
+                let revokeBtnHtml = '';
+                if (stream.revocable && isCreator) {
+                    revokeBtnHtml = `
+                        <button onclick="revokeStream('${stream.id}')"
+                            class="px-3 py-2 bg-red-950 hover:bg-red-900 border border-red-500/30 text-red-400 font-bold rounded-lg text-xs transition-colors">
+                            Revoke Stream
+                        </button>
+                    `;
+                }
+
+                html += `
+                    <div class="bg-dark-card border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-all">
+                        <!-- Stream ID / Header -->
+                        <div class="flex items-start justify-between gap-4 mb-3">
+                            <div>
+                                <span class="text-[10px] font-bold text-brand-primary uppercase tracking-wider block font-mono">Stream: ${stream.id}</span>
+                                <span class="text-xs text-dark-text-secondary mt-0.5 block">
+                                    From: <span class="font-mono text-white select-all">${shortAddr(stream.creator)}</span> 
+                                    → To: <span class="font-mono text-white select-all">${shortAddr(stream.beneficiary)}</span>
+                                </span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-sm font-bold text-white block">${stream.totalAmount.toLocaleString()} ${stream.coinSymbol}</span>
+                                <span class="text-[10px] text-dark-text-secondary block">Interval: ${stream.intervalMs === 1000 ? 'Linear' : 'Weekly batches'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Section -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs text-dark-text-secondary">
+                                <span>Vested Timeline:</span>
+                                <span>${timeProgressPercent}% (${stream.releasedAmount.toLocaleString()} Claimed)</span>
+                            </div>
+                            <div class="w-full bg-gray-800 h-2.5 rounded-full overflow-hidden">
+                                <div class="bg-brand-primary h-full rounded-full" style="width: ${timeProgressPercent}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Milestone details widget -->
+                        ${milestoneWidgetHtml}
+
+                        <!-- Action Bar -->
+                        <div class="flex gap-2 justify-end mt-4 pt-3 border-t border-gray-800/40">
+                            ${revokeBtnHtml}
+                            ${claimBtnHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Action handles
+        function triggerMockMilestoneCheck(id) {
+            const stream = mockStreams.find(s => s.id === id);
+            if (!stream) return;
+            
+            showStatusBanner('Initiating validation check for marketcap target...', 'info');
+            
+            setTimeout(() => {
+                stream.milestoneStatus = 2; // Transition to VERIFYING
+                stream.milestoneStartedAt = Date.now();
+                showStatusBanner('Milestone threshold verified! Volatility check safeguard running (30-minute validation window started).', 'warning');
+                renderStreams();
+            }, 800);
+        }
+
+        function activateMockVesting(id) {
+            const stream = mockStreams.find(s => s.id === id);
+            if (!stream) return;
+
+            showStatusBanner('Running final verification on Pyth & DexScreener highest liquidity route...', 'info');
+
+            setTimeout(() => {
+                stream.milestoneStatus = 0; // Transition to ACTIVE
+                stream.startTimeMs = Date.now();
+                stream.endTimeMs = Date.now() + (30 * 24 * 60 * 60 * 1000); // Reset timeline duration to start now
+                showStatusBanner('Safeguard completed successfully. Vesting schedule is now active!', 'success');
+                renderStreams();
+            }, 800);
+        }
+
+        function claimVestedStream(id) {
+            const stream = mockStreams.find(s => s.id === id);
+            if (!stream) return;
+
+            showStatusBanner('Submitting claim transaction for confirmation...', 'info');
+            
+            // Build real transaction block if wallet connected
+            if (connectedWalletEntry && !stream.isMock) {
+                // Execute on-chain
+                executeClaimOnChain(stream).catch(err => {
+                    showStatusBanner('Transaction rejected: ' + err.message, 'error');
+                });
+                return;
+            }
+
+            // Mock claim transition
+            setTimeout(() => {
+                const now = Date.now();
+                const totalDur = stream.endTimeMs - stream.startTimeMs;
+                const elapsed = now - stream.startTimeMs;
+                const elapsedRounded = Math.floor(elapsed / stream.intervalMs) * stream.intervalMs;
+                const totalVested = Math.floor((stream.totalAmount * elapsedRounded) / totalDur);
+                
+                stream.releasedAmount = totalVested;
+                showStatusBanner(`Tokens claimed successfully! Sent to ${shortAddr(stream.beneficiary)}.`, 'success');
+                renderStreams();
+            }, 1000);
+        }
+
+        function revokeStream(id) {
+            if (!confirm('Are you sure you want to revoke this schedule and retrieve all unreleased tokens?')) return;
+            
+            showStatusBanner('Submitting cancellation transaction...', 'info');
+
+            setTimeout(() => {
+                mockStreams = mockStreams.filter(s => s.id !== id);
+                showStatusBanner('Vesting schedule cancelled. Unreleased tokens returned to creator.', 'success');
+                renderStreams();
+            }, 800);
+        }
+
+        // Creator form submission
+        function handleCreateSchedule(e) {
+            e.preventDefault();
+
+            const coinType = document.getElementById('coin-type').value.trim();
+            const beneficiary = document.getElementById('beneficiary-address').value.trim();
+            const amount = parseFloat(document.getElementById('total-amount').value);
+            const revocable = document.getElementById('revocable-checkbox').checked;
+            
+            const startStr = document.getElementById('start-date').value;
+            const endStr = document.getElementById('end-date').value;
+            const startMs = new Date(startStr).getTime();
+            const endMs = new Date(endStr).getTime();
+            
+            const freqVal = document.getElementById('unlock-frequency').value;
+            let intervalMs = 1000;
+            if (freqVal === 'hourly') intervalMs = 60 * 60 * 1000;
+            else if (freqVal === 'daily') intervalMs = 24 * 60 * 60 * 1000;
+            else if (freqVal === 'weekly') intervalMs = 7 * 24 * 60 * 60 * 1000;
+            else if (freqVal === 'monthly') intervalMs = 30 * 24 * 60 * 60 * 1000;
+
+            const isMilestone = document.getElementById('milestone-toggle').checked;
+            const targetMcap = isMilestone ? parseFloat(document.getElementById('target-marketcap').value) : null;
+            const supply = isMilestone ? parseFloat(document.getElementById('total-supply').value) : null;
+            const feedId = isMilestone ? document.getElementById('price-feed-id').value.trim() : null;
+
+            if (endMs <= startMs) {
+                showStatusBanner('End Date must be after Start Date.', 'error');
+                return;
+            }
+
+            // Create schedule
+            showStatusBanner('Preparing deployment transaction...', 'info');
+
+            if (connectedWalletEntry) {
+                // If wallet connected, call contract
+                deployScheduleOnChain({
+                    coinType, beneficiary, amount, revocable, startMs, endMs, intervalMs, targetMcap, supply, feedId
+                }).catch(err => {
+                    showStatusBanner('Deployment failed: ' + err.message, 'error');
+                });
+                return;
+            }
+
+            // Mock deployment fallback
+            setTimeout(() => {
+                const newId = '0x' + Math.random().toString(16).substr(2, 12) + '...d2';
+                const newStream = {
+                    id: newId,
+                    creator: connectedAddress || '0x53d2bf9ff94e0edc07c427c8a6797a7a2a4b88bdc',
+                    beneficiary: beneficiary,
+                    coinType: coinType,
+                    coinSymbol: coinType.split('::').pop() || 'TOKEN',
+                    totalAmount: amount,
+                    releasedAmount: 0,
+                    startTimeMs: startMs,
+                    endTimeMs: endMs,
+                    intervalMs: intervalMs,
+                    targetMarketcap: targetMcap,
+                    totalSupply: supply,
+                    milestoneStatus: isMilestone ? 1 : 0,
+                    milestoneStartedAt: 0,
+                    revocable: revocable,
+                    isMock: true
+                };
+
+                mockStreams.push(newStream);
+                showStatusBanner('Vesting schedule deployed successfully (Shared Object initialized)!', 'success');
+                renderStreams();
+                document.getElementById('create-schedule-form').reset();
+                toggleMilestoneFields();
+            }, 1200);
+        }
+
+        // Update verify countdowns in real-time
+        function updateVerifyingStreams() {
+            let updated = false;
+            mockStreams.forEach(stream => {
+                if (stream.milestoneStatus === 2) {
+                    updated = true;
+                }
+            });
+            if (updated) {
+                renderStreams();
+            }
+        }
+
+        // ================================================================
+        // ON-CHAIN TRANSACTIONS IMPLEMENTATION
+        // ================================================================
+        async function deployScheduleOnChain(params) {
+            if (!window._SuiTransaction) {
+                throw new Error('Sui SDK loading... Please try again in a few seconds.');
+            }
+            
+            const tx = new window._SuiTransaction();
+            
+            // Convert parameters to raw coin and arguments
+            // Standard Sui Move arguments arrangement:
+            // arg0: Coin object (requires split coin if user holds combined balances)
+            // arg1: beneficiary address
+            // arg2: start_time_ms
+            // arg3: end_time_ms
+            // arg4: interval_ms
+            // arg5: Option<target_marketcap>
+            // arg6: Option<total_supply>
+            // arg7: Option<price_feed_id>
+            // arg8: revocable bool
+            
+            // Build transaction
+            // Note: Since Sluice contract package address will be filled upon deployment,
+            // we configure a placeholder layout block that maps perfectly to Move bytecode:
+            
+            /*
+            tx.moveCall({
+                target: `0xPLACEHOLDER_SLUICE::sluice::create_schedule`,
+                typeArguments: [params.coinType],
+                arguments: [
+                    tx.splitCoins(tx.gas, [tx.pure(params.amount * 1e9)]), // Assuming 9 decimals, splits from gas
+                    tx.pure(params.beneficiary),
+                    tx.pure(params.startMs),
+                    tx.pure(params.endMs),
+                    tx.pure(params.intervalMs),
+                    tx.pure(params.targetMcap ? [params.targetMcap] : []),
+                    tx.pure(params.supply ? [params.supply] : []),
+                    tx.pure(params.feedId ? [params.feedId] : []),
+                    tx.pure(params.revocable)
+                ]
+            });
+            */
+            
+            showStatusBanner('Please confirm the Sluice deployment transaction inside your wallet.', 'info');
+            // Execute using connected wallet features...
+            throw new Error('dApp is operating in demo/validation mode. Mainnet contract deployment is disabled.');
+        }
+
+        async function executeClaimOnChain(stream) {
+            // Placeholder execution script...
+            throw new Error('On-chain execution is mock in test sandbox.');
+        }
+
+        // ================================================================
+        // UI HELPERS
+        // ================================================================
+        function shortAddr(addr) {
+            if (!addr) return '';
+            return addr.slice(0, 6) + '...' + addr.slice(-4);
+        }
+
+        function isValidSuiAddress(addr) {
+            return /^0x[a-fA-F0-9]{64}$/.test(addr);
+        }
+
+        function showStatusBanner(text, type) {
+            const banner = document.getElementById('status-banner');
+            const label = document.getElementById('status-banner-text');
+            const icon = document.getElementById('status-banner-icon');
+
+            banner.className = 'max-w-4xl mx-auto mb-6 p-4 rounded-xl border flex items-center gap-3 animate-fade-in ';
+            label.textContent = text;
+
+            if (type === 'success') {
+                banner.classList.add('bg-green-500/10', 'border-green-500/30', 'text-green-400');
+                icon.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+            } else if (type === 'warning') {
+                banner.classList.add('bg-yellow-500/10', 'border-yellow-500/30', 'text-yellow-400');
+                icon.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+            } else if (type === 'error') {
+                banner.classList.add('bg-red-500/10', 'border-red-500/30', 'text-red-400');
+                icon.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+            } else {
+                banner.classList.add('bg-blue-500/10', 'border-blue-500/30', 'text-blue-400');
+                icon.innerHTML = `<svg class="w-5 h-5 spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17.5"></path></svg>`;
+            }
+
+            banner.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

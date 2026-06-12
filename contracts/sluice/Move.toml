@@ -1,0 +1,12 @@
+[package]
+name = "sluice"
+version = "0.0.1"
+edition = "2024.beta"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet" }
+Pyth = { git = "https://github.com/pyth-network/pyth-crosschain-query.git", subdir = "target_chains/sui/contracts/pyth", rev = "main" }
+
+[addresses]
+sluice = "0x0"
+pyth = "0x04e20ddf36af417ae3164ac33d1d4d5752a868d5"
