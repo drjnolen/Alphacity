@@ -7,6 +7,9 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Shared wallet connection sync -->
+    <script src="/shared/wallet-sync.js"></script>
+
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1026,6 +1029,44 @@
         return latestSuiPriceUsd;
     }
 
+    async function fetchTokenPrices(coinTypes) {
+        const prices = {};
+        const nonSuiTypes = (coinTypes || []).filter(ct => !isSuiCoinType(ct));
+        if (nonSuiTypes.length === 0) return prices;
+
+        const batches = [];
+        for (let i = 0; i < nonSuiTypes.length; i += 30) {
+            batches.push(nonSuiTypes.slice(i, i + 30));
+        }
+
+        await Promise.all(batches.map(async (batch) => {
+            try {
+                const url = `https://api.dexscreener.com/latest/dex/tokens/${batch.map(encodeURIComponent).join(',')}`;
+                const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const tokenPairs = data?.pairs || [];
+                tokenPairs.forEach(p => {
+                    const tokenAddr = p.baseToken?.address;
+                    if (!tokenAddr) return;
+                    const price = parseFloat(p.priceUsd);
+                    const liquidity = parseFloat(p.liquidity?.usd || 0);
+                    if (isNaN(price)) return;
+                    const existing = prices[tokenAddr];
+                    if (!existing || liquidity > existing.liquidity) {
+                        prices[tokenAddr] = { price, liquidity };
+                    }
+                });
+            } catch (_) {}
+        }));
+
+        const finalPrices = {};
+        Object.keys(prices).forEach(addr => {
+            finalPrices[addr] = prices[addr].price;
+        });
+        return finalPrices;
+    }
+
     function holdingUsdValue(balance, suiPrice) {
         if (!balance?.coinType || balance?.totalBalance === undefined || balance?.totalBalance === null || typeof suiPrice !== 'number') return null;
         const coinType = balance.coinType;
@@ -1102,11 +1143,16 @@
 
             portfolioData = { address, balances: balances || [], allObjects, stakedCity, stakedSui };
 
-            // Pre-fetch coin metadata (decimals) for all coin types
+            // Pre-fetch coin metadata (decimals) and token prices
             const coinTypes = (balances || []).map(b => b.coinType).filter(Boolean);
-            await Promise.all(coinTypes.map(ct => fetchCoinDecimals(ct)));
+            const [, tokenPrices] = await Promise.all([
+                Promise.all(coinTypes.map(ct => fetchCoinDecimals(ct))),
+                fetchTokenPrices(coinTypes)
+            ]);
 
-            renderTokenList(balances || [], suiPriceUsd);
+            portfolioData = { address, balances: balances || [], allObjects, stakedCity, stakedSui, tokenPrices };
+
+            renderTokenList(balances || [], suiPriceUsd, tokenPrices);
             renderObjectSummary(allObjects, balances || []);
             renderStakedPositions(stakedSui, stakedCity);
         } catch (err) {
@@ -1121,7 +1167,7 @@
         }
     }
 
-    function renderTokenList(balances, suiPrice = latestSuiPriceUsd) {
+    function renderTokenList(balances, suiPrice = latestSuiPriceUsd, tokenPrices = {}) {
         const el = document.getElementById('token-list');
         const filtered = (balances || []).filter(b => shouldTrackHolding(b, suiPrice));
         if (!filtered.length) {
@@ -1129,13 +1175,26 @@
             return;
         }
         const sorted = [...filtered].sort((a, b) => {
-            // Real SUI first, then by token count descending
+            const aDec = coinDecimals(a.coinType);
+            const bDec = coinDecimals(b.coinType);
+            const aAmt = balanceAmountNumber(a.totalBalance, aDec);
+            const bAmt = balanceAmountNumber(b.totalBalance, bDec);
+
+            const aPrice = tokenPrices[a.coinType] || (isSuiCoinType(a.coinType) ? suiPrice : 0);
+            const bPrice = tokenPrices[b.coinType] || (isSuiCoinType(b.coinType) ? suiPrice : 0);
+
+            const aVal = aAmt * aPrice;
+            const bVal = bAmt * bPrice;
+
+            if (Math.abs(aVal - bVal) > 0.000001) {
+                return bVal - aVal; // Sort by USD value descending
+            }
+            
+            // Fallback to SUI first, then count descending
             const aIsSui = isSuiCoinType(a.coinType);
             const bIsSui = isSuiCoinType(b.coinType);
             if (aIsSui && !bIsSui) return -1;
             if (bIsSui && !aIsSui) return 1;
-            const aAmt = balanceAmountNumber(a.totalBalance, coinDecimals(a.coinType));
-            const bAmt = balanceAmountNumber(b.totalBalance, coinDecimals(b.coinType));
             return bAmt - aAmt;
         });
         el.innerHTML = sorted.map(b => {
@@ -1143,9 +1202,17 @@
             const dec = coinDecimals(b.coinType);
             const amt = fmtBalance(b.totalBalance, dec);
             const isCity = b.coinType === CITY_TYPE;
+
+            const price = tokenPrices[b.coinType] || (isSuiCoinType(b.coinType) ? suiPrice : 0);
+            const valUsd = price * balanceAmountNumber(b.totalBalance, dec);
+            const valUsdText = valUsd > 0.01 ? fmtUsd(valUsd) : (valUsd > 0 ? '<$0.01' : '—');
+
             return `
                 <div class="flex justify-between items-center text-xs py-1.5 border-b border-gray-800/60 last:border-0">
-                    <span class="font-medium ${isCity ? 'text-brand-secondary' : 'text-dark-text-secondary'}">${sym}</span>
+                    <div class="flex flex-col">
+                        <span class="font-medium ${isCity ? 'text-brand-secondary' : 'text-dark-text-secondary'}">${sym}</span>
+                        <span class="text-[10px] text-gray-500">${valUsdText}</span>
+                    </div>
                     <span class="text-white font-mono">${amt}</span>
                 </div>`;
         }).join('');
@@ -1285,15 +1352,19 @@
             ]);
             const freshData = { address: connectedAddress, balances: balances || [], allObjects, stakedCity, stakedSui };
 
-            // Fetch coin metadata (decimals) for any new coin types
+            // Fetch coin metadata (decimals) and token prices
             const coinTypes = (freshData.balances).map(b => b.coinType).filter(Boolean);
-            await Promise.all(coinTypes.map(ct => fetchCoinDecimals(ct)));
+            const [, tokenPrices] = await Promise.all([
+                Promise.all(coinTypes.map(ct => fetchCoinDecimals(ct))),
+                fetchTokenPrices(coinTypes)
+            ]);
 
             // Update sidebar with latest data
             setThinkingStatus('Fetching market data…');
             const suiPriceUsd = await fetchSuiPriceUsd();
 
-            renderTokenList(freshData.balances, suiPriceUsd);
+            freshData.tokenPrices = tokenPrices;
+            renderTokenList(freshData.balances, suiPriceUsd, tokenPrices);
             renderObjectSummary(freshData.allObjects, freshData.balances);
             renderStakedPositions(freshData.stakedSui, freshData.stakedCity);
             portfolioData = freshData;
@@ -1390,23 +1461,43 @@ Return ONLY a valid JSON object with two string keys:
 
     function buildPortfolioSummary(data, suiPrice) {
         const lines = [`Wallet address: ${data.address}`];
+        const tokenPrices = data.tokenPrices || {};
 
         if (data.balances?.length) {
             lines.push('\nTOKEN BALANCES:');
             const sorted = [...data.balances]
                 .filter(b => shouldTrackHolding(b, suiPrice))
                 .sort((a, b) => {
-                if (isSuiCoinType(a.coinType)) return -1;
-                if (isSuiCoinType(b.coinType)) return 1;
-                const aAmt = balanceAmountNumber(a.totalBalance, coinDecimals(a.coinType));
-                const bAmt = balanceAmountNumber(b.totalBalance, coinDecimals(b.coinType));
-                return bAmt - aAmt;
-            });
+                    const aDec = coinDecimals(a.coinType);
+                    const bDec = coinDecimals(b.coinType);
+                    const aAmt = balanceAmountNumber(a.totalBalance, aDec);
+                    const bAmt = balanceAmountNumber(b.totalBalance, bDec);
+
+                    const aPrice = tokenPrices[a.coinType] || (isSuiCoinType(a.coinType) ? suiPrice : 0);
+                    const bPrice = tokenPrices[b.coinType] || (isSuiCoinType(b.coinType) ? suiPrice : 0);
+
+                    const aVal = aAmt * aPrice;
+                    const bVal = bAmt * bPrice;
+
+                    if (Math.abs(aVal - bVal) > 0.000001) {
+                        return bVal - aVal;
+                    }
+                    const aIsSui = isSuiCoinType(a.coinType);
+                    const bIsSui = isSuiCoinType(b.coinType);
+                    if (aIsSui && !bIsSui) return -1;
+                    if (bIsSui && !aIsSui) return 1;
+                    return bAmt - aAmt;
+                });
             sorted.forEach(b => {
                 const sym = coinSymbol(b.coinType);
                 const dec = coinDecimals(b.coinType);
                 const amt = fmtBalance(b.totalBalance, dec);
-                let line = `- ${sym}: ${amt}`;
+                
+                const price = tokenPrices[b.coinType] || (isSuiCoinType(b.coinType) ? suiPrice : 0);
+                const valUsd = price * balanceAmountNumber(b.totalBalance, dec);
+                const valUsdText = valUsd > 0.01 ? ` ($${valUsd.toFixed(2)})` : '';
+                
+                let line = `- ${sym}: ${amt}${valUsdText}`;
                 if (b.coinType === CITY_TYPE) line += ' (Alpha City $CITY token)';
                 lines.push(line);
             });

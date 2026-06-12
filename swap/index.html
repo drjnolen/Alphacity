@@ -261,6 +261,42 @@
                         </div>
                         <span class="text-dark-text-secondary text-xs" id="quote-cetus">Enter amount</span>
                     </div>
+                    <!-- Aftermath -->
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-dark-bg border border-gray-700/50 text-sm mt-3"
+                        id="row-aftermath">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-[11px] text-indigo-400 font-bold shrink-0">A</div>
+                            <div>
+                                <span class="text-white font-medium">Aftermath</span>
+                                <span class="ml-2 text-[10px] text-dark-text-secondary">AMM</span>
+                            </div>
+                        </div>
+                        <span class="text-dark-text-secondary text-xs" id="quote-aftermath">Enter amount</span>
+                    </div>
+                    <!-- Turbos -->
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-dark-bg border border-gray-700/50 text-sm mt-3"
+                        id="row-turbos">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-[11px] text-red-400 font-bold shrink-0">T</div>
+                            <div>
+                                <span class="text-white font-medium">Turbos</span>
+                                <span class="ml-2 text-[10px] text-dark-text-secondary">AMM</span>
+                            </div>
+                        </div>
+                        <span class="text-dark-text-secondary text-xs" id="quote-turbos">Enter amount</span>
+                    </div>
+                    <!-- FlowX -->
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-dark-bg border border-gray-700/50 text-sm mt-3"
+                        id="row-flowx">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-[11px] text-emerald-400 font-bold shrink-0">F</div>
+                            <div>
+                                <span class="text-white font-medium">FlowX</span>
+                                <span class="ml-2 text-[10px] text-dark-text-secondary">AMM</span>
+                            </div>
+                        </div>
+                        <span class="text-dark-text-secondary text-xs" id="quote-flowx">Enter amount</span>
+                    </div>
                     <!-- 7k.ag (aggregated best) -->
                     <div class="flex items-center justify-between p-3 rounded-lg bg-dark-bg border border-brand-secondary/30 text-sm mt-3"
                         id="row-7k">
@@ -585,7 +621,7 @@
     }
 
     function resetDexRows(text) {
-        ['cetus'].forEach(id => setDexRow(id, text));
+        ['cetus', 'aftermath', 'turbos', 'flowx'].forEach(id => setDexRow(id, text));
         // 7k row reset (no isBest styling)
         const quoteEl7k = document.getElementById('quote-7k');
         const row7k     = document.getElementById('row-7k');
@@ -616,6 +652,18 @@
 
     async function fetchCetusQuote(amountInMist) {
         return fetchDexQuoteViaAggregator(amountInMist, 'cetus');
+    }
+
+    async function fetchAftermathQuote(amountInMist) {
+        return fetchDexQuoteViaAggregator(amountInMist, 'aftermath');
+    }
+
+    async function fetchTurbosQuote(amountInMist) {
+        return fetchDexQuoteViaAggregator(amountInMist, 'turbos');
+    }
+
+    async function fetchFlowxQuote(amountInMist) {
+        return fetchDexQuoteViaAggregator(amountInMist, 'flowx');
     }
 
     /** Bluefin7k aggregator quote (formerly 7k.ag) */
@@ -664,9 +712,12 @@
 
         try {
             // Fire all requests in parallel
-            const [r7k, rCetus] = await Promise.allSettled([
+            const [r7k, rCetus, rAftermath, rTurbos, rFlowx] = await Promise.allSettled([
                 fetch7kQuote(amountInMist),
                 fetchCetusQuote(amountInMist),
+                fetchAftermathQuote(amountInMist),
+                fetchTurbosQuote(amountInMist),
+                fetchFlowxQuote(amountInMist),
             ]);
 
             // ── 7k.ag aggregated result (primary) ──────────────────
@@ -701,13 +752,20 @@
                 document.getElementById('route-label').textContent =
                     uniqueRoutes.length ? `Route via ${uniqueRoutes.join(' → ')}` : 'Aggregated best route';
 
-                // Price impact — API returns percentage value directly (e.g. 1.5 = 1.5%)
-                const impact = currentQuote?.priceImpact ?? currentQuote?.price_impact;
-                if (impact != null) {
-                    const pct = parseFloat(impact).toFixed(2);
+                // Price impact calculation
+                const marketSp = parseFloat(currentQuote?.marketSp ?? currentQuote?.market_sp ?? 0);
+                if (marketSp > 0 && cityOut > 0) {
+                    const effectivePrice = amtSui / cityOut;
+                    const correctedSpotPrice = marketSp * 1e9;
+                    let pct = (1 - (correctedSpotPrice / effectivePrice)) * 100;
+                    // Normalize by subtracting baseline fee/spread (~1.0%) to get true slippage
+                    pct = Math.max(0, pct - 1.0);
+                    
                     const el  = document.getElementById('price-impact-label');
-                    el.textContent = `Price Impact: ${pct}%`;
-                    el.className   = parseFloat(pct) > 2 ? 'text-xs text-red-400' : 'text-xs text-dark-text-secondary';
+                    el.textContent = `Price Impact: ${pct.toFixed(2)}%`;
+                    el.className   = pct > 2 ? 'text-xs text-red-400' : 'text-xs text-dark-text-secondary';
+                } else {
+                    document.getElementById('price-impact-label').textContent = '';
                 }
 
                 // 7k row in table
@@ -726,13 +784,36 @@
             }
 
             // ── Individual DEX results ──────────────────────────────
-            if (rCetus.status === 'fulfilled') {
-                const cityAmt = (Number(rCetus.value) / 1e9).toLocaleString('en-US', { maximumFractionDigits: 4 });
-                setDexRow('cetus', `${cityAmt} CITY`);
-            } else {
-                console.warn('[swap] cetus quote failed:', rCetus.reason);
-                setDexRow('cetus', 'Unavailable');
-            }
+            const dexResults = [
+                { id: 'cetus', result: rCetus },
+                { id: 'aftermath', result: rAftermath },
+                { id: 'turbos', result: rTurbos },
+                { id: 'flowx', result: rFlowx }
+            ];
+
+            let bestIndividualAmt = 0n;
+            let bestIndividualId = null;
+
+            dexResults.forEach(d => {
+                if (d.result.status === 'fulfilled') {
+                    const amt = d.result.value;
+                    if (amt > bestIndividualAmt) {
+                        bestIndividualAmt = amt;
+                        bestIndividualId = d.id;
+                    }
+                }
+            });
+
+            dexResults.forEach(d => {
+                if (d.result.status === 'fulfilled') {
+                    const cityAmt = (Number(d.result.value) / 1e9).toLocaleString('en-US', { maximumFractionDigits: 4 });
+                    const isBest = (d.id === bestIndividualId && bestIndividualAmt > 0n);
+                    setDexRow(d.id, `${cityAmt} CITY`, isBest);
+                } else {
+                    console.warn(`[swap] ${d.id} quote failed:`, d.result.reason);
+                    setDexRow(d.id, 'Unavailable');
+                }
+            });
 
         } catch (err) {
             showStatus('Failed to fetch quotes: ' + err.message, 'error');

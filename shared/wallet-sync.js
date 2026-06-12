@@ -20,7 +20,8 @@
     // All known alternative key sets used by individual pages
     var ALT_PAIRS = [
         { provider: 'ac_staking_provider', account: 'ac_staking_account' },
-        { provider: 'ac_secrets_provider', account: 'ac_secrets_account' }
+        { provider: 'ac_secrets_provider', account: 'ac_secrets_account' },
+        { provider: 'ac_analyze_provider', account: 'ac_analyze_account' }
     ];
     var LEGACY_JSON_KEYS = ['alphacity_airdrop_wallet'];
 
