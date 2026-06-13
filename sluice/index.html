@@ -234,6 +234,7 @@
                                             class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
                                     </div>
                                 </div>
+                                <div id="target-price-estimate" class="hidden text-[11px] text-brand-primary font-semibold p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg"></div>
                                 
                                 <div>
                                     <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Pyth Price Feed ID (Hex Address)</label>
@@ -445,6 +446,10 @@
             
             // Listeners
             document.getElementById('create-schedule-form').addEventListener('submit', handleCreateSchedule);
+            document.getElementById('coin-type').addEventListener('change', autoFillTokenMetadata);
+            document.getElementById('coin-type').addEventListener('blur', autoFillTokenMetadata);
+            document.getElementById('target-marketcap').addEventListener('input', updateTargetPriceEstimate);
+            document.getElementById('total-supply').addEventListener('input', updateTargetPriceEstimate);
             
             // Interval to update verification timers in UI
             setInterval(() => {
@@ -466,6 +471,7 @@
                 document.getElementById('target-marketcap').required = false;
                 document.getElementById('total-supply').required = false;
                 document.getElementById('price-feed-id').required = false;
+                document.getElementById('target-price-estimate').classList.add('hidden');
             }
         }
 
@@ -476,6 +482,101 @@
                 field.value = SUI_TYPE;
             } else if (type === 'city') {
                 field.value = CITY_TYPE;
+            }
+            autoFillTokenMetadata();
+        }
+
+        // Auto-fill token metadata from Sui RPC and Pyth
+        async function autoFillTokenMetadata() {
+            const coinType = document.getElementById('coin-type').value.trim();
+            if (!coinType || !coinType.includes('::')) return;
+
+            showStatusBanner('Fetching token metadata from Sui RPC...', 'info');
+
+            try {
+                // 1. Fetch metadata from Sui RPC
+                const metadataRes = await fetch(SUI_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'suix_getCoinMetadata',
+                        params: [coinType]
+                    })
+                });
+                const metadataData = await metadataRes.json();
+                const metaResult = metadataData.result;
+                
+                if (!metaResult) {
+                    showStatusBanner('Token package metadata not found on Sui RPC (ensure token is deployed).', 'warning');
+                    return;
+                }
+
+                const symbol = metaResult.symbol;
+                const decimals = metaResult.decimals;
+                
+                // 2. Fetch supply from Sui RPC
+                const supplyRes = await fetch(SUI_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'suix_getTotalSupply',
+                        params: [coinType]
+                    })
+                });
+                const supplyData = await supplyRes.json();
+                if (supplyData.result && supplyData.result.value) {
+                    const rawSupply = BigInt(supplyData.result.value);
+                    const divisor = 10n ** BigInt(decimals);
+                    const supplyFormatted = Number(rawSupply / divisor);
+                    
+                    document.getElementById('total-supply').value = supplyFormatted;
+                    updateTargetPriceEstimate();
+                }
+
+                // 3. Search Pyth Hermes API for matching symbol price feed
+                const pythSearchUrl = `https://hermes.pyth.network/v2/price_feeds?query=${encodeURIComponent(symbol)}`;
+                const pythRes = await fetch(pythSearchUrl);
+                const pythFeeds = await pythRes.json();
+                
+                let matchingFeed = null;
+                if (Array.isArray(pythFeeds)) {
+                    const symUpper = symbol.toUpperCase();
+                    matchingFeed = pythFeeds.find(f => f.attributes && f.attributes.base && f.attributes.base.toUpperCase() === symUpper);
+                    if (!matchingFeed) {
+                        matchingFeed = pythFeeds.find(f => f.attributes && f.attributes.symbol && f.attributes.symbol.toUpperCase().includes(symUpper));
+                    }
+                }
+                
+                if (matchingFeed) {
+                    document.getElementById('price-feed-id').value = '0x' + matchingFeed.id;
+                    showStatusBanner(`Auto-populated metadata for ${symbol} (Total Supply: ${document.getElementById('total-supply').value}, Pyth ID found).`, 'success');
+                } else {
+                    document.getElementById('price-feed-id').value = '';
+                    showStatusBanner(`Found metadata for ${symbol}, but Pyth price feed was not found automatically. Please configure manually.`, 'warning');
+                }
+
+            } catch (err) {
+                console.error('[sluice] Auto-fill failed:', err);
+                showStatusBanner('Could not auto-fill token metadata: ' + err.message, 'warning');
+            }
+        }
+
+        // Calculate and update the implied target token price
+        function updateTargetPriceEstimate() {
+            const targetMcap = parseFloat(document.getElementById('target-marketcap').value);
+            const totalSupply = parseFloat(document.getElementById('total-supply').value);
+            const estimateDiv = document.getElementById('target-price-estimate');
+            
+            if (targetMcap > 0 && totalSupply > 0) {
+                const targetPrice = targetMcap / totalSupply;
+                estimateDiv.innerHTML = `Implied Target Token Price: <span class="font-mono text-white">$${targetPrice.toFixed(6)}</span>`;
+                estimateDiv.classList.remove('hidden');
+            } else {
+                estimateDiv.classList.add('hidden');
             }
         }
 
