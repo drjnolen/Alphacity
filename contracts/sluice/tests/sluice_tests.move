@@ -1,8 +1,6 @@
 #[test_only]
 module sluice::sluice_tests {
     use sluice::sluice;
-    use pyth::price;
-    use sui::test_utils;
 
     #[test]
     fun test_linear_vesting_calculations() {
@@ -36,25 +34,5 @@ module sluice::sluice_tests {
         // 6. Current time after end
         let vested = sluice::calculate_vested_amount(total_amount, start_time_ms, end_time_ms, interval_ms, 15000);
         assert!(vested == 100000, 5);
-    }
-
-    #[test]
-    fun test_marketcap_threshold_math() {
-        // Price value = 250000, exponent = -6 (representing $0.25)
-        let price_struct = price::new_price__test_only(250000, -6, 0);
-        
-        let target_marketcap: u64 = 200000; // $200k target
-        let total_supply: u64 = 1000000;     // 1M tokens supply
-        // Implied market cap = $0.25 * 1,000,000 = $250k
-        // Expected: target met ($250k >= $200k)
-        let met = sluice::is_target_marketcap_met(price_struct, target_marketcap, total_supply);
-        assert!(met == true, 0);
-
-        // Price value = 150000, exponent = -6 (representing $0.15)
-        let price_struct = price::new_price__test_only(150000, -6, 0);
-        // Implied market cap = $0.15 * 1,000,000 = $150k
-        // Expected: target NOT met ($150k < $200k)
-        let met = sluice::is_target_marketcap_met(price_struct, target_marketcap, total_supply);
-        assert!(met == false, 1);
     }
 }

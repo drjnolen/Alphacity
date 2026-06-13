@@ -237,8 +237,9 @@
                                 <div id="target-price-estimate" class="hidden text-[11px] text-brand-primary font-semibold p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg"></div>
                                 
                                 <div>
-                                    <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Pyth Price Feed ID (Hex Address)</label>
-                                    <input type="text" id="price-feed-id" placeholder="0xff..."
+                                    <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Oracle Public Key (Ed25519 Hex)</label>
+                                    <input type="text" id="oracle-pubkey" placeholder="32-byte public key of the bot (e.g. 0x...)"
+                                        value="0x1537acdf3692a71b578c772eaef4b8cd812d4d5752a868d5f302b4d96a71e8bf"
                                         class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors font-mono">
                                 </div>
 
@@ -868,6 +869,109 @@
         // ================================================================
         // BUSINESS LOGIC: STREAM RENDERING & INTERACTIONS
         // ================================================================
+        const fetchedAttestations = {};
+
+        function getMilestoneWidget(stream) {
+            if (!stream.targetMarketcap) return '';
+
+            let statusLabel = '';
+            let statusColor = '';
+            let milestoneActionBtn = '';
+            
+            if (stream.milestoneStatus === 1) { // LOCKED
+                const att = fetchedAttestations[stream.id];
+                if (stream.isMock) {
+                    statusLabel = 'Locked (Awaiting Relayer)';
+                    statusColor = 'text-red-400 bg-red-400/10 border-red-500/20';
+                    milestoneActionBtn = `
+                        <button onclick="simulateMockBotCrossed('${stream.id}')" 
+                            class="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded text-[10px] uppercase transition-colors shadow-lg shadow-yellow-500/10">
+                            Simulate Bot Crossed
+                        </button>
+                    `;
+                } else if (att === undefined) {
+                    // Start fetching in background
+                    fetchedAttestations[stream.id] = null;
+                    fetch(`/sluice/attestations/${stream.id}.json`)
+                        .then(res => {
+                            if (res.ok) return res.json();
+                            throw new Error('Not found');
+                        })
+                        .then(data => {
+                            fetchedAttestations[stream.id] = data;
+                            renderStreams();
+                        })
+                        .catch(() => {
+                            fetchedAttestations[stream.id] = false;
+                            renderStreams();
+                        });
+
+                    statusLabel = 'Syncing...';
+                    statusColor = 'text-gray-400 bg-gray-800/40 border-gray-700/30';
+                    milestoneActionBtn = `
+                        <button disabled class="px-3 py-1.5 bg-gray-800 text-dark-text-secondary rounded text-[10px] uppercase cursor-not-allowed">
+                            Checking...
+                        </button>
+                    `;
+                } else if (att === null) {
+                    statusLabel = 'Syncing...';
+                    statusColor = 'text-gray-400 bg-gray-800/40 border-gray-700/30';
+                    milestoneActionBtn = `
+                        <button disabled class="px-3 py-1.5 bg-gray-800 text-dark-text-secondary rounded text-[10px] uppercase cursor-not-allowed">
+                            Checking...
+                        </button>
+                    `;
+                } else if (att === false) {
+                    statusLabel = 'Locked (Awaiting Bot)';
+                    statusColor = 'text-red-400 bg-red-400/10 border-red-500/20';
+                    milestoneActionBtn = `
+                        <button disabled class="px-3 py-1.5 bg-gray-800 text-dark-text-secondary rounded text-[10px] uppercase cursor-not-allowed" title="The GitHub relayer bot checks DexScreener periodically. Once target is held for 30m, activation will be allowed here.">
+                            Waiting for Bot
+                        </button>
+                    `;
+                } else if (att && att.unlocked) {
+                    statusLabel = 'Milestone Cleared!';
+                    statusColor = 'text-green-400 bg-green-500/10 border-green-500/20';
+                    milestoneActionBtn = `
+                        <button onclick="activateVestingStream('${stream.id}')" 
+                            class="px-3 py-1.5 bg-green-500 hover:bg-green-400 text-white font-bold rounded text-[10px] uppercase transition-colors shadow-lg shadow-green-500/10">
+                            Activate Vesting (Pay Gas)
+                        </button>
+                    `;
+                }
+            } else { // ACTIVE
+                statusLabel = 'Milestone Cleared';
+                statusColor = 'text-green-400 bg-green-500/10 border-green-500/20';
+            }
+
+            // Estimate current progress bar (just for visual representation of target cap vs current)
+            let capPercent = 0;
+            if (stream.milestoneStatus === 0) {
+                capPercent = 100;
+            } else {
+                capPercent = 45; // Placeholder mock progress
+            }
+
+            return `
+                <div class="mt-3 p-3 bg-dark-bg/60 border border-gray-800 rounded-xl space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-dark-text-secondary uppercase">Milestone status</span>
+                        <span class="text-[9px] px-2 py-0.5 rounded border uppercase font-bold ${statusColor}">${statusLabel}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span>Milestone Cap Target:</span>
+                        <span class="font-bold text-white">$${stream.targetMarketcap.toLocaleString()} Marketcap</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-yellow-400 h-full rounded-full" style="width: ${capPercent}%"></div>
+                        </div>
+                        ${milestoneActionBtn}
+                    </div>
+                </div>
+            `;
+        }
+
         function filterStreams(filter) {
             activeFilter = filter;
             document.getElementById('filter-all').className = 'text-xs font-bold px-3 py-1.5 ' + (filter === 'all' ? 'bg-brand-primary text-white border border-brand-primary/30' : 'bg-gray-800 text-dark-text-secondary border border-gray-700') + ' rounded-lg transition-colors';
@@ -918,7 +1022,6 @@
                         const totalDur = stream.endTimeMs - stream.startTimeMs;
                         const elapsed = now - stream.startTimeMs;
                         
-                        // Round elapsed to interval steps
                         const elapsedRounded = Math.floor(elapsed / stream.intervalMs) * stream.intervalMs;
                         timeProgressPercent = Math.min(100, Math.floor((elapsedRounded / totalDur) * 100));
                         
@@ -927,64 +1030,8 @@
                     }
                 }
 
-                // Milestone UI logic
-                let milestoneWidgetHtml = '';
-                if (stream.targetMarketcap) {
-                    let statusLabel = '';
-                    let statusColor = '';
-                    let milestoneActionBtn = '';
-                    
-                    if (stream.milestoneStatus === 1) { // LOCKED
-                        statusLabel = 'Locked (Milestone Unmet)';
-                        statusColor = 'text-red-400 bg-red-400/10 border-red-500/20';
-                        milestoneActionBtn = `
-                            <button onclick="triggerMockMilestoneCheck('${stream.id}')" 
-                                class="px-3 py-1 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded text-xs transition-colors flex items-center gap-1 shadow-lg shadow-yellow-500/10">
-                                Trigger Milestone Check
-                            </button>
-                        `;
-                    } else if (stream.milestoneStatus === 2) { // VERIFYING
-                        const elapsedVer = now - stream.milestoneStartedAt;
-                        const windowMs = 30 * 60 * 1000;
-                        const remainingSec = Math.max(0, Math.floor((windowMs - elapsedVer) / 1000));
-                        const minutes = Math.floor(remainingSec / 60);
-                        const seconds = remainingSec % 60;
-                        const countdownStr = remainingSec > 0 ? `${minutes}m ${seconds}s` : '0m 0s';
-
-                        statusLabel = `Verifying Safeguard (${countdownStr} left)`;
-                        statusColor = 'text-yellow-400 bg-yellow-400/10 border-yellow-500/20 animate-pulse-slow';
-                        
-                        const disableActivate = remainingSec > 0 ? 'disabled opacity-50 cursor-not-allowed' : '';
-                        milestoneActionBtn = `
-                            <button onclick="activateMockVesting('${stream.id}')" ${disableActivate}
-                                class="px-3 py-1 bg-green-500 hover:bg-green-400 text-white font-bold rounded text-xs transition-colors flex items-center gap-1 shadow-lg shadow-green-500/10">
-                                Activate Vesting
-                            </button>
-                        `;
-                    } else { // ACTIVE
-                        statusLabel = 'Milestone Cleared';
-                        statusColor = 'text-green-400 bg-green-500/10 border-green-500/20';
-                    }
-
-                    milestoneWidgetHtml = `
-                        <div class="mt-3 p-3 bg-dark-bg/60 border border-gray-800 rounded-xl space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-dark-text-secondary uppercase">Milestone status</span>
-                                <span class="text-[9px] px-2 py-0.5 rounded border uppercase font-bold ${statusColor}">${statusLabel}</span>
-                            </div>
-                            <div class="flex justify-between items-center text-xs">
-                                <span>Milestone Cap Target:</span>
-                                <span class="font-bold text-white">$${stream.targetMarketcap.toLocaleString()} Marketcap</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-4">
-                                <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                                    <div class="bg-yellow-400 h-full rounded-full" style="width: ${stream.milestoneStatus === 0 ? '100' : '45'}%"></div>
-                                </div>
-                                ${milestoneActionBtn}
-                            </div>
-                        </div>
-                    `;
-                }
+                // Milestone UI widget
+                const milestoneWidgetHtml = getMilestoneWidget(stream);
 
                 // Action buttons
                 let claimBtnHtml = '';
@@ -1009,7 +1056,7 @@
                 }
 
                 html += `
-                    <div class="bg-dark-card border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-all">
+                    <div class="bg-dark-card border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-all animate-fade-in">
                         <!-- Stream ID / Header -->
                         <div class="flex items-start justify-between gap-4 mb-3">
                             <div>
@@ -1052,33 +1099,43 @@
         }
 
         // Action handles
-        function triggerMockMilestoneCheck(id) {
+        function simulateMockBotCrossed(id) {
             const stream = mockStreams.find(s => s.id === id);
             if (!stream) return;
             
-            showStatusBanner('Initiating validation check for marketcap target...', 'info');
+            showStatusBanner('Simulating GitHub relayer bot verification...', 'info');
             
             setTimeout(() => {
-                stream.milestoneStatus = 2; // Transition to VERIFYING
-                stream.milestoneStartedAt = Date.now();
-                showStatusBanner('Milestone threshold verified! Volatility check safeguard running (30-minute validation window started).', 'warning');
+                fetchedAttestations[id] = {
+                    unlocked: true,
+                    signature: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+                };
+                showStatusBanner('GitHub Relayer Bot has signed the price attestation. Stream is ready for manual activation!', 'success');
                 renderStreams();
             }, 800);
         }
 
-        function activateMockVesting(id) {
+        async function activateVestingStream(id) {
             const stream = mockStreams.find(s => s.id === id);
             if (!stream) return;
 
-            showStatusBanner('Running final verification on Pyth & DexScreener highest liquidity route...', 'info');
+            showStatusBanner('Submitting activation transaction containing oracle signature...', 'info');
 
+            if (connectedWalletEntry && !stream.isMock) {
+                activateVestingOnChain(stream, fetchedAttestations[id].signature).catch(err => {
+                    showStatusBanner('Transaction failed: ' + err.message, 'error');
+                });
+                return;
+            }
+
+            // Mock claim transition
             setTimeout(() => {
                 stream.milestoneStatus = 0; // Transition to ACTIVE
                 stream.startTimeMs = Date.now();
                 stream.endTimeMs = Date.now() + (30 * 24 * 60 * 60 * 1000); // Reset timeline duration to start now
-                showStatusBanner('Safeguard completed successfully. Vesting schedule is now active!', 'success');
+                showStatusBanner('Signature verified on-chain. Vesting schedule is now active!', 'success');
                 renderStreams();
-            }, 800);
+            }, 1000);
         }
 
         function claimVestedStream(id) {
@@ -1145,8 +1202,7 @@
 
             const isMilestone = document.getElementById('milestone-toggle').checked;
             const targetMcap = isMilestone ? parseFloat(document.getElementById('target-marketcap').value) : null;
-            const supply = isMilestone ? parseFloat(document.getElementById('total-supply').value) : null;
-            const feedId = isMilestone ? document.getElementById('price-feed-id').value.trim() : null;
+            const oraclePubkey = isMilestone ? document.getElementById('oracle-pubkey').value.trim() : '';
 
             if (endMs <= startMs) {
                 showStatusBanner('End Date must be after Start Date.', 'error');
@@ -1159,7 +1215,7 @@
             if (connectedWalletEntry) {
                 // If wallet connected, call contract
                 deployScheduleOnChain({
-                    coinType, beneficiary, amount, revocable, startMs, endMs, intervalMs, targetMcap, supply, feedId
+                    coinType, beneficiary, amount, revocable, startMs, endMs, intervalMs, targetMcap, oraclePubkey
                 }).catch(err => {
                     showStatusBanner('Deployment failed: ' + err.message, 'error');
                 });
@@ -1181,9 +1237,7 @@
                     endTimeMs: endMs,
                     intervalMs: intervalMs,
                     targetMarketcap: targetMcap,
-                    totalSupply: supply,
                     milestoneStatus: isMilestone ? 1 : 0,
-                    milestoneStartedAt: 0,
                     revocable: revocable,
                     isMock: true
                 };
@@ -1198,15 +1252,7 @@
 
         // Update verify countdowns in real-time
         function updateVerifyingStreams() {
-            let updated = false;
-            mockStreams.forEach(stream => {
-                if (stream.milestoneStatus === 2) {
-                    updated = true;
-                }
-            });
-            if (updated) {
-                renderStreams();
-            }
+            // No-op for attestation bot
         }
 
         // ================================================================
@@ -1219,43 +1265,48 @@
             
             const tx = new window._SuiTransaction();
             
-            // Convert parameters to raw coin and arguments
-            // Standard Sui Move arguments arrangement:
-            // arg0: Coin object (requires split coin if user holds combined balances)
-            // arg1: beneficiary address
-            // arg2: start_time_ms
-            // arg3: end_time_ms
-            // arg4: interval_ms
-            // arg5: Option<target_marketcap>
-            // arg6: Option<total_supply>
-            // arg7: Option<price_feed_id>
-            // arg8: revocable bool
-            
-            // Build transaction
-            // Note: Since Sluice contract package address will be filled upon deployment,
-            // we configure a placeholder layout block that maps perfectly to Move bytecode:
-            
             /*
             tx.moveCall({
-                target: `0xPLACEHOLDER_SLUICE::sluice::create_schedule`,
+                target: `${PACKAGE_ADDRESS}::sluice::create_schedule`,
                 typeArguments: [params.coinType],
                 arguments: [
-                    tx.splitCoins(tx.gas, [tx.pure(params.amount * 1e9)]), // Assuming 9 decimals, splits from gas
+                    tx.splitCoins(tx.gas, [tx.pure(params.amount * 1e9)]), // Assuming 9 decimals
                     tx.pure(params.beneficiary),
                     tx.pure(params.startMs),
                     tx.pure(params.endMs),
                     tx.pure(params.intervalMs),
                     tx.pure(params.targetMcap ? [params.targetMcap] : []),
-                    tx.pure(params.supply ? [params.supply] : []),
-                    tx.pure(params.feedId ? [params.feedId] : []),
+                    tx.pure(Array.from(Buffer.from(params.oraclePubkey.replace('0x', ''), 'hex'))), // Converts hex to byte vector
                     tx.pure(params.revocable)
                 ]
             });
             */
             
             showStatusBanner('Please confirm the Sluice deployment transaction inside your wallet.', 'info');
-            // Execute using connected wallet features...
             throw new Error('dApp is operating in demo/validation mode. Mainnet contract deployment is disabled.');
+        }
+
+        async function activateVestingOnChain(stream, signature) {
+            if (!window._SuiTransaction) {
+                throw new Error('Sui SDK loading...');
+            }
+            
+            const tx = new window._SuiTransaction();
+            
+            /*
+            tx.moveCall({
+                target: `${PACKAGE_ADDRESS}::sluice::activate_vesting`,
+                typeArguments: [stream.coinType],
+                arguments: [
+                    tx.object(stream.id),
+                    tx.pure(Array.from(Buffer.from(signature.replace('0x', ''), 'hex'))),
+                    tx.object('0x6') // clock object ID
+                ]
+            });
+            */
+            
+            showStatusBanner('Please confirm the Sluice activation transaction in your wallet.', 'info');
+            throw new Error('dApp is operating in demo/validation mode.');
         }
 
         async function executeClaimOnChain(stream) {
