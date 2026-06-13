@@ -362,12 +362,14 @@
         const SUI_RPC = 'https://fullnode.mainnet.sui.io';
         const SUI_TYPE = '0x2::sui::SUI';
         const CITY_TYPE = '0x2c0f214ff94e0edc07c427c8a6797a7a2a4b88bdc812d4d5752a868d5::city::CITY'; // Example type
+        const PACKAGE_ADDRESS = '0xYOUR_SLUICE_PACKAGE_ID_HERE'; // Replace with your actual deployed package address
         
         let connectedAddress = null;
         let connectedAccount = null;
         let connectedWalletEntry = null;
         
         let activeFilter = 'all';
+        let onChainStreams = [];
 
         // Mock data to enrich UX before creator deploys real contracts
         let mockStreams = [
@@ -432,7 +434,7 @@
             initWalletStandard();
             loadSessionFromSync();
             fetchSystemOracles();
-            renderStreams();
+            refreshStreams();
 
             // Set default date range to start today, end in 30 days
             const today = new Date();
@@ -711,7 +713,7 @@
             return found;
         }
 
-        function loadSessionFromSync() {
+        async function loadSessionFromSync() {
             try {
                 const prov = localStorage.getItem('ac_sluice_provider');
                 const acct = localStorage.getItem('ac_sluice_account');
@@ -721,7 +723,24 @@
                     const btn = document.getElementById('connect-wallet-btn');
                     btn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
                     btn.classList.add('bg-green-600', 'hover:bg-green-500');
+
+                    // Try to resolve standard provider
+                    let wallets = discoverWallets();
+                    if (!wallets.length) {
+                        await new Promise(r => setTimeout(r, 600));
+                        wallets = discoverWallets();
+                    }
+                    const matched = wallets.find(w => w.name === prov);
+                    if (matched) {
+                        connectedWalletEntry = matched;
+                        if (matched.source === 'standard') {
+                            const accounts = matched.wallet.accounts || [];
+                            connectedAccount = accounts.find(a => String(a.address).trim().toLowerCase() === acct.toLowerCase()) || accounts[0];
+                        }
+                    }
+
                     showStatusBanner('Wallet session synchronized automatically.', 'success');
+                    refreshStreams();
                 }
             } catch (_) {}
         }
@@ -765,6 +784,7 @@
             connectedAddress = null;
             connectedAccount = null;
             connectedWalletEntry = null;
+            onChainStreams = [];
             try {
                 localStorage.removeItem('ac_sluice_provider');
                 localStorage.removeItem('ac_sluice_account');
@@ -833,7 +853,7 @@
                 } catch (_) {}
 
                 showStatusBanner('Wallet connected: ' + shortAddr(address), 'success');
-                renderStreams();
+                refreshStreams();
             } catch (err) {
                 document.getElementById('wallet-text').textContent = 'Connect Wallet';
                 throw err;
@@ -1001,7 +1021,7 @@
             const container = document.getElementById('streams-container');
             const countLabel = document.getElementById('streams-count');
             
-            let filtered = [...mockStreams];
+            let filtered = [...onChainStreams, ...mockStreams];
             if (connectedAddress) {
                 const myAddrLower = connectedAddress.toLowerCase();
                 if (activeFilter === 'beneficiary') {
@@ -1117,7 +1137,7 @@
 
         // Action handles
         function simulateMockBotCrossed(id) {
-            const stream = mockStreams.find(s => s.id === id);
+            const stream = [...onChainStreams, ...mockStreams].find(s => s.id === id);
             if (!stream) return;
             
             showStatusBanner('Simulating GitHub relayer bot verification...', 'info');
@@ -1133,13 +1153,15 @@
         }
 
         async function activateVestingStream(id) {
-            const stream = mockStreams.find(s => s.id === id);
+            const stream = [...onChainStreams, ...mockStreams].find(s => s.id === id);
             if (!stream) return;
 
             showStatusBanner('Submitting activation transaction containing oracle signature...', 'info');
 
             if (connectedWalletEntry && !stream.isMock) {
-                activateVestingOnChain(stream, fetchedAttestations[id].signature).catch(err => {
+                activateVestingOnChain(stream, fetchedAttestations[id].signature).then(() => {
+                    refreshStreams();
+                }).catch(err => {
                     showStatusBanner('Transaction failed: ' + err.message, 'error');
                 });
                 return;
@@ -1156,15 +1178,16 @@
         }
 
         function claimVestedStream(id) {
-            const stream = mockStreams.find(s => s.id === id);
+            const stream = [...onChainStreams, ...mockStreams].find(s => s.id === id);
             if (!stream) return;
 
             showStatusBanner('Submitting claim transaction for confirmation...', 'info');
             
             // Build real transaction block if wallet connected
             if (connectedWalletEntry && !stream.isMock) {
-                // Execute on-chain
-                executeClaimOnChain(stream).catch(err => {
+                executeClaimOnChain(stream).then(() => {
+                    refreshStreams();
+                }).catch(err => {
                     showStatusBanner('Transaction rejected: ' + err.message, 'error');
                 });
                 return;
@@ -1185,9 +1208,21 @@
         }
 
         function revokeStream(id) {
+            const stream = [...onChainStreams, ...mockStreams].find(s => s.id === id);
+            if (!stream) return;
+
             if (!confirm('Are you sure you want to revoke this schedule and retrieve all unreleased tokens?')) return;
             
             showStatusBanner('Submitting cancellation transaction...', 'info');
+
+            if (connectedWalletEntry && !stream.isMock) {
+                executeRevokeOnChain(stream).then(() => {
+                    refreshStreams();
+                }).catch(err => {
+                    showStatusBanner('Transaction rejected: ' + err.message, 'error');
+                });
+                return;
+            }
 
             setTimeout(() => {
                 mockStreams = mockStreams.filter(s => s.id !== id);
@@ -1233,6 +1268,10 @@
                 // If wallet connected, call contract
                 deployScheduleOnChain({
                     coinType, beneficiary, amount, revocable, startMs, endMs, intervalMs, targetMcap, oraclePubkey
+                }).then(() => {
+                    document.getElementById('create-schedule-form').reset();
+                    toggleMilestoneFields();
+                    refreshStreams();
                 }).catch(err => {
                     showStatusBanner('Deployment failed: ' + err.message, 'error');
                 });
@@ -1273,62 +1312,319 @@
         }
 
         // ================================================================
-        // ON-CHAIN TRANSACTIONS IMPLEMENTATION
+        // ON-CHAIN TRANSACTIONS & HELPER FUNCTIONS
         // ================================================================
+        function hexToBytes(hex) {
+            hex = hex.replace(/^0x/, '');
+            const bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < bytes.length; i++) {
+                bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+            }
+            return bytes;
+        }
+
+        async function rpc(method, params) {
+            const res = await fetch(SUI_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+            });
+            if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
+            const data = await res.json();
+            if (data.error) throw new Error(`RPC error: ${data.error.message}`);
+            return data.result;
+        }
+
+        async function fetchAllCoins(address, coinType) {
+            const all = [];
+            let cursor = null;
+            for (;;) {
+                const r = await rpc('suix_getCoins', [address, coinType, cursor, 50]);
+                all.push(...(r.data || []));
+                if (!r.hasNextPage) break;
+                cursor = r.nextCursor;
+            }
+            return all;
+        }
+
+        const decimalsCache = { [SUI_TYPE]: 9, [CITY_TYPE]: 9 };
+        async function getCoinDecimals(coinType) {
+            if (decimalsCache[coinType] !== undefined) return decimalsCache[coinType];
+            try {
+                const meta = await rpc('suix_getCoinMetadata', [coinType]);
+                decimalsCache[coinType] = meta ? meta.decimals : 9;
+            } catch (_) {
+                decimalsCache[coinType] = 9;
+            }
+            return decimalsCache[coinType];
+        }
+
+        async function signAndExecuteTx(tx) {
+            let Transaction = window._SuiTransaction;
+            if (!Transaction && window._suiTxReady) {
+                const mod = await window._suiTxReady;
+                Transaction = mod?.Transaction;
+            }
+            if (!Transaction) throw new Error('SUI SDK not loaded — please refresh and try again');
+
+            tx.setSender(connectedAddress);
+
+            const wallet = connectedWalletEntry;
+            if (!wallet) throw new Error('Wallet disconnected');
+
+            let txResult;
+
+            if (wallet.source === 'standard') {
+                const newFeature    = wallet.wallet.features?.['sui:signAndExecuteTransaction'];
+                const legacyFeature = wallet.wallet.features?.['sui:signAndExecuteTransactionBlock'];
+
+                if (newFeature) {
+                    txResult = await newFeature.signAndExecuteTransaction({
+                        transaction: tx,
+                        account: connectedAccount,
+                        chain: 'sui:mainnet',
+                    });
+                } else if (legacyFeature) {
+                    txResult = await legacyFeature.signAndExecuteTransactionBlock({
+                        transactionBlock: tx,
+                        account: connectedAccount,
+                        chain: 'sui:mainnet',
+                        options: { showEffects: true },
+                    });
+                } else {
+                    throw new Error('Wallet does not support transaction signing');
+                }
+
+            } else if (wallet.source === 'legacy') {
+                const p = wallet.provider;
+                if (typeof p.signAndExecuteTransactionBlock === 'function') {
+                    txResult = await p.signAndExecuteTransactionBlock({
+                        transactionBlock: tx,
+                        options: { showEffects: true },
+                    });
+                } else if (typeof p.signAndExecuteTransaction === 'function') {
+                    txResult = await p.signAndExecuteTransaction({ transaction: tx });
+                } else {
+                    throw new Error('Legacy wallet does not support transaction signing');
+                }
+            }
+
+            return txResult;
+        }
+
         async function deployScheduleOnChain(params) {
-            if (!window._SuiTransaction) {
-                throw new Error('Sui SDK loading... Please try again in a few seconds.');
+            if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
+                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html with your deployed Sluice package ID.');
             }
             
-            const tx = new window._SuiTransaction();
-            
-            /*
+            let Transaction = window._SuiTransaction;
+            if (!Transaction && window._suiTxReady) {
+                const mod = await window._suiTxReady;
+                Transaction = mod?.Transaction;
+            }
+            if (!Transaction) throw new Error('SUI SDK not loaded.');
+
+            const tx = new Transaction();
+
+            const decimals = window.currentTokenDecimals !== undefined ? window.currentTokenDecimals : await getCoinDecimals(params.coinType);
+            const amountRaw = BigInt(Math.round(params.amount * Math.pow(10, decimals)));
+
+            let coinObjectInput;
+            if (params.coinType === SUI_TYPE) {
+                coinObjectInput = tx.splitCoins(tx.gas, [tx.pure.u64(amountRaw)]);
+            } else {
+                const userCoins = await fetchAllCoins(connectedAddress, params.coinType);
+                if (userCoins.length === 0) {
+                    throw new Error(`No coins of type ${params.coinType.split('::').pop()} found in your wallet.`);
+                }
+                const primaryCoin = tx.object(userCoins[0].coinObjectId);
+                if (userCoins.length > 1) {
+                    tx.mergeCoins(primaryCoin, userCoins.slice(1).map(c => tx.object(c.coinObjectId)));
+                }
+                coinObjectInput = tx.splitCoins(primaryCoin, [tx.pure.u64(amountRaw)]);
+            }
+
+            const pubkeyBytes = hexToBytes(params.oraclePubkey);
+
             tx.moveCall({
                 target: `${PACKAGE_ADDRESS}::sluice::create_schedule`,
                 typeArguments: [params.coinType],
                 arguments: [
-                    tx.splitCoins(tx.gas, [tx.pure(params.amount * 1e9)]), // Assuming 9 decimals
-                    tx.pure(params.beneficiary),
-                    tx.pure(params.startMs),
-                    tx.pure(params.endMs),
-                    tx.pure(params.intervalMs),
-                    tx.pure(params.targetMcap ? [params.targetMcap] : []),
-                    tx.pure(Array.from(Buffer.from(params.oraclePubkey.replace('0x', ''), 'hex'))), // Converts hex to byte vector
-                    tx.pure(params.revocable)
+                    coinObjectInput,
+                    tx.pure.address(params.beneficiary),
+                    tx.pure.u64(params.startMs),
+                    tx.pure.u64(params.endMs),
+                    tx.pure.u64(params.intervalMs),
+                    tx.pure(params.targetMcap ? [params.targetMcap] : [], 'vector<u64>'),
+                    tx.pure(Array.from(pubkeyBytes), 'vector<u8>'),
+                    tx.pure.bool(params.revocable)
                 ]
             });
-            */
-            
-            showStatusBanner('Please confirm the Sluice deployment transaction inside your wallet.', 'info');
-            throw new Error('dApp is operating in demo/validation mode. Mainnet contract deployment is disabled.');
+
+            showStatusBanner('Please confirm Sluice deployment transaction inside your wallet.', 'info');
+            const result = await signAndExecuteTx(tx);
+            showStatusBanner('Vesting schedule deployed successfully!', 'success');
+            return result;
         }
 
         async function activateVestingOnChain(stream, signature) {
-            if (!window._SuiTransaction) {
-                throw new Error('Sui SDK loading...');
+            if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
+                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html.');
             }
-            
-            const tx = new window._SuiTransaction();
-            
-            /*
+
+            let Transaction = window._SuiTransaction;
+            if (!Transaction && window._suiTxReady) {
+                const mod = await window._suiTxReady;
+                Transaction = mod?.Transaction;
+            }
+            if (!Transaction) throw new Error('SUI SDK not loaded.');
+
+            const tx = new Transaction();
+            const sigBytes = hexToBytes(signature);
+
             tx.moveCall({
                 target: `${PACKAGE_ADDRESS}::sluice::activate_vesting`,
                 typeArguments: [stream.coinType],
                 arguments: [
                     tx.object(stream.id),
-                    tx.pure(Array.from(Buffer.from(signature.replace('0x', ''), 'hex'))),
-                    tx.object('0x6') // clock object ID
+                    tx.pure(Array.from(sigBytes), 'vector<u8>'),
+                    tx.object('0x6') // Clock object ID
                 ]
             });
-            */
-            
-            showStatusBanner('Please confirm the Sluice activation transaction in your wallet.', 'info');
-            throw new Error('dApp is operating in demo/validation mode.');
+
+            showStatusBanner('Please confirm Sluice activation transaction in your wallet.', 'info');
+            const result = await signAndExecuteTx(tx);
+            showStatusBanner('Vesting schedule activated successfully!', 'success');
+            return result;
         }
 
         async function executeClaimOnChain(stream) {
-            // Placeholder execution script...
-            throw new Error('On-chain execution is mock in test sandbox.');
+            if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
+                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html.');
+            }
+
+            let Transaction = window._SuiTransaction;
+            if (!Transaction && window._suiTxReady) {
+                const mod = await window._suiTxReady;
+                Transaction = mod?.Transaction;
+            }
+            if (!Transaction) throw new Error('SUI SDK not loaded.');
+
+            const tx = new Transaction();
+
+            tx.moveCall({
+                target: `${PACKAGE_ADDRESS}::sluice::claim_vested`,
+                typeArguments: [stream.coinType],
+                arguments: [
+                    tx.object(stream.id),
+                    tx.object('0x6') // Clock object ID
+                ]
+            });
+
+            showStatusBanner('Confirm claiming transaction in your wallet...', 'info');
+            const result = await signAndExecuteTx(tx);
+            showStatusBanner('Claim transaction submitted successfully!', 'success');
+            return result;
+        }
+
+        async function executeRevokeOnChain(stream) {
+            if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
+                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html.');
+            }
+
+            let Transaction = window._SuiTransaction;
+            if (!Transaction && window._suiTxReady) {
+                const mod = await window._suiTxReady;
+                Transaction = mod?.Transaction;
+            }
+            if (!Transaction) throw new Error('SUI SDK not loaded.');
+
+            const tx = new Transaction();
+
+            tx.moveCall({
+                target: `${PACKAGE_ADDRESS}::sluice::cancel_schedule`,
+                typeArguments: [stream.coinType],
+                arguments: [
+                    tx.object(stream.id)
+                ]
+            });
+
+            showStatusBanner('Confirm revocation transaction in your wallet...', 'info');
+            const result = await signAndExecuteTx(tx);
+            showStatusBanner('Vesting schedule revoked and unreleased tokens returned to creator!', 'success');
+            return result;
+        }
+
+        async function fetchOnChainStreams() {
+            if (!connectedAddress) return [];
+            if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) return [];
+
+            try {
+                const coinTypesToQuery = [SUI_TYPE, CITY_TYPE];
+                const activeCoin = document.getElementById('coin-type').value.trim();
+                if (activeCoin && activeCoin.includes('::') && !coinTypesToQuery.includes(activeCoin)) {
+                    coinTypesToQuery.push(activeCoin);
+                }
+
+                const allStreams = [];
+                for (const cType of coinTypesToQuery) {
+                    const structType = `${PACKAGE_ADDRESS}::sluice::VestingSchedule<${cType}>`;
+                    const res = await rpc('suix_queryObjects', [{
+                        filter: { StructType: structType },
+                        options: { showContent: true }
+                    }]);
+
+                    if (res && res.data) {
+                        const decimals = await getCoinDecimals(cType);
+                        const scale = Math.pow(10, decimals);
+                        
+                        for (const obj of res.data) {
+                            const fields = obj.data?.content?.fields;
+                            if (!fields) continue;
+
+                            const creator = fields.creator;
+                            const beneficiary = fields.beneficiary;
+                            const userAddr = connectedAddress;
+
+                            if (creator.toLowerCase() === userAddr.toLowerCase() || beneficiary.toLowerCase() === userAddr.toLowerCase()) {
+                                allStreams.push({
+                                    id: obj.data.objectId,
+                                    creator: creator,
+                                    beneficiary: beneficiary,
+                                    coinType: cType,
+                                    coinSymbol: cType.split('::').pop() || 'TOKEN',
+                                    totalAmount: Number(fields.total_amount) / scale,
+                                    releasedAmount: Number(fields.released_amount) / scale,
+                                    startTimeMs: Number(fields.start_time_ms),
+                                    endTimeMs: Number(fields.end_time_ms),
+                                    intervalMs: Number(fields.interval_ms),
+                                    targetMarketcap: fields.target_marketcap ? Number(fields.target_marketcap) : null,
+                                    milestoneStatus: Number(fields.milestone_status),
+                                    revocable: fields.revocable,
+                                    isMock: false
+                                });
+                            }
+                        }
+                    }
+                }
+                return allStreams;
+            } catch (err) {
+                console.warn('[sluice] Failed to fetch on-chain streams:', err);
+                return [];
+            }
+        }
+
+        async function refreshStreams() {
+            if (connectedAddress) {
+                try {
+                    onChainStreams = await fetchOnChainStreams();
+                } catch (err) {
+                    console.warn('[sluice] refreshStreams failed:', err);
+                }
+            } else {
+                onChainStreams = [];
+            }
+            renderStreams();
         }
 
         // ================================================================
