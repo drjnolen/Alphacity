@@ -146,15 +146,9 @@
                         <!-- Coin Type -->
                         <div>
                             <label class="text-xs font-semibold text-dark-text-secondary uppercase tracking-wider block mb-1">Coin Type (Sui Package ID)</label>
-                            <div class="relative">
-                                <input type="text" id="coin-type" required
-                                    placeholder="0x2::sui::SUI or Custom Type"
-                                    class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-4 py-2.5 rounded-lg text-sm transition-colors font-mono">
-                                <div class="absolute right-2 top-2 flex gap-1">
-                                    <button type="button" onclick="setCoinPreset('sui')" class="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-bold uppercase transition-colors">SUI</button>
-                                    <button type="button" onclick="setCoinPreset('city')" class="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 text-brand-secondary rounded font-bold uppercase transition-colors">$CITY</button>
-                                </div>
-                            </div>
+                            <input type="text" id="coin-type" required
+                                placeholder="0x2::sui::SUI or Custom Type Address"
+                                class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-4 py-2.5 rounded-lg text-sm transition-colors font-mono">
                         </div>
 
                         <!-- Beneficiary Address -->
@@ -294,6 +288,7 @@
                                     <th class="pb-1.5 font-bold uppercase">DEX Pool Name</th>
                                     <th class="pb-1.5 font-bold uppercase text-right">Liquidity (Reserve)</th>
                                     <th class="pb-1.5 font-bold uppercase text-right">Spot Price</th>
+                                    <th class="pb-1.5 font-bold uppercase text-right">Market Cap</th>
                                     <th class="pb-1.5 font-bold uppercase text-right">Status</th>
                                 </tr>
                             </thead>
@@ -301,13 +296,15 @@
                                 <tr class="border-b border-gray-800/40">
                                     <td class="py-2 text-white font-medium">Cetus Pool ($CITY/SUI)</td>
                                     <td class="py-2 text-right font-mono text-white">$240,450</td>
-                                    <td class="py-2 text-right font-mono text-white">$0.2312</td>
+                                    <td class="py-2 text-right font-mono text-white">$0.231200</td>
+                                    <td class="py-2 text-right font-mono text-white">$231,200</td>
                                     <td class="py-2 text-right"><span class="text-green-400 font-bold uppercase text-[9px] bg-green-500/10 border border-green-500/20 px-1 py-0.5 rounded">Primary Feed</span></td>
                                 </tr>
                                 <tr class="border-b border-gray-800/40">
                                     <td class="py-2 text-dark-text-secondary">Aftermath Pool ($CITY/SUI)</td>
                                     <td class="py-2 text-right font-mono">$15,220</td>
-                                    <td class="py-2 text-right font-mono">$0.2294</td>
+                                    <td class="py-2 text-right font-mono">$0.229400</td>
+                                    <td class="py-2 text-right font-mono">$229,400</td>
                                     <td class="py-2 text-right"><span class="text-dark-text-secondary font-bold uppercase text-[9px] bg-gray-800 border border-gray-700 px-1 py-0.5 rounded">Backup</span></td>
                                 </tr>
                             </tbody>
@@ -449,6 +446,12 @@
             document.getElementById('create-schedule-form').addEventListener('submit', handleCreateSchedule);
             document.getElementById('coin-type').addEventListener('change', autoFillTokenMetadata);
             document.getElementById('coin-type').addEventListener('blur', autoFillTokenMetadata);
+            document.getElementById('coin-type').addEventListener('input', (e) => {
+                const val = e.target.value.trim();
+                if (val.includes('::') && val.length > 20) {
+                    autoFillTokenMetadata();
+                }
+            });
             document.getElementById('target-marketcap').addEventListener('input', updateTargetPriceEstimate);
             document.getElementById('total-supply').addEventListener('input', updateTargetPriceEstimate);
             
@@ -466,31 +469,26 @@
                 fields.classList.remove('hidden');
                 document.getElementById('target-marketcap').required = true;
                 document.getElementById('total-supply').required = true;
-                document.getElementById('price-feed-id').required = true;
+                document.getElementById('oracle-pubkey').required = true;
             } else {
                 fields.classList.add('hidden');
                 document.getElementById('target-marketcap').required = false;
                 document.getElementById('total-supply').required = false;
-                document.getElementById('price-feed-id').required = false;
+                document.getElementById('oracle-pubkey').required = false;
                 document.getElementById('target-price-estimate').classList.add('hidden');
             }
         }
 
-        // Set Coin presets
-        function setCoinPreset(type) {
-            const field = document.getElementById('coin-type');
-            if (type === 'sui') {
-                field.value = SUI_TYPE;
-            } else if (type === 'city') {
-                field.value = CITY_TYPE;
-            }
-            autoFillTokenMetadata();
-        }
-
-        // Auto-fill token metadata from Sui RPC and Pyth
+        // Auto-fill token metadata from Sui RPC and DexScreener
         async function autoFillTokenMetadata() {
             const coinType = document.getElementById('coin-type').value.trim();
-            if (!coinType || !coinType.includes('::')) return;
+            if (!coinType || !coinType.includes('::')) {
+                window.lastAutoFilledCoinType = '';
+                return;
+            }
+
+            if (window.lastAutoFilledCoinType === coinType) return;
+            window.lastAutoFilledCoinType = coinType;
 
             showStatusBanner('Fetching token metadata from Sui RPC...', 'info');
 
@@ -511,6 +509,7 @@
                 
                 if (!metaResult) {
                     showStatusBanner('Token package metadata not found on Sui RPC (ensure token is deployed).', 'warning');
+                    fetchSystemOracles(coinType);
                     return;
                 }
 
@@ -529,36 +528,37 @@
                     })
                 });
                 const supplyData = await supplyRes.json();
+                let supplyFormatted = 0;
                 if (supplyData.result && supplyData.result.value) {
                     const rawSupply = BigInt(supplyData.result.value);
                     const divisor = 10n ** BigInt(decimals);
-                    const supplyFormatted = Number(rawSupply / divisor);
+                    supplyFormatted = Number(rawSupply / divisor);
                     
                     document.getElementById('total-supply').value = supplyFormatted;
                     updateTargetPriceEstimate();
                 }
 
-                // 3. Search Pyth Hermes API for matching symbol price feed
-                const pythSearchUrl = `https://hermes.pyth.network/v2/price_feeds?query=${encodeURIComponent(symbol)}`;
-                const pythRes = await fetch(pythSearchUrl);
-                const pythFeeds = await pythRes.json();
+                // 3. Query DexScreener API for price and valuation info
+                showStatusBanner(`Metadata loaded for ${symbol}. Fetching market data from DexScreener...`, 'info');
                 
-                let matchingFeed = null;
-                if (Array.isArray(pythFeeds)) {
-                    const symUpper = symbol.toUpperCase();
-                    matchingFeed = pythFeeds.find(f => f.attributes && f.attributes.base && f.attributes.base.toUpperCase() === symUpper);
-                    if (!matchingFeed) {
-                        matchingFeed = pythFeeds.find(f => f.attributes && f.attributes.symbol && f.attributes.symbol.toUpperCase().includes(symUpper));
-                    }
-                }
+                const dsRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(coinType)}`);
+                const dsData = await dsRes.json();
+                const pairs = dsData.pairs || [];
                 
-                if (matchingFeed) {
-                    document.getElementById('price-feed-id').value = '0x' + matchingFeed.id;
-                    showStatusBanner(`Auto-populated metadata for ${symbol} (Total Supply: ${document.getElementById('total-supply').value}, Pyth ID found).`, 'success');
+                if (pairs.length > 0) {
+                    // Sort pairs by liquidity reserve descending
+                    pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+                    const topPair = pairs[0];
+                    const price = parseFloat(topPair.priceUsd || 0);
+                    const fdv = topPair.fdv || (price * supplyFormatted);
+                    
+                    showStatusBanner(`Auto-populated metadata for ${symbol} (Supply: ${supplyFormatted.toLocaleString()}, Price: $${price.toFixed(6)}, FDV: $${fdv.toLocaleString()}).`, 'success');
                 } else {
-                    document.getElementById('price-feed-id').value = '';
-                    showStatusBanner(`Found metadata for ${symbol}, but Pyth price feed was not found automatically. Please configure manually.`, 'warning');
+                    showStatusBanner(`Found metadata for ${symbol}, but no active pools found on DexScreener.`, 'warning');
                 }
+
+                // Trigger update of Safeguard & Liquidity Oracle Registry
+                fetchSystemOracles(coinType);
 
             } catch (err) {
                 console.error('[sluice] Auto-fill failed:', err);
@@ -584,17 +584,15 @@
         // ================================================================
         // ORACLE FETCHERS & LIQUIDITY ROUTING (SAFEGUARD 2)
         // ================================================================
-        async function fetchSystemOracles() {
+        async function fetchSystemOracles(customCoinType) {
             try {
-                // Fetch prices from Pyth Hermes API for SUI
-                const pythRes = await fetch('https://hermes.pyth.network/v2/updates/price/latest?ids[]=0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744');
-                const pythData = await pythRes.json();
-                const p = pythData?.parsed?.[0]?.price;
-                const suiPrice = p ? (parseFloat(p.price) * Math.pow(10, p.expo)).toFixed(4) : "1.15";
+                let coinType = customCoinType || document.getElementById('coin-type').value.trim();
+                if (!coinType || !coinType.includes('::')) {
+                    coinType = CITY_TYPE;
+                }
 
                 // Fetch pools from DexScreener to execute Safeguard 2 (Highest Liquidity Pool Identification)
-                // Using an active token contract address to query DexScreener
-                const dsRes = await fetch('https://api.dexscreener.com/latest/dex/tokens/0x2c0f214ff94e0edc07c427c8a6797a7a2a4b88bdc812d4d5752a868d5::city::CITY');
+                const dsRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(coinType)}`);
                 const dsData = await dsRes.json();
                 const pairs = dsData.pairs || [];
 
@@ -611,6 +609,12 @@
                     let tableHtml = '';
                     pairs.forEach((pair, idx) => {
                         const isPrimary = idx === 0;
+                        const supplyInput = parseFloat(document.getElementById('total-supply').value);
+                        const mcap = (supplyInput > 0)
+                            ? (parseFloat(pair.priceUsd || 0) * supplyInput)
+                            : (pair.fdv || 0);
+                        const mcapStr = mcap > 0 ? `$${mcap.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'N/A';
+
                         tableHtml += `
                             <tr class="border-b border-gray-800/40">
                                 <td class="py-2 ${isPrimary ? 'text-white font-medium' : 'text-dark-text-secondary'}">
@@ -622,6 +626,9 @@
                                 <td class="py-2 text-right font-mono ${isPrimary ? 'text-white' : ''}">
                                     $${parseFloat(pair.priceUsd || "0").toFixed(6)}
                                 </td>
+                                <td class="py-2 text-right font-mono ${isPrimary ? 'text-white' : ''}">
+                                    ${mcapStr}
+                                </td>
                                 <td class="py-2 text-right">
                                     ${isPrimary 
                                         ? '<span class="text-green-400 font-bold uppercase text-[9px] bg-green-500/10 border border-green-500/20 px-1 py-0.5 rounded">Primary Feed</span>' 
@@ -632,6 +639,16 @@
                         `;
                     });
                     document.getElementById('safeguard-table-body').innerHTML = tableHtml;
+                } else {
+                    document.getElementById('highest-liquidity-pool').textContent = 'No active pools found';
+                    document.getElementById('highest-liquidity-val').textContent = '$0 Reserve';
+                    document.getElementById('safeguard-table-body').innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-4 text-center text-dark-text-secondary">
+                                No active liquidity pools found on DexScreener for this token address.
+                            </td>
+                        </tr>
+                    `;
                 }
             } catch (err) {
                 console.warn('[sluice] Error fetching oracle data:', err);
