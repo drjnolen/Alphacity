@@ -1675,50 +1675,65 @@
             if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) return [];
 
             try {
-                const coinTypesToQuery = [SUI_TYPE, CITY_TYPE];
-                const activeCoin = document.getElementById('coin-type').value.trim();
-                if (activeCoin && activeCoin.includes('::') && !coinTypesToQuery.includes(activeCoin)) {
-                    coinTypesToQuery.push(activeCoin);
+                // Query all ScheduleCreated events for the contract
+                const eventsRes = await rpc('suix_queryEvents', [{
+                    MoveEventType: `${PACKAGE_ADDRESS}::sluice::ScheduleCreated`
+                }, null, 100, false]);
+
+                const myScheduleIds = [];
+                if (eventsRes && eventsRes.data) {
+                    for (const ev of eventsRes.data) {
+                        const fields = ev.parsedJson;
+                        if (!fields) continue;
+                        const creator = fields.creator;
+                        const beneficiary = fields.beneficiary;
+                        if (creator.toLowerCase() === connectedAddress.toLowerCase() || beneficiary.toLowerCase() === connectedAddress.toLowerCase()) {
+                            const sId = fields.schedule_id;
+                            if (!myScheduleIds.includes(sId)) {
+                                myScheduleIds.push(sId);
+                            }
+                        }
+                    }
                 }
 
                 const allStreams = [];
-                for (const cType of coinTypesToQuery) {
-                    const structType = `${PACKAGE_ADDRESS}::sluice::VestingSchedule<${cType}>`;
-                    const res = await rpc('suix_queryObjects', [{
-                        filter: { StructType: structType },
-                        options: { showContent: true }
+                if (myScheduleIds.length > 0) {
+                    const objectsRes = await rpc('sui_multiGetObjects', [myScheduleIds, {
+                        showContent: true,
+                        showType: true
                     }]);
-
-                    if (res && res.data) {
-                        const decimals = await getCoinDecimals(cType);
-                        const scale = Math.pow(10, decimals);
-                        
-                        for (const obj of res.data) {
-                            const fields = obj.data?.content?.fields;
-                            if (!fields) continue;
-
-                            const creator = fields.creator;
-                            const beneficiary = fields.beneficiary;
-                            const userAddr = connectedAddress;
-
-                            if (creator.toLowerCase() === userAddr.toLowerCase() || beneficiary.toLowerCase() === userAddr.toLowerCase()) {
-                                allStreams.push({
-                                    id: obj.data.objectId,
-                                    creator: creator,
-                                    beneficiary: beneficiary,
-                                    coinType: cType,
-                                    coinSymbol: cType.split('::').pop() || 'TOKEN',
-                                    totalAmount: Number(fields.total_amount) / scale,
-                                    releasedAmount: Number(fields.released_amount) / scale,
-                                    startTimeMs: Number(fields.start_time_ms),
-                                    endTimeMs: Number(fields.end_time_ms),
-                                    intervalMs: Number(fields.interval_ms),
-                                    targetMarketcap: fields.target_marketcap ? Number(fields.target_marketcap) : null,
-                                    milestoneStatus: Number(fields.milestone_status),
-                                    revocable: fields.revocable,
-                                    isMock: false
-                                });
-                            }
+                    
+                    if (objectsRes && Array.isArray(objectsRes)) {
+                        for (const obj of objectsRes) {
+                            if (obj.error || !obj.data) continue;
+                            const fields = obj.data.content?.fields;
+                            const type = obj.data.type;
+                            if (!fields || !type) continue;
+                            
+                            // Extract coinType from VestingSchedule type parameter
+                            // format: ...::VestingSchedule<coinType>
+                            const match = type.match(/::VestingSchedule<(.+)>$/);
+                            const cType = match ? match[1] : SUI_TYPE;
+                            
+                            const decimals = await getCoinDecimals(cType);
+                            const scale = Math.pow(10, decimals);
+                            
+                            allStreams.push({
+                                id: obj.data.objectId,
+                                creator: fields.creator,
+                                beneficiary: fields.beneficiary,
+                                coinType: cType,
+                                coinSymbol: cType.split('::').pop() || 'TOKEN',
+                                totalAmount: Number(fields.total_amount) / scale,
+                                releasedAmount: Number(fields.released_amount) / scale,
+                                startTimeMs: Number(fields.start_time_ms),
+                                endTimeMs: Number(fields.end_time_ms),
+                                intervalMs: Number(fields.interval_ms),
+                                targetMarketcap: fields.target_marketcap ? Number(fields.target_marketcap) : null,
+                                milestoneStatus: Number(fields.milestone_status),
+                                revocable: fields.revocable,
+                                isMock: false
+                            });
                         }
                     }
                 }
