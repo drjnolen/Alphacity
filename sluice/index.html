@@ -1497,8 +1497,8 @@
                     tx.pure.u64(params.startMs),
                     tx.pure.u64(params.endMs),
                     tx.pure.u64(params.intervalMs),
-                    tx.pure(params.targetMcap ? [params.targetMcap] : [], 'vector<u64>'),
-                    tx.pure(Array.from(pubkeyBytes), 'vector<u8>'),
+                    tx.pure('vector<u64>', params.targetMcap ? [BigInt(params.targetMcap)] : []),
+                    tx.pure('vector<u8>', Array.from(pubkeyBytes)),
                     tx.pure.bool(params.revocable)
                 ]
             });
@@ -1539,7 +1539,7 @@
                 typeArguments: [stream.coinType],
                 arguments: [
                     tx.object(stream.id),
-                    tx.pure(Array.from(sigBytes), 'vector<u8>'),
+                    tx.pure('vector<u8>', Array.from(sigBytes)),
                     tx.object('0x6') // Clock object ID
                 ]
             });
