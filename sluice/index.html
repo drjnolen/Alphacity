@@ -749,8 +749,27 @@
                     const matched = wallets.find(w => w.name === prov);
                     if (matched) {
                         connectedWalletEntry = matched;
+                        let accounts = [];
                         if (matched.source === 'standard') {
-                            const accounts = matched.wallet.accounts || [];
+                            try {
+                                const r = await matched.wallet.features['standard:connect'].connect({ silent: true });
+                                accounts = r?.accounts || matched.wallet.accounts || [];
+                            } catch (e) {
+                                console.warn('[sluice] Silent connect failed:', e);
+                                accounts = matched.wallet.accounts || [];
+                            }
+                            connectedAccount = accounts.find(a => String(a.address).trim().toLowerCase() === acct.toLowerCase()) || accounts[0];
+                        } else {
+                            const p = matched.provider;
+                            if (typeof p.connect === 'function') {
+                                try { await p.connect(); } catch(_) {}
+                            }
+                            let addrs = [];
+                            if (typeof p.getAccounts === 'function') {
+                                const ac = await p.getAccounts();
+                                addrs = (ac || []).map(a => a?.address || a).filter(Boolean);
+                            }
+                            accounts = addrs.map(addr => ({ address: addr }));
                             connectedAccount = accounts.find(a => String(a.address).trim().toLowerCase() === acct.toLowerCase()) || accounts[0];
                         }
                     }
@@ -1394,16 +1413,38 @@
                 const newFeature    = wallet.wallet.features?.['sui:signAndExecuteTransaction'];
                 const legacyFeature = wallet.wallet.features?.['sui:signAndExecuteTransactionBlock'];
 
+                let account = connectedAccount;
+                if (!account) {
+                    const accounts = wallet.wallet.accounts || [];
+                    account = accounts.find(a => String(a.address).trim().toLowerCase() === connectedAddress.toLowerCase()) || accounts[0];
+                    if (!account) {
+                        try {
+                            const r = await wallet.wallet.features['standard:connect'].connect();
+                            const newAccounts = r?.accounts || wallet.wallet.accounts || [];
+                            account = newAccounts.find(a => String(a.address).trim().toLowerCase() === connectedAddress.toLowerCase()) || newAccounts[0];
+                        } catch (e) {
+                            console.warn('[sluice] Standard wallet connection failed during signing:', e);
+                        }
+                    }
+                    if (account) {
+                        connectedAccount = account;
+                    }
+                }
+
+                if (!account) {
+                    throw new Error('No active account found for connected wallet. Please reconnect.');
+                }
+
                 if (newFeature) {
                     txResult = await newFeature.signAndExecuteTransaction({
                         transaction: tx,
-                        account: connectedAccount,
+                        account: account,
                         chain: 'sui:mainnet',
                     });
                 } else if (legacyFeature) {
                     txResult = await legacyFeature.signAndExecuteTransactionBlock({
                         transactionBlock: tx,
-                        account: connectedAccount,
+                        account: account,
                         chain: 'sui:mainnet',
                         options: { showEffects: true },
                     });
