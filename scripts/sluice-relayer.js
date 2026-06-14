@@ -5,7 +5,7 @@ const crypto = require('crypto');
 
 // Configuration
 const SUI_RPC = 'https://fullnode.mainnet.sui.io';
-const PACKAGE_ADDRESS = process.env.SLUICE_PACKAGE_ADDRESS || '0xPLACEHOLDER_SLUICE_PACKAGE';
+const PACKAGE_ADDRESS = process.env.SLUICE_PACKAGE_ADDRESS || '0x7c7ca3da6bad849a02d9f888b2f8cab40d507b2c01bbcab3f2d816334c17aa07';
 
 // Relayer Bot Private Key (32-byte hex string stored in GitHub Secrets)
 const PRIVATE_KEY_HEX = process.env.SLUICE_ORACLE_PRIVATE_KEY;

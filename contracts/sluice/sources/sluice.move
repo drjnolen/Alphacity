@@ -20,7 +20,7 @@ module sluice::sluice {
     const STATE_LOCKED: u8 = 1;        // Milestone set but validation is pending
 
     /// Represents an individual token vesting stream.
-    struct VestingSchedule<phantom T> has key, store {
+    public struct VestingSchedule<phantom T> has key, store {
         id: UID,
         creator: address,
         beneficiary: address,
@@ -43,7 +43,7 @@ module sluice::sluice {
     }
 
     // --- Events ---
-    struct ScheduleCreated has copy, drop {
+    public struct ScheduleCreated has copy, drop {
         schedule_id: address,
         creator: address,
         beneficiary: address,
@@ -51,18 +51,18 @@ module sluice::sluice {
         target_marketcap: Option<u64>,
     }
 
-    struct VestingActivated has copy, drop {
+    public struct VestingActivated has copy, drop {
         schedule_id: address,
         activated_at: u64,
     }
 
-    struct TokensClaimed has copy, drop {
+    public struct TokensClaimed has copy, drop {
         schedule_id: address,
         beneficiary: address,
         amount: u64,
     }
 
-    struct ScheduleCancelled has copy, drop {
+    public struct ScheduleCancelled has copy, drop {
         schedule_id: address,
         returned_amount: u64,
     }
