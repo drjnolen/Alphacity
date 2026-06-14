@@ -228,29 +228,14 @@
                             </div>
 
                             <div id="milestone-fields" class="hidden space-y-3 animate-fade-in">
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Target Marketcap (USD)</label>
-                                        <input type="number" id="target-marketcap" min="0" placeholder="e.g. 200000"
-                                            class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
-                                    </div>
-                                    <div>
-                                        <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Token Total Supply</label>
-                                        <input type="number" id="total-supply" min="0" placeholder="e.g. 1000000"
-                                            class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
-                                    </div>
-                                </div>
-                                <div id="target-price-estimate" class="hidden text-[11px] text-brand-primary font-semibold p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg"></div>
-                                
                                 <div>
-                                    <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Oracle Public Key (Ed25519 Hex)</label>
-                                    <input type="text" id="oracle-pubkey" placeholder="32-byte public key of the bot (e.g. 0x...)"
-                                        value="0x1537acdf3692a71b578c772eaef4b8cd812d4d5752a868d5f302b4d96a71e8bf"
-                                        class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors font-mono">
+                                    <label class="text-[11px] font-medium text-dark-text-secondary block mb-1">Target Marketcap (USD)</label>
+                                    <input type="number" id="target-marketcap" min="0" placeholder="e.g. 200000"
+                                        class="w-full bg-dark-bg border border-gray-700 focus:border-brand-primary text-white px-3 py-2 rounded-lg text-xs transition-colors">
                                 </div>
 
                                 <div class="p-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-[10px] text-yellow-400">
-                                    <span class="font-bold">Safeguard Active:</span> The target marketcap must be sustained for a continuous 30-minute validation window. The implied target price is automatically calculated and monitored.
+                                    <span class="font-bold">Safeguard Active:</span> The target marketcap must be sustained for a continuous 30-minute validation window. The Sluice relayer monitors the DexScreener API and triggers the activation automatically.
                                 </div>
                             </div>
                         </div>
@@ -470,8 +455,6 @@
                     autoFillTokenMetadata();
                 }
             });
-            document.getElementById('target-marketcap').addEventListener('input', updateTargetPriceEstimate);
-            document.getElementById('total-supply').addEventListener('input', updateTargetPriceEstimate);
             
             // Interval to update verification timers in UI
             setInterval(() => {
@@ -486,14 +469,9 @@
             if (toggle.checked) {
                 fields.classList.remove('hidden');
                 document.getElementById('target-marketcap').required = true;
-                document.getElementById('total-supply').required = true;
-                document.getElementById('oracle-pubkey').required = true;
             } else {
                 fields.classList.add('hidden');
                 document.getElementById('target-marketcap').required = false;
-                document.getElementById('total-supply').required = false;
-                document.getElementById('oracle-pubkey').required = false;
-                document.getElementById('target-price-estimate').classList.add('hidden');
             }
         }
 
@@ -551,9 +529,6 @@
                     const rawSupply = BigInt(supplyData.result.value);
                     const divisor = 10n ** BigInt(decimals);
                     supplyFormatted = Number(rawSupply / divisor);
-                    
-                    document.getElementById('total-supply').value = supplyFormatted;
-                    updateTargetPriceEstimate();
                 }
 
                 // 3. Query DexScreener API for price and valuation info
@@ -584,20 +559,7 @@
             }
         }
 
-        // Calculate and update the implied target token price
-        function updateTargetPriceEstimate() {
-            const targetMcap = parseFloat(document.getElementById('target-marketcap').value);
-            const totalSupply = parseFloat(document.getElementById('total-supply').value);
-            const estimateDiv = document.getElementById('target-price-estimate');
-            
-            if (targetMcap > 0 && totalSupply > 0) {
-                const targetPrice = targetMcap / totalSupply;
-                estimateDiv.innerHTML = `Implied Target Token Price: <span class="font-mono text-white">$${targetPrice.toFixed(6)}</span>`;
-                estimateDiv.classList.remove('hidden');
-            } else {
-                estimateDiv.classList.add('hidden');
-            }
-        }
+
 
         // ================================================================
         // ORACLE FETCHERS & LIQUIDITY ROUTING (SAFEGUARD 2)
@@ -627,10 +589,7 @@
                     let tableHtml = '';
                     pairs.forEach((pair, idx) => {
                         const isPrimary = idx === 0;
-                        const supplyInput = parseFloat(document.getElementById('total-supply').value);
-                        const mcap = (supplyInput > 0)
-                            ? (parseFloat(pair.priceUsd || 0) * supplyInput)
-                            : (pair.fdv || 0);
+                        const mcap = pair.fdv || 0;
                         const mcapStr = mcap > 0 ? `$${mcap.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'N/A';
 
                         tableHtml += `
@@ -1290,7 +1249,7 @@
 
             const isMilestone = document.getElementById('milestone-toggle').checked;
             const targetMcap = isMilestone ? parseFloat(document.getElementById('target-marketcap').value) : null;
-            const oraclePubkey = isMilestone ? document.getElementById('oracle-pubkey').value.trim() : '';
+            const oraclePubkey = isMilestone ? '0x1537acdf3692a71b578c772eaef4b8cd812d4d5752a868d5f302b4d96a71e8bf' : '';
 
             if (endMs <= startMs) {
                 showStatusBanner('End Date must be after Start Date.', 'error');
