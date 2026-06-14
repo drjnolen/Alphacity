@@ -1056,7 +1056,7 @@
             const container = document.getElementById('streams-container');
             const countLabel = document.getElementById('streams-count');
             
-            let filtered = [...onChainStreams, ...mockStreams];
+            let filtered = connectedAddress ? [...onChainStreams] : [...mockStreams];
             if (connectedAddress) {
                 const myAddrLower = connectedAddress.toLowerCase();
                 if (activeFilter === 'beneficiary') {
@@ -1107,7 +1107,8 @@
 
                 // Action buttons
                 let claimBtnHtml = '';
-                if (stream.milestoneStatus === 0) {
+                const showClaimButton = !connectedAddress || isBeneficiary;
+                if (stream.milestoneStatus === 0 && showClaimButton) {
                     const disableClaim = claimableAmount <= 0 ? 'disabled opacity-40 cursor-not-allowed' : '';
                     claimBtnHtml = `
                         <button onclick="claimVestedStream('${stream.id}')" ${disableClaim}
