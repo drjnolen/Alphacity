@@ -129,6 +129,18 @@
             <span id="status-banner-text" class="text-sm font-medium"></span>
         </div>
 
+        <!-- Demo Mode Notice Banner -->
+        <div id="demo-banner" class="hidden max-w-4xl mx-auto mb-6 p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 flex items-center gap-3 animate-fade-in">
+            <span class="flex-shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </span>
+            <span class="text-sm font-medium">
+                <strong>Demo Mode Active:</strong> No Sluice contract package address is configured. All actions will run as simulated mock operations. To use real Move contracts, configure the <code>PACKAGE_ADDRESS</code> constant in <code>sluice/index.html</code>.
+            </span>
+        </div>
+
         <!-- Main Dashboard Split Layout -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
             
@@ -435,6 +447,10 @@
             loadSessionFromSync();
             fetchSystemOracles();
             refreshStreams();
+
+            if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
+                document.getElementById('demo-banner').classList.remove('hidden');
+            }
 
             // Set default date range to start today, end in 30 days
             const today = new Date();
@@ -1414,7 +1430,33 @@
 
         async function deployScheduleOnChain(params) {
             if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
-                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html with your deployed Sluice package ID.');
+                showStatusBanner('Demo Mode: Simulating vesting schedule deployment...', 'info');
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        const newId = '0x' + Math.random().toString(16).substr(2, 12) + '...d2';
+                        const newStream = {
+                            id: newId,
+                            creator: connectedAddress || '0x53d2bf9ff94e0edc07c427c8a6797a7a2a4b88bdc',
+                            beneficiary: params.beneficiary,
+                            coinType: params.coinType,
+                            coinSymbol: params.coinType.split('::').pop() || 'TOKEN',
+                            totalAmount: params.amount,
+                            releasedAmount: 0,
+                            startTimeMs: params.startMs,
+                            endTimeMs: params.endMs,
+                            intervalMs: params.intervalMs,
+                            targetMarketcap: params.targetMcap,
+                            milestoneStatus: params.targetMcap ? 1 : 0,
+                            revocable: params.revocable,
+                            isMock: true
+                        };
+
+                        mockStreams.push(newStream);
+                        showStatusBanner('Demo Mode: Simulated vesting schedule deployed successfully! Note: Configure PACKAGE_ADDRESS to use real contracts.', 'warning');
+                        renderStreams();
+                        resolve(newStream);
+                    }, 1200);
+                });
             }
             
             let Transaction = window._SuiTransaction;
@@ -1469,7 +1511,17 @@
 
         async function activateVestingOnChain(stream, signature) {
             if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
-                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html.');
+                showStatusBanner('Demo Mode: Simulating contract activation on-chain...', 'info');
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        stream.milestoneStatus = 0; // Transition to ACTIVE
+                        stream.startTimeMs = Date.now();
+                        stream.endTimeMs = Date.now() + (30 * 24 * 60 * 60 * 1000); // Reset timeline duration to start now
+                        showStatusBanner('Demo Mode: Simulated on-chain activation successful!', 'warning');
+                        renderStreams();
+                        resolve();
+                    }, 1000);
+                });
             }
 
             let Transaction = window._SuiTransaction;
@@ -1500,7 +1552,21 @@
 
         async function executeClaimOnChain(stream) {
             if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
-                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html.');
+                showStatusBanner('Demo Mode: Simulating claim on-chain...', 'info');
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        const now = Date.now();
+                        const totalDur = stream.endTimeMs - stream.startTimeMs;
+                        const elapsed = now - stream.startTimeMs;
+                        const elapsedRounded = Math.floor(elapsed / stream.intervalMs) * stream.intervalMs;
+                        const totalVested = Math.floor((stream.totalAmount * elapsedRounded) / totalDur);
+                        
+                        stream.releasedAmount = totalVested;
+                        showStatusBanner(`Demo Mode: Tokens claimed successfully! Sent to ${shortAddr(stream.beneficiary)}.`, 'warning');
+                        renderStreams();
+                        resolve();
+                    }, 1000);
+                });
             }
 
             let Transaction = window._SuiTransaction;
@@ -1529,7 +1595,15 @@
 
         async function executeRevokeOnChain(stream) {
             if (PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
-                throw new Error('Please configure the PACKAGE_ADDRESS constant in sluice/index.html.');
+                showStatusBanner('Demo Mode: Simulating revocation on-chain...', 'info');
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        mockStreams = mockStreams.filter(s => s.id !== stream.id);
+                        showStatusBanner('Demo Mode: Vesting schedule cancelled. Unreleased tokens returned to creator.', 'warning');
+                        renderStreams();
+                        resolve();
+                    }, 800);
+                });
             }
 
             let Transaction = window._SuiTransaction;
