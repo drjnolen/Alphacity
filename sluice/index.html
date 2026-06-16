@@ -692,50 +692,67 @@
             try {
                 const prov = localStorage.getItem('ac_sluice_provider');
                 const acct = localStorage.getItem('ac_sluice_account');
-                if (prov && acct) {
-                    connectedAddress = acct;
-                    document.getElementById('wallet-text').textContent = shortAddr(acct);
-                    const btn = document.getElementById('connect-wallet-btn');
+                if (!prov || !acct) return;
+
+                // Retry wallet discovery with increasing delays — wallet extensions register asynchronously.
+                let matched = null;
+                for (const delay of [600, 1200]) {
+                    await new Promise(r => setTimeout(r, delay));
+                    const wallets = discoverWallets();
+                    matched = wallets.find(w => w.name === prov);
+                    if (matched) break;
+                }
+
+                if (!matched) {
+                    // Do not mark UI as connected if provider is not resolved.
+                    // Clear the session keys so we don't sync incorrect state.
+                    try {
+                        localStorage.removeItem('ac_sluice_provider');
+                        localStorage.removeItem('ac_sluice_account');
+                        localStorage.removeItem('alphacity_wallet');
+                    } catch (_) {}
+                    return;
+                }
+
+                connectedAddress = acct;
+                connectedWalletEntry = matched;
+
+                const walletText = document.getElementById('wallet-text');
+                if (walletText) {
+                    walletText.textContent = shortAddr(acct);
+                }
+                const btn = document.getElementById('connect-wallet-btn');
+                if (btn) {
                     btn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
                     btn.classList.add('bg-green-600', 'hover:bg-green-500');
-
-                    // Try to resolve standard provider
-                    let wallets = discoverWallets();
-                    if (!wallets.length) {
-                        await new Promise(r => setTimeout(r, 600));
-                        wallets = discoverWallets();
-                    }
-                    const matched = wallets.find(w => w.name === prov);
-                    if (matched) {
-                        connectedWalletEntry = matched;
-                        let accounts = [];
-                        if (matched.source === 'standard') {
-                            try {
-                                const r = await matched.wallet.features['standard:connect'].connect({ silent: true });
-                                accounts = r?.accounts || matched.wallet.accounts || [];
-                            } catch (e) {
-                                console.warn('[sluice] Silent connect failed:', e);
-                                accounts = matched.wallet.accounts || [];
-                            }
-                            connectedAccount = accounts.find(a => String(a.address).trim().toLowerCase() === acct.toLowerCase()) || accounts[0];
-                        } else {
-                            const p = matched.provider;
-                            if (typeof p.connect === 'function') {
-                                try { await p.connect(); } catch(_) {}
-                            }
-                            let addrs = [];
-                            if (typeof p.getAccounts === 'function') {
-                                const ac = await p.getAccounts();
-                                addrs = (ac || []).map(a => a?.address || a).filter(Boolean);
-                            }
-                            accounts = addrs.map(addr => ({ address: addr }));
-                            connectedAccount = accounts.find(a => String(a.address).trim().toLowerCase() === acct.toLowerCase()) || accounts[0];
-                        }
-                    }
-
-                    showStatusBanner('Wallet session synchronized automatically.', 'success');
-                    refreshStreams();
                 }
+
+                let accounts = [];
+                if (matched.source === 'standard') {
+                    try {
+                        const r = await matched.wallet.features['standard:connect'].connect({ silent: true });
+                        accounts = r?.accounts || matched.wallet.accounts || [];
+                    } catch (e) {
+                        console.warn('[sluice] Silent connect failed:', e);
+                        accounts = matched.wallet.accounts || [];
+                    }
+                    connectedAccount = accounts.find(a => String(a.address).trim().toLowerCase() === acct.toLowerCase()) || accounts[0];
+                } else {
+                    const p = matched.provider;
+                    if (typeof p.connect === 'function') {
+                        try { await p.connect(); } catch(_) {}
+                    }
+                    let addrs = [];
+                    if (typeof p.getAccounts === 'function') {
+                        const ac = await p.getAccounts();
+                        addrs = (ac || []).map(a => a?.address || a).filter(Boolean);
+                    }
+                    accounts = addrs.map(addr => ({ address: addr }));
+                    connectedAccount = accounts.find(a => String(a.address).trim().toLowerCase() === acct.toLowerCase()) || accounts[0];
+                }
+
+                showStatusBanner('Wallet session synchronized automatically.', 'success');
+                refreshStreams();
             } catch (_) {}
         }
 
@@ -784,10 +801,15 @@
                 localStorage.removeItem('ac_sluice_account');
                 localStorage.removeItem('alphacity_wallet');
             } catch (_) {}
+            const walletText = document.getElementById('wallet-text');
+            if (walletText) {
+                walletText.textContent = 'Connect Wallet';
+            }
             const btn = document.getElementById('connect-wallet-btn');
-            btn.textContent = 'Connect Wallet';
-            btn.classList.remove('bg-green-600', 'hover:bg-green-500');
-            btn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
+            if (btn) {
+                btn.classList.remove('bg-green-600', 'hover:bg-green-500');
+                btn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
+            }
             showStatusBanner('Wallet disconnected successfully.', 'info');
             renderStreams();
         }
@@ -1151,9 +1173,12 @@
             const stream = [...onChainStreams, ...mockStreams].find(s => s.id === id);
             if (!stream) return;
 
-            showStatusBanner('Submitting activation transaction containing oracle signature...', 'info');
-
-            if (connectedWalletEntry && !stream.isMock) {
+            if (!stream.isMock) {
+                if (!connectedWalletEntry) {
+                    showStatusBanner('Wallet not connected. Please connect your wallet to interact with on-chain streams.', 'error');
+                    return;
+                }
+                showStatusBanner('Submitting activation transaction containing oracle signature...', 'info');
                 activateVestingOnChain(stream, fetchedAttestations[id].signature).then(() => {
                     refreshStreams();
                 }).catch(err => {
@@ -1163,11 +1188,12 @@
             }
 
             // Mock claim transition
+            showStatusBanner('Simulating activation transaction on-chain...', 'info');
             setTimeout(() => {
                 stream.milestoneStatus = 0; // Transition to ACTIVE
                 stream.startTimeMs = Date.now();
                 stream.endTimeMs = Date.now() + (30 * 24 * 60 * 60 * 1000); // Reset timeline duration to start now
-                showStatusBanner('Signature verified on-chain. Vesting schedule is now active!', 'success');
+                showStatusBanner('Demo Mode: Simulated activation successful! Vesting schedule is now active.', 'warning');
                 renderStreams();
             }, 1000);
         }
@@ -1176,10 +1202,12 @@
             const stream = [...onChainStreams, ...mockStreams].find(s => s.id === id);
             if (!stream) return;
 
-            showStatusBanner('Submitting claim transaction for confirmation...', 'info');
-            
-            // Build real transaction block if wallet connected
-            if (connectedWalletEntry && !stream.isMock) {
+            if (!stream.isMock) {
+                if (!connectedWalletEntry) {
+                    showStatusBanner('Wallet not connected. Please connect your wallet to interact with on-chain streams.', 'error');
+                    return;
+                }
+                showStatusBanner('Submitting claim transaction for confirmation...', 'info');
                 executeClaimOnChain(stream).then(() => {
                     refreshStreams();
                 }).catch(err => {
@@ -1189,6 +1217,7 @@
             }
 
             // Mock claim transition
+            showStatusBanner('Simulating claim transaction on-chain...', 'info');
             setTimeout(() => {
                 const now = Date.now();
                 const totalDur = stream.endTimeMs - stream.startTimeMs;
@@ -1197,7 +1226,7 @@
                 const totalVested = Math.floor((stream.totalAmount * elapsedRounded) / totalDur);
                 
                 stream.releasedAmount = totalVested;
-                showStatusBanner(`Tokens claimed successfully! Sent to ${shortAddr(stream.beneficiary)}.`, 'success');
+                showStatusBanner(`Demo Mode: Tokens claimed successfully! Sent to ${shortAddr(stream.beneficiary)}.`, 'warning');
                 renderStreams();
             }, 1000);
         }
@@ -1208,9 +1237,12 @@
 
             if (!confirm('Are you sure you want to revoke this schedule and retrieve all unreleased tokens?')) return;
             
-            showStatusBanner('Submitting cancellation transaction...', 'info');
-
-            if (connectedWalletEntry && !stream.isMock) {
+            if (!stream.isMock) {
+                if (!connectedWalletEntry) {
+                    showStatusBanner('Wallet not connected. Please connect your wallet to interact with on-chain streams.', 'error');
+                    return;
+                }
+                showStatusBanner('Submitting cancellation transaction...', 'info');
                 executeRevokeOnChain(stream).then(() => {
                     refreshStreams();
                 }).catch(err => {
@@ -1219,9 +1251,10 @@
                 return;
             }
 
+            showStatusBanner('Simulating cancellation transaction...', 'info');
             setTimeout(() => {
                 mockStreams = mockStreams.filter(s => s.id !== id);
-                showStatusBanner('Vesting schedule cancelled. Unreleased tokens returned to creator.', 'success');
+                showStatusBanner('Demo Mode: Simulated vesting schedule cancelled. Unreleased tokens returned to creator.', 'warning');
                 renderStreams();
             }, 800);
         }
@@ -1273,12 +1306,23 @@
                 return;
             }
 
-            // Mock deployment fallback
+            // Wallet is not fully connected. Determine if we should allow mock fallback or block.
+            if (connectedAddress) {
+                showStatusBanner('Wallet provider is not fully initialized. Please wait a moment or reconnect your wallet.', 'error');
+                return;
+            }
+
+            if (!PACKAGE_ADDRESS.includes('YOUR_SLUICE_PACKAGE_ID')) {
+                showStatusBanner('Please connect your wallet to deploy a vesting schedule on-chain.', 'error');
+                return;
+            }
+
+            // Mock deployment fallback (only allowed in Demo Mode when no package configured)
             setTimeout(() => {
                 const newId = '0x' + Math.random().toString(16).substr(2, 12) + '...d2';
                 const newStream = {
                     id: newId,
-                    creator: connectedAddress || '0x53d2bf9ff94e0edc07c427c8a6797a7a2a4b88bdc',
+                    creator: '0x53d2bf9ff94e0edc07c427c8a6797a7a2a4b88bdc',
                     beneficiary: beneficiary,
                     coinType: coinType,
                     coinSymbol: coinType.split('::').pop() || 'TOKEN',
@@ -1294,7 +1338,7 @@
                 };
 
                 mockStreams.push(newStream);
-                showStatusBanner('Vesting schedule deployed successfully (Shared Object initialized)!', 'success');
+                showStatusBanner('Demo Mode: Simulated vesting schedule deployed successfully!', 'warning');
                 renderStreams();
                 document.getElementById('create-schedule-form').reset();
                 toggleMilestoneFields();
