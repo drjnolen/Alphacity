@@ -125,7 +125,7 @@
         }
     }
 
-    let currentAddress = null;
+    let currentAddress = undefined;
 
     function checkWalletSession() {
         const raw = localStorage.getItem('alphacity_wallet');
