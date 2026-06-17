@@ -1033,6 +1033,18 @@
             renderStreams();
         }
 
+        function getIntervalLabel(intervalMs) {
+            if (intervalMs <= 1000) return 'Linear';
+            if (intervalMs === 60 * 60 * 1000) return 'Hourly batches';
+            if (intervalMs === 24 * 60 * 60 * 1000) return 'Daily batches';
+            if (intervalMs === 7 * 24 * 60 * 60 * 1000) return 'Weekly batches';
+            if (intervalMs === 30 * 24 * 60 * 60 * 1000) return 'Monthly batches';
+            // Fallback:
+            if (intervalMs < 60 * 60 * 1000) return `${Math.round(intervalMs / 1000)}s batches`;
+            if (intervalMs < 24 * 60 * 60 * 1000) return `${Math.round(intervalMs / (60 * 60 * 1000))}h batches`;
+            return `${Math.round(intervalMs / (24 * 60 * 60 * 1000))}d batches`;
+        }
+
         function renderStreams() {
             const container = document.getElementById('streams-container');
             const countLabel = document.getElementById('streams-count');
@@ -1076,7 +1088,7 @@
                         const elapsed = now - stream.startTimeMs;
                         
                         const elapsedRounded = Math.floor(elapsed / stream.intervalMs) * stream.intervalMs;
-                        timeProgressPercent = Math.min(100, Math.floor((elapsedRounded / totalDur) * 100));
+                        timeProgressPercent = Math.min(100, Math.floor((elapsed / totalDur) * 100));
                         
                         const totalVested = Math.floor((stream.totalAmount * elapsedRounded) / totalDur);
                         claimableAmount = Math.max(0, totalVested - stream.releasedAmount);
@@ -1109,6 +1121,9 @@
                     `;
                 }
 
+                const startDateStr = new Date(stream.startTimeMs).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+                const endDateStr = new Date(stream.endTimeMs).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+
                 html += `
                     <div class="bg-dark-card border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-all animate-fade-in">
                         <!-- Stream ID / Header -->
@@ -1122,7 +1137,7 @@
                             </div>
                             <div class="text-right">
                                 <span class="text-sm font-bold text-white block">${stream.totalAmount.toLocaleString()} ${stream.coinSymbol}</span>
-                                <span class="text-[10px] text-dark-text-secondary block">Interval: ${stream.intervalMs === 1000 ? 'Linear' : 'Weekly batches'}</span>
+                                <span class="text-[10px] text-dark-text-secondary block">Interval: ${getIntervalLabel(stream.intervalMs)}</span>
                             </div>
                         </div>
 
@@ -1135,6 +1150,12 @@
                             <div class="w-full bg-gray-800 h-2.5 rounded-full overflow-hidden">
                                 <div class="bg-brand-primary h-full rounded-full" style="width: ${timeProgressPercent}%"></div>
                             </div>
+                        </div>
+
+                        <!-- Date details metadata -->
+                        <div class="flex justify-between text-[10px] text-dark-text-secondary mt-2 pt-1 border-t border-gray-800/20">
+                            <span>Start: ${startDateStr}</span>
+                            <span>End: ${endDateStr}</span>
                         </div>
 
                         <!-- Milestone details widget -->
