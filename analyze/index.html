@@ -9,6 +9,8 @@
 
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
+    <!-- Gated tools access check -->
+    <script src="/shared/tools-gate.js"></script>
 
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -230,6 +232,7 @@
                 <!-- Right Side Actions -->
                 <div class="flex items-center gap-4">
                     <a href="/" class="hidden md:block text-dark-text-secondary hover:text-white transition-colors">Back to Home</a>
+                    <a href="/tools/" class="text-dark-text-secondary hover:text-white transition-colors text-sm font-semibold text-brand-primary">Tools Portal</a>
                     <button id="connect-wallet-btn"
                         class="bg-brand-primary text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -933,7 +936,7 @@
     const SUI_RPC   = 'https://fullnode.mainnet.sui.io';
     const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
     const CITY_STAKING_TYPE = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9::city_staking::UserStake<0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY>';
-    const CITY_ACCESS_MIN   = 1_000_000n * 10n ** 9n; // 1M CITY × 10^9 decimals
+    const CITY_ACCESS_MIN   = 5_000_000n * 10n ** 9n; // 5M CITY × 10^9 decimals
 
     // Canonical SUI coin type (short and full-length forms)
     function isSuiCoinType(coinType) {
@@ -1296,7 +1299,7 @@
         const cityBal = (portfolioData.balances || []).find(b => b.coinType === CITY_TYPE);
         const liquid  = BigInt(cityBal?.totalBalance || '0');
         const staked  = portfolioData.stakedCity || 0n;
-        return liquid >= CITY_ACCESS_MIN || staked >= CITY_ACCESS_MIN;
+        return (liquid + staked) >= CITY_ACCESS_MIN;
     }
 
     function updateAccessState() {

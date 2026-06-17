@@ -11,6 +11,8 @@
     <script>window.global = window;</script>
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
+    <!-- Gated tools access check -->
+    <script src="/shared/tools-gate.js"></script>
 
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -96,6 +98,7 @@
                     <a href="/" class="hidden md:block text-dark-text-secondary hover:text-white transition-colors text-sm">
                         ← Back to Home
                     </a>
+                    <a href="/tools/" class="text-dark-text-secondary hover:text-white transition-colors text-sm font-semibold text-brand-primary">Tools Portal</a>
                     <button id="connect-wallet-btn"
                         class="bg-brand-primary text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

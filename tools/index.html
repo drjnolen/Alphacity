@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosystem Tools Portal - Alpha City</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Shared wallet connection sync and tools gating -->
+    <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/tools-gate.js"></script>
+
+    <!-- Load Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand-primary': tailwind.colors.blue[500],
+                        'brand-primary-hover': tailwind.colors.blue[400],
+                        'brand-secondary': tailwind.colors.yellow[400],
+                        'brand-secondary-hover': tailwind.colors.yellow[300],
+                        'dark-bg': '#111827',
+                        'dark-card': '#1F2937',
+                        'dark-text': '#E5E7EB',
+                        'dark-text-secondary': '#9CA3AF',
+                    }
+                },
+            },
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1F2937; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .neon-glow {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+        }
+
+        .neon-glow-gold {
+            box-shadow: 0 0 25px rgba(252, 211, 77, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-dark-text font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Header / Navigation -->
+    <header class="bg-dark-bg/85 backdrop-blur-md border-b border-gray-800 sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo -->
+                <a href="/" class="text-3xl font-bold text-white flex items-center gap-2 group">
+                    <span>Alpha</span><span class="text-brand-secondary">City</span>
+                </a>
+
+                <!-- Navigation Links -->
+                <div class="flex items-center space-x-6">
+                    <a href="/" class="text-dark-text-secondary hover:text-white transition-colors text-sm">Home</a>
+                    <a href="/staking/" class="text-dark-text-secondary hover:text-white transition-colors text-sm">Staking</a>
+                    <a href="/districts/" class="text-dark-text-secondary hover:text-white transition-colors text-sm">Districts</a>
+                    <a href="/swap/" class="text-dark-text-secondary hover:text-white transition-colors text-sm">Buy $CITY</a>
+
+                    <!-- Wallet Connection Button -->
+                    <button id="connect-wallet-btn" class="bg-brand-primary text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-brand-primary-hover shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all duration-200 text-sm flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 001 1h1a1 1 0 001-1v-4a3 3 0 00-3-3H9a3 3 0 00-3 3v4a1 1 0 001 1h1a1 1 0 001-1v-4z" />
+                        </svg>
+                        <span id="wallet-text">Connect Wallet</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-12 flex flex-col justify-center max-w-5xl">
+        
+        <!-- Redirecting Banner (shown when auto-forwarding) -->
+        <div id="redirect-banner" class="hidden mb-8 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl flex items-center gap-4 text-green-400">
+            <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div>
+                <h4 class="font-bold">Access Authorized</h4>
+                <p class="text-sm opacity-80">Forwarding you back to your tool in a moment...</p>
+            </div>
+        </div>
+
+        <!-- 1. DISCONNECTED / CONNECT PROMPT -->
+        <div id="view-disconnected" class="hidden text-center max-w-2xl mx-auto py-12">
+            <div class="bg-blue-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/20">
+                <svg class="w-8 h-8 text-brand-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+            </div>
+            <h1 class="text-4xl font-bold mb-4 text-white">Ecosystem Tools Gateway</h1>
+            <p class="text-dark-text-secondary text-lg mb-8">
+                Access to Alpha City premium utilities is gated behind ownership of <strong class="text-brand-secondary font-semibold">5,000,000 $CITY</strong>. You can connect your wallet to verify your combined liquid holdings and staked positions.
+            </p>
+            
+            <button id="cta-connect-btn" class="bg-brand-primary hover:bg-brand-primary-hover text-white text-base font-bold px-8 py-4 rounded-2xl shadow-xl shadow-blue-500/20 hover:scale-105 transition-all duration-200">
+                Connect Wallet to Access Tools
+            </button>
+
+            <!-- Feature Teasers -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 text-left">
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> CITY Analyzer
+                    </h3>
+                    <p class="text-xs text-dark-text-secondary">AI-powered wallet profiling, automated intelligence insights, and high-performance token diagnostics terminal.</p>
+                </div>
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span> Sluice Vesting
+                    </h3>
+                    <p class="text-xs text-dark-text-secondary">Custom continuous linear vesting schedules linked to smart-contract market cap milestones and oracle validations.</p>
+                </div>
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> Airdrop Protocol
+                    </h3>
+                    <p class="text-xs text-dark-text-secondary">Deploy massive multi-recipient transactions in minutes. Filter by credit rankings or token holder lists instantly.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. LOCKED SCREEN (INSUFFICIENT BALANCE) -->
+        <div id="view-locked" class="hidden max-w-xl mx-auto w-full">
+            <div class="glass-panel rounded-3xl p-8 border border-red-500/10 text-center relative overflow-hidden neon-glow-gold">
+                <!-- Red/Gold lock indicator -->
+                <div class="bg-yellow-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-500/20 animate-pulse">
+                    <svg class="w-10 h-10 text-brand-secondary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+
+                <h2 class="text-2xl font-bold text-white mb-2">Insufficient $CITY Balance</h2>
+                <p class="text-sm text-dark-text-secondary mb-6">
+                    A combined balance of <strong class="text-brand-secondary">5,000,000 $CITY</strong> is required.
+                </p>
+
+                <!-- Connected Address Badge -->
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-dark-bg/60 border border-gray-700/80 rounded-xl font-mono text-xs text-gray-300 mb-8">
+                    <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+                    <span id="locked-address-text">0x...</span>
+                </div>
+
+                <!-- Balance breakdown -->
+                <div class="grid grid-cols-3 gap-2 bg-dark-bg/40 border border-gray-800/80 rounded-2xl p-4 mb-6">
+                    <div class="text-center border-r border-gray-800/80 py-1">
+                        <p class="text-[10px] text-dark-text-secondary uppercase tracking-wider font-semibold">Liquid</p>
+                        <p id="locked-liquid" class="text-sm font-bold text-white mt-1">0</p>
+                    </div>
+                    <div class="text-center border-r border-gray-800/80 py-1">
+                        <p class="text-[10px] text-dark-text-secondary uppercase tracking-wider font-semibold">Staked</p>
+                        <p id="locked-staked" class="text-sm font-bold text-white mt-1">0</p>
+                    </div>
+                    <div class="text-center py-1">
+                        <p class="text-[10px] text-brand-secondary uppercase tracking-wider font-bold">Total Holdings</p>
+                        <p id="locked-total" class="text-sm font-bold text-brand-secondary mt-1">0</p>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-8">
+                    <div class="flex justify-between items-center text-xs mb-2">
+                        <span class="text-dark-text-secondary font-medium">Gating Progress</span>
+                        <span id="progress-text" class="text-white font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-dark-bg rounded-full h-3.5 border border-gray-800 p-0.5">
+                        <div id="progress-bar" class="bg-gradient-to-r from-yellow-500 to-amber-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p class="text-xs text-left text-dark-text-secondary mt-3">
+                        Need <span id="locked-remaining-text" class="text-white font-semibold">5,000,000</span> more $CITY.
+                    </p>
+                </div>
+
+                <!-- Action CTAs -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <a href="/swap/" class="flex-1 bg-brand-secondary hover:bg-brand-secondary-hover text-gray-900 font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-yellow-500/10 hover:shadow-yellow-500/20 text-sm">
+                        Buy $CITY on Cetus
+                    </a>
+                    <button id="refresh-balance-btn" class="flex-1 bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 text-sm">
+                        Refresh Balance
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. UNLOCKED VIEW (SUCCESS LIST) -->
+        <div id="view-unlocked" class="hidden">
+            <div class="text-center mb-12">
+                <div class="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 font-bold text-xs uppercase tracking-wider mb-4">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span> Access Granted
+                </div>
+                <h1 class="text-4xl font-bold text-white mb-3">Ecosystem Dashboard</h1>
+                <p class="text-dark-text-secondary max-w-xl mx-auto">
+                    Your combined holding of 5M+ $CITY gives you full citizenship and access to the following elite utilities.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Analyzer Card -->
+                <div class="glass-panel rounded-3xl p-8 flex flex-col hover:border-blue-500/30 transition-all duration-300 relative group overflow-hidden neon-glow">
+                    <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500 opacity-80"></div>
+                    <div class="mb-6">
+                        <div class="bg-blue-500/10 w-12 h-12 rounded-xl flex items-center justify-center text-blue-400 border border-blue-500/20 mb-4">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">CITY Intelligence Terminal</h3>
+                        <p class="text-sm text-dark-text-secondary leading-relaxed">
+                            Run AI audit scans of SUI portfolios. Fetch smart contract diagnostics, balance weights, and real-time trading summaries.
+                        </p>
+                    </div>
+                    <a href="/analyze/" class="mt-auto w-full text-center bg-blue-500 hover:bg-blue-400 text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md">
+                        Open Analyzer
+                    </a>
+                </div>
+
+                <!-- Sluice Card -->
+                <div class="glass-panel rounded-3xl p-8 flex flex-col hover:border-green-500/30 transition-all duration-300 relative group overflow-hidden neon-glow">
+                    <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-green-500 to-emerald-400 opacity-80"></div>
+                    <div class="mb-6">
+                        <div class="bg-green-500/10 w-12 h-12 rounded-xl flex items-center justify-center text-green-400 border border-green-500/20 mb-4">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Sluice Vesting Protocol</h3>
+                        <p class="text-sm text-dark-text-secondary leading-relaxed">
+                            Configure continuous linear token releases tied to token price or project market cap thresholds verified by on-chain decentralized oracles.
+                        </p>
+                    </div>
+                    <a href="/sluice/" class="mt-auto w-full text-center bg-green-500 hover:bg-green-400 text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md">
+                        Open Sluice
+                    </a>
+                </div>
+
+                <!-- Airdrop Card -->
+                <div class="glass-panel rounded-3xl p-8 flex flex-col hover:border-yellow-500/30 transition-all duration-300 relative group overflow-hidden neon-glow">
+                    <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-yellow-500 to-amber-400 opacity-80"></div>
+                    <div class="mb-6">
+                        <div class="bg-yellow-500/10 w-12 h-12 rounded-xl flex items-center justify-center text-yellow-400 border border-yellow-500/20 mb-4">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Airdrop Utility</h3>
+                        <p class="text-sm text-dark-text-secondary leading-relaxed">
+                            Conduct batch transfers of SUI and ecosystem coins. Automatically distribute tokens using custom CSV tables or staking leaderboard metrics.
+                        </p>
+                    </div>
+                    <a href="/airdrop/" class="mt-auto w-full text-center bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-md">
+                        Open Airdrop Tool
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900/50 border-t border-gray-800/80 py-6 text-center text-xs text-dark-text-secondary">
+        <div class="container mx-auto px-4">
+            <p>© 2026 Alpha City. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Wallet & UI Logic -->
+    <script>
+        const STORAGE_KEY_PROVIDER = 'ac_tools_provider';
+        const STORAGE_KEY_ACCOUNT  = 'ac_tools_account';
+        const GATE_MAX_CITY        = 5000000;
+
+        let connectedAddress = null;
+        let connectedWalletEntry = null;
+
+        // Elements
+        const connectBtn  = document.getElementById('connect-wallet-btn');
+        const ctaConnectBtn = document.getElementById('cta-connect-btn');
+        const walletLabel = document.getElementById('wallet-text');
+
+        const viewDisconnected = document.getElementById('view-disconnected');
+        const viewLocked       = document.getElementById('view-locked');
+        const viewUnlocked     = document.getElementById('view-unlocked');
+        const redirectBanner   = document.getElementById('redirect-banner');
+
+        const lockedAddress = document.getElementById('locked-address-text');
+        const lockedLiquid  = document.getElementById('locked-liquid');
+        const lockedStaked  = document.getElementById('locked-staked');
+        const lockedTotal   = document.getElementById('locked-total');
+        const progressText  = document.getElementById('progress-text');
+        const progressBar   = document.getElementById('progress-bar');
+        const lockedRemaining = document.getElementById('locked-remaining-text');
+
+        // URL Params
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectPath = urlParams.get('redirect');
+
+        // Sync local wallet standard code to allow same page connect
+        function getRegisteredWallets() {
+            return window.suiWallets?.get() || [];
+        }
+        function isSuiWallet(w) {
+            if (!w.features?.['standard:connect']) return false;
+            const chains = w.chains || [];
+            if (chains.length === 0) return true;
+            return chains.some(c => typeof c === 'string' && c.startsWith('sui:'));
+        }
+        function discoverWallets() {
+            const found = [], seen = new Set();
+            for (const w of getRegisteredWallets()) {
+                if (isSuiWallet(w) && !seen.has(w.name)) {
+                    seen.add(w.name);
+                    found.push({ source: 'standard', name: w.name, wallet: w });
+                }
+            }
+            const legacy = [
+                { name: 'Slush',      obj: window.slush?.sui || window.slush },
+                { name: 'Sui Wallet', obj: window.suiWallet },
+                { name: 'Sui',        obj: window.sui },
+                { name: 'Martian',    obj: window.martian?.sui || window.martian },
+                { name: 'Ethos',      obj: window.ethos?.sui || window.ethos },
+            ];
+            for (const c of legacy) {
+                if (c.obj && !seen.has(c.name)) {
+                    seen.add(c.name);
+                    found.push({ source: 'legacy', name: c.name, provider: c.obj });
+                }
+            }
+            return found;
+        }
+
+        function shortAddr(a) {
+            return (!a || a.length < 11) ? a : a.slice(0, 6) + '...' + a.slice(-4);
+        }
+
+        // Connect wallet implementation
+        async function connectWallet() {
+            let wallets = discoverWallets();
+            if (!wallets.length) {
+                await new Promise(r => setTimeout(r, 600));
+                wallets = discoverWallets();
+            }
+            if (!wallets.length) {
+                await new Promise(r => setTimeout(r, 1200));
+                wallets = discoverWallets();
+            }
+            if (!wallets.length) {
+                alert('No Sui wallet found. Please install a Sui wallet extension (Sui Wallet, Slush, etc.).');
+                return;
+            }
+
+            // Simple picker modal
+            const entry = wallets.length === 1 ? wallets[0] : await pickWallet(wallets);
+            if (!entry) return;
+
+            walletLabel.textContent = 'Connecting…';
+            connectBtn.disabled = true;
+
+            try {
+                let accounts;
+                if (entry.source === 'standard') {
+                    try {
+                        const disc = entry.wallet.features?.['standard:disconnect'];
+                        if (disc?.disconnect) await disc.disconnect();
+                    } catch (_) {}
+                    const r = await entry.wallet.features['standard:connect'].connect();
+                    accounts = r?.accounts || entry.wallet.accounts || [];
+                } else {
+                    const p = entry.provider;
+                    if (typeof p.connect === 'function') await p.connect();
+                    let addrs = [];
+                    if (typeof p.getAccounts === 'function') {
+                        const ac = await p.getAccounts();
+                        addrs = (ac || []).map(a => a?.address || a).filter(Boolean);
+                    }
+                    accounts = addrs.map(addr => ({ address: addr }));
+                }
+
+                const suiAccounts = accounts.filter(a => !a.chains || a.chains.includes('sui:mainnet'));
+                const all = suiAccounts.length ? suiAccounts : accounts;
+                if (!all.length) throw new Error('Wallet provided no accounts.');
+
+                const account = all[0];
+                const address = String(account?.address || account || '').trim();
+
+                connectedAddress = address;
+                connectedWalletEntry = entry;
+                
+                // Write to canonical keys for wallet-sync to propagate
+                localStorage.setItem('ac_tools_provider', entry.name);
+                localStorage.setItem('ac_tools_account', address);
+                localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: entry.name, address: address }));
+
+                walletLabel.textContent = shortAddr(address);
+                connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+                connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+            } catch(e) {
+                console.error(e);
+                alert('Connection failed: ' + e.message);
+                walletLabel.textContent = 'Connect Wallet';
+                connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
+                connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+            } finally {
+                connectBtn.disabled = false;
+            }
+        }
+
+        function pickWallet(wallets) {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.className = 'fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
+                overlay.innerHTML = `
+                    <div class="bg-dark-card border border-gray-700/80 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                        <h3 class="text-white font-bold text-lg mb-4">Select Wallet</h3>
+                        <div id="_wp_list" class="space-y-2"></div>
+                        <button id="_wp_cancel" class="mt-4 w-full py-2.5 text-dark-text-secondary text-sm hover:text-white transition-colors font-semibold">Cancel</button>
+                    </div>`;
+                document.body.appendChild(overlay);
+
+                wallets.forEach(entry => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'w-full text-left px-4 py-3 bg-dark-bg/60 border border-gray-700 hover:border-brand-primary text-white rounded-xl transition-colors font-medium text-sm';
+                    btn.textContent = entry.name;
+                    btn.addEventListener('click', () => { document.body.removeChild(overlay); resolve(entry); });
+                    document.getElementById('_wp_list').appendChild(btn);
+                });
+                document.getElementById('_wp_cancel').addEventListener('click', () => {
+                    document.body.removeChild(overlay); resolve(null);
+                });
+            });
+        }
+
+        async function performDisconnect() {
+            if (connectedWalletEntry?.source === 'standard') {
+                try {
+                    const disc = connectedWalletEntry.wallet.features?.['standard:disconnect'];
+                    if (disc?.disconnect) await disc.disconnect();
+                } catch (_) {}
+            }
+            localStorage.removeItem('ac_tools_provider');
+            localStorage.removeItem('ac_tools_account');
+            localStorage.removeItem('alphacity_wallet');
+            
+            connectedAddress = null;
+            connectedWalletEntry = null;
+            
+            walletLabel.textContent = 'Connect Wallet';
+            connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
+            connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+        }
+
+        function formatRawAmount(rawStr) {
+            const raw = BigInt(rawStr || '0');
+            const formatted = Number(raw) / (10 ** 9);
+            return formatted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        }
+
+        // Listen for updates from tools-gate.js script
+        window.addEventListener('alphacity-gate-update', (e) => {
+            const data = e.detail;
+            
+            if (!data.connected) {
+                // Show disconnected view
+                viewDisconnected.classList.remove('hidden');
+                viewLocked.classList.add('hidden');
+                viewUnlocked.classList.add('hidden');
+                redirectBanner.classList.add('hidden');
+                
+                walletLabel.textContent = 'Connect Wallet';
+                connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
+                connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+                connectedAddress = null;
+                return;
+            }
+
+            connectedAddress = data.address;
+            walletLabel.textContent = shortAddr(data.address);
+            connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+            connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+
+            if (data.isAllowed) {
+                // Show unlocked view
+                viewDisconnected.classList.add('hidden');
+                viewLocked.classList.add('hidden');
+                viewUnlocked.classList.remove('hidden');
+
+                if (redirectPath) {
+                    redirectBanner.classList.remove('hidden');
+                    setTimeout(() => {
+                        window.location.href = redirectPath;
+                    }, 1500);
+                }
+            } else {
+                // Show locked view
+                viewDisconnected.classList.add('hidden');
+                viewLocked.classList.remove('hidden');
+                viewUnlocked.classList.add('hidden');
+                redirectBanner.classList.add('hidden');
+
+                // Fill balances
+                lockedAddress.textContent = shortAddr(data.address);
+                
+                const liquidAmt = Number(BigInt(data.liquid)) / (10 ** 9);
+                const stakedAmt = Number(BigInt(data.staked)) / (10 ** 9);
+                const totalAmt = liquidAmt + stakedAmt;
+
+                lockedLiquid.textContent = liquidAmt.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' CITY';
+                lockedStaked.textContent = stakedAmt.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' CITY';
+                lockedTotal.textContent = totalAmt.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' CITY';
+
+                const pct = Math.min(100, Math.floor((totalAmt / GATE_MAX_CITY) * 100));
+                progressText.textContent = `${pct}%`;
+                progressBar.style.width = `${pct}%`;
+
+                const remaining = Math.max(0, GATE_MAX_CITY - totalAmt);
+                lockedRemaining.textContent = remaining.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            }
+        });
+
+        // Click events
+        connectBtn.addEventListener('click', () => {
+            if (connectedAddress) {
+                if (confirm('Disconnect wallet?')) {
+                    performDisconnect();
+                }
+            } else {
+                connectWallet();
+            }
+        });
+
+        ctaConnectBtn.addEventListener('click', connectWallet);
+
+        document.getElementById('refresh-balance-btn').addEventListener('click', () => {
+            sessionStorage.removeItem('alphacity_gate_address');
+            sessionStorage.removeItem('alphacity_gate_status');
+            sessionStorage.removeItem('alphacity_gate_liquid');
+            sessionStorage.removeItem('alphacity_gate_staked');
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>
