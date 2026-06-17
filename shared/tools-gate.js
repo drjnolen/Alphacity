@@ -89,6 +89,8 @@
             if (isToolsPage) {
                 const event = new CustomEvent('alphacity-gate-error', { detail: e.message });
                 window.dispatchEvent(event);
+            } else {
+                window.location.href = `/tools/?redirect=${encodeURIComponent(window.location.pathname)}&reason=rpc_error&error=${encodeURIComponent(e.message)}`;
             }
         }
     }
