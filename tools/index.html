@@ -291,8 +291,6 @@
 
     <!-- Wallet & UI Logic -->
     <script>
-        const STORAGE_KEY_PROVIDER = 'ac_tools_provider';
-        const STORAGE_KEY_ACCOUNT  = 'ac_tools_account';
         const GATE_MAX_CITY        = 5000000;
 
         let connectedAddress = null;
@@ -398,6 +396,136 @@
             return null;
         }
 
+        // Custom choice modal used for wallet picking, account switching, and options
+        function showChoiceModal({title, description, options, cancelLabel = "Cancel"}) {
+            return new Promise(resolve => {
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 z-[100] bg-black/70 flex items-center justify-center px-4 backdrop-blur-sm';
+                modal.innerHTML = `
+                    <div class="w-full max-w-sm rounded-2xl border border-gray-700 bg-dark-card p-6 shadow-2xl">
+                        <h3 class="text-white text-lg font-bold mb-1">${title}</h3>
+                        <p class="text-dark-text-secondary text-sm mb-4">${description}</p>
+                        <div id="choice-list" class="space-y-2"></div>
+                        <button id="choice-cancel" class="mt-4 w-full py-2.5 rounded-xl border border-gray-700 text-dark-text-secondary hover:text-white hover:border-gray-500 transition-colors font-semibold">${cancelLabel}</button>
+                    </div>
+                `;
+                const list = modal.querySelector('#choice-list');
+                const cancelBtn = modal.querySelector('#choice-cancel');
+                
+                const close = (value) => {
+                    modal.remove();
+                    resolve(value);
+                };
+
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'w-full text-left py-3 px-4 rounded-xl border border-gray-800 hover:border-brand-primary text-white bg-dark-bg/40 transition-colors text-sm font-medium';
+                    btn.textContent = opt.label;
+                    btn.addEventListener('click', () => close(opt.value));
+                    list.appendChild(btn);
+                });
+
+                cancelBtn.addEventListener('click', () => close(null));
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) close(null);
+                });
+
+                document.body.appendChild(modal);
+            });
+        }
+
+        async function pickWallet(wallets) {
+            const chosen = await showChoiceModal({
+                title: "Select Wallet",
+                description: "Choose a wallet provider to connect.",
+                options: wallets.map(w => ({ label: w.name, value: w }))
+            });
+            return chosen;
+        }
+
+        async function switchAccount() {
+            if (connectedWalletEntry?.supportsAccountSwitch === false) {
+                alert("This wallet currently exposes one account at a time to dApps. To use another Slush account, switch the active account inside Slush first, then reconnect here.");
+                return;
+            }
+            if (!connectedWalletEntry?.getAccounts) {
+                alert("This wallet does not expose account switching from dApps. Switch account in wallet extension, then click Connect Wallet again.");
+                return;
+            }
+
+            let accounts = [];
+            try {
+                accounts = await connectedWalletEntry.getAccounts();
+            } catch (_) {}
+
+            if (!accounts || accounts.length <= 1) {
+                if (!connectedWalletEntry.connect) {
+                    alert("No alternate wallet accounts found in this provider.");
+                    return;
+                }
+                try {
+                    const r = await connectedWalletEntry.wallet.features['standard:connect'].connect();
+                    accounts = r?.accounts || connectedWalletEntry.wallet.accounts || [];
+                } catch (n) {
+                    console.error(n);
+                    alert(`Unable to open account selector: ${n.message}`);
+                    return;
+                }
+                if (!accounts || accounts.length <= 1) {
+                    alert("No alternate wallet accounts found in this provider. Connect another account in your wallet first, then try Switch Account again.");
+                    return;
+                }
+            }
+
+            const chosen = await showChoiceModal({
+                title: "Switch Account",
+                description: "Select an account from the current wallet provider.",
+                options: accounts.map(addr => ({
+                    label: addr === connectedAddress ? `${shortAddr(addr)} (Current)` : shortAddr(addr),
+                    value: addr
+                }))
+            });
+
+            if (chosen && chosen !== connectedAddress) {
+                if (connectedWalletEntry.selectAccount) {
+                    await connectedWalletEntry.selectAccount(chosen);
+                }
+                connectedAddress = chosen;
+                // Write to canonical keys for wallet-sync to propagate
+                localStorage.setItem('ac_tools_account', chosen);
+                localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: connectedWalletEntry.name, address: chosen }));
+                
+                walletLabel.textContent = shortAddr(chosen);
+                // Trigger tools-gate check immediately for the new address
+                window.location.reload();
+            }
+        }
+
+        async function showWalletOptions() {
+            const options = [];
+            if (connectedWalletEntry?.supportsAccountSwitch !== false) {
+                options.push({ label: "Switch Account", value: "switch_account" });
+            }
+            options.push({ label: "Switch Wallet Provider", value: "switch_provider" });
+            options.push({ label: "Disconnect", value: "disconnect" });
+
+            const chosen = await showChoiceModal({
+                title: "Wallet Options",
+                description: `${shortAddr(connectedAddress)} connected via ${connectedWalletEntry?.name || "wallet"}.`,
+                options: options
+            });
+
+            if (chosen === "switch_account") {
+                await switchAccount();
+            } else if (chosen === "switch_provider") {
+                await performDisconnect();
+                await connectWallet();
+            } else if (chosen === "disconnect") {
+                await performDisconnect();
+            }
+        }
+
         // Connect wallet implementation
         async function connectWallet() {
             let wallets = discoverWallets();
@@ -468,32 +596,6 @@
             } finally {
                 connectBtn.disabled = false;
             }
-        }
-
-        function pickWallet(wallets) {
-            return new Promise(resolve => {
-                const overlay = document.createElement('div');
-                overlay.className = 'fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
-                overlay.innerHTML = `
-                    <div class="bg-dark-card border border-gray-700/80 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-                        <h3 class="text-white font-bold text-lg mb-4">Select Wallet</h3>
-                        <div id="_wp_list" class="space-y-2"></div>
-                        <button id="_wp_cancel" class="mt-4 w-full py-2.5 text-dark-text-secondary text-sm hover:text-white transition-colors font-semibold">Cancel</button>
-                    </div>`;
-                document.body.appendChild(overlay);
-
-                wallets.forEach(entry => {
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.className = 'w-full text-left px-4 py-3 bg-dark-bg/60 border border-gray-700 hover:border-brand-primary text-white rounded-xl transition-colors font-medium text-sm';
-                    btn.textContent = entry.name;
-                    btn.addEventListener('click', () => { document.body.removeChild(overlay); resolve(entry); });
-                    document.getElementById('_wp_list').appendChild(btn);
-                });
-                document.getElementById('_wp_cancel').addEventListener('click', () => {
-                    document.body.removeChild(overlay); resolve(null);
-                });
-            });
         }
 
         async function performDisconnect() {
@@ -586,9 +688,7 @@
         // Click events
         connectBtn.addEventListener('click', () => {
             if (connectedAddress) {
-                if (confirm('Disconnect wallet?')) {
-                    performDisconnect();
-                }
+                showWalletOptions();
             } else {
                 connectWallet();
             }
