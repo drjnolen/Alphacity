@@ -96,17 +96,19 @@
     }
 
     function handleResult(isAllowed, liquid, staked, fromRpc) {
+        window.alphacityGate = {
+            connected: true,
+            address: currentAddress,
+            liquid: liquid.toString(),
+            staked: staked.toString(),
+            total: (liquid + staked).toString(),
+            isAllowed: isAllowed,
+            fromRpc: fromRpc
+        };
+
         if (isToolsPage) {
             const event = new CustomEvent('alphacity-gate-update', {
-                detail: {
-                    connected: true,
-                    address: currentAddress,
-                    liquid: liquid.toString(),
-                    staked: staked.toString(),
-                    total: (liquid + staked).toString(),
-                    isAllowed: isAllowed,
-                    fromRpc: fromRpc
-                }
+                detail: window.alphacityGate
             });
             window.dispatchEvent(event);
         }
@@ -142,9 +144,11 @@
                 sessionStorage.removeItem('alphacity_gate_liquid');
                 sessionStorage.removeItem('alphacity_gate_staked');
 
+                window.alphacityGate = { connected: false };
+
                 if (isToolsPage) {
                     window.dispatchEvent(new CustomEvent('alphacity-gate-update', {
-                        detail: { connected: false }
+                        detail: window.alphacityGate
                     }));
                 } else {
                     window.location.href = `/tools/?redirect=${encodeURIComponent(window.location.pathname)}&reason=no_wallet`;

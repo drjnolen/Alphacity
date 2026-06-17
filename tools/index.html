@@ -636,10 +636,8 @@
             return formatted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
         }
 
-        // Listen for updates from tools-gate.js script
-        window.addEventListener('alphacity-gate-update', (e) => {
-            const data = e.detail;
-            
+        // Define the state updater function
+        function updateGateUI(data) {
             if (!data.connected) {
                 // Show disconnected view
                 viewDisconnected.classList.remove('hidden');
@@ -696,7 +694,17 @@
                 const remaining = Math.max(0, GATE_MAX_CITY - totalAmt);
                 lockedRemaining.textContent = remaining.toLocaleString(undefined, { maximumFractionDigits: 2 });
             }
+        }
+
+        // Listen for updates from tools-gate.js script
+        window.addEventListener('alphacity-gate-update', (e) => {
+            updateGateUI(e.detail);
         });
+
+        // Check if tools-gate.js already resolved the state before this script ran
+        if (window.alphacityGate) {
+            updateGateUI(window.alphacityGate);
+        }
 
         // Click events
         connectBtn.addEventListener('click', () => {
