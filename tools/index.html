@@ -321,15 +321,43 @@
         const redirectPath = urlParams.get('redirect');
 
         // Sync local wallet standard code to allow same page connect
-        function getRegisteredWallets() {
-            return window.suiWallets?.get() || [];
+        const registeredWallets = new Set();
+        let walletListCache;
+
+        function registerWallet(w) {
+            walletListCache = undefined;
+            registeredWallets.add(w);
         }
+        function getRegisteredWallets() {
+            if (!walletListCache) walletListCache = [...registeredWallets];
+            return walletListCache;
+        }
+
+        class WalletStandardEvent extends Event {
+            #api;
+            get detail() { return this.#api; }
+            get type() { return 'wallet-standard:app-ready'; }
+            constructor(api) {
+                super('wallet-standard:app-ready', { bubbles: false, cancelable: false, composed: false });
+                this.#api = api;
+            }
+        }
+
+        function initWalletStandard() {
+            const appApi = Object.freeze({ register: (...ws) => ws.forEach(registerWallet) });
+            try { window.addEventListener('wallet-standard:register-wallet', e => e.detail(appApi)); } catch (_) {}
+            try { window.dispatchEvent(new WalletStandardEvent(appApi)); } catch (_) {}
+        }
+
+        initWalletStandard();
+
         function isSuiWallet(w) {
             if (!w.features?.['standard:connect']) return false;
             const chains = w.chains || [];
             if (chains.length === 0) return true;
             return chains.some(c => typeof c === 'string' && c.startsWith('sui:'));
         }
+
         function discoverWallets() {
             const found = [], seen = new Set();
             for (const w of getRegisteredWallets()) {
@@ -356,6 +384,18 @@
 
         function shortAddr(a) {
             return (!a || a.length < 11) ? a : a.slice(0, 6) + '...' + a.slice(-4);
+        }
+
+        function loadPersistedSession() {
+            try {
+                const raw = localStorage.getItem('alphacity_wallet');
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.walletName && parsed.address) {
+                    return { providerName: parsed.walletName, accountAddress: parsed.address };
+                }
+            } catch (_) {}
+            return null;
         }
 
         // Connect wallet implementation
@@ -563,6 +603,50 @@
             sessionStorage.removeItem('alphacity_gate_staked');
             window.location.reload();
         });
+
+        // Auto-reconnect from persisted session (mirrors analyze page behavior)
+        (async function autoReconnect() {
+            const session = loadPersistedSession();
+            if (!session) return;
+
+            let entry = null;
+            for (const delay of [600, 1200]) {
+                await new Promise(r => setTimeout(r, delay));
+                const wallets = discoverWallets();
+                entry = wallets.find(w => w.name === session.providerName);
+                if (entry) break;
+            }
+            if (!entry) return;
+
+            try {
+                let accounts = [];
+                if (entry.source === 'standard') {
+                    try {
+                        const r = await entry.wallet.features['standard:connect'].connect({ silent: true });
+                        accounts = r?.accounts || entry.wallet.accounts || [];
+                    } catch (_) {}
+                } else {
+                    const p = entry.provider;
+                    try {
+                        if (typeof p.connect === 'function') await p.connect();
+                        let addrs = [];
+                        if (typeof p.getAccounts === 'function') {
+                            const ac = await p.getAccounts();
+                            addrs = (ac || []).map(a => a?.address || a).filter(Boolean);
+                        }
+                        accounts = addrs.map(addr => ({ address: addr }));
+                    } catch (_) {}
+                }
+
+                const address = session.accountAddress || String(accounts?.[0]?.address || accounts?.[0] || '').trim();
+                connectedAddress = address;
+                connectedWalletEntry = entry;
+                
+                walletLabel.textContent = shortAddr(address);
+                connectBtn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+                connectBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+            } catch (_) {}
+        })();
     </script>
 </body>
 </html>
