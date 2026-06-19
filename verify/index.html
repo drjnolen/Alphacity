@@ -1,658 +1,1233 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GuildSafe Wallet Verify</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>CityWatch — Verify Wallet</title>
+  <!-- Critical polyfill for SUI wallet SDK compatibility -->
+  <script>window.global = window;</script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
-      --bg: #0b1220;
-      --card: #111827;
-      --muted: #94a3b8;
-      --text: #e5e7eb;
-      --accent: #22c55e;
-      --accent2: #0ea5e9;
-      --danger: #ef4444;
-      --border: #334155;
+      --bg: #0f172a; --card: #1e293b; --card2: #162032;
+      --border: #334155; --text: #e2e8f0; --muted: #94a3b8;
+      --green: #22c55e; --green-bg: #14532d; --green-text: #86efac;
+      --red: #ef4444; --red-bg: #450a0a; --red-text: #fca5a5;
+      --blue: #3b82f6; --blue-bg: #1e3a5f; --blue-text: #93c5fd;
+      --radius: 12px;
     }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      padding: 18px;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Inter, system-ui, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 0; line-height: 1.5;
     }
-    .card {
-      max-width: 560px;
-      margin: 0 auto;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-    }
-    h2 { margin: 0 0 8px 0; font-size: 20px; }
-    p { margin: 8px 0; color: var(--muted); }
-    .pill {
-      font-size: 12px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      background: #1f2937;
-      border: 1px solid var(--border);
-      display: inline-block;
-      margin-right: 8px;
-    }
-    #status {
-      margin-top: 16px;
-      padding: 12px;
-      border-radius: 10px;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      font-size: 14px;
-      text-align: center;
-    }
-    #walletAddress {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      font-size: 13px;
-      color: var(--accent2);
-      word-break: break-all;
-      display: none;
-    }
-    #tokenBalance {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      font-size: 13px;
-      word-break: break-all;
-      display: none;
-    }
-    button {
-      width: 100%;
-      box-sizing: border-box;
-      border-radius: 10px;
-      border: none;
-      padding: 10px 12px;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 12px;
-      display: none;
-    }
-    .btn-retry { background: var(--accent2); color: #062033; }
+    .app { max-width: 480px; margin: 0 auto; padding: 16px 16px 32px; }
 
-    /* Wallet picker */
-    #walletPicker {
-      margin-top: 16px;
-      display: none;
+    /* ── Header ── */
+    .header {
+      text-align: center; padding: 20px 0 8px;
     }
-    #walletPicker p {
-      margin: 0 0 10px 0;
-      font-size: 14px;
-      color: var(--muted);
+    .header .logo { font-size: 40px; margin-bottom: 4px; }
+    .header h1 { font-size: 20px; font-weight: 700; margin: 0; }
+    .header .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    /* ── Steps indicator ── */
+    .steps {
+      display: flex; justify-content: center; gap: 8px; margin: 18px 0 20px;
     }
-    .wallet-option {
-      display: block;
-      width: 100%;
-      box-sizing: border-box;
-      text-align: left;
-      background: #0f172a;
+    .step {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--muted); font-weight: 600;
+    }
+    .step .dot {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      background: var(--card); border: 2px solid var(--border);
+      transition: all .3s;
+    }
+    .step.active .dot { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .step.done .dot { background: var(--green); border-color: var(--green); color: #fff; }
+    .step-line {
+      width: 32px; height: 2px; background: var(--border); align-self: center;
+      border-radius: 1px; transition: background .3s;
+    }
+    .step-line.done { background: var(--green); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 14px;
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 14px;
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 8px;
-      transition: border-color 0.15s, background 0.15s;
     }
-    .wallet-option:hover {
-      border-color: var(--accent2);
-      background: #0f2033;
+    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+
+    /* ── Requirements panel ── */
+    .req-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: var(--card2); border-radius: 8px;
+      margin-bottom: 8px; font-size: 13px;
     }
-    /* Account picker */
-    #accountPicker {
-      margin-top: 16px;
-      display: none;
+    .req-item .icon { font-size: 18px; flex-shrink: 0; }
+    .req-item .label { color: var(--muted); font-size: 11px; }
+    .req-item .value { font-weight: 600; }
+
+    /* ── Wallet list ── */
+    .wallet-list {
+      display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;
     }
-    #accountPicker p {
-      margin: 0 0 10px 0;
-      font-size: 14px;
-      color: var(--muted);
+    .wallet-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px; min-height: 44px; background: var(--card2); border-radius: 10px;
+      border: 1px solid var(--border); cursor: pointer;
+      transition: all .2s;
     }
-    .account-option {
-      display: block;
-      width: 100%;
-      box-sizing: border-box;
-      text-align: left;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 14px;
-      color: var(--accent2);
-      font-size: 13px;
-      font-family: monospace;
-      cursor: pointer;
-      margin-top: 8px;
-      transition: border-color 0.15s, background 0.15s;
+    .wallet-item:hover { border-color: var(--blue); background: var(--bg); }
+    .wallet-item:active { transform: scale(0.98); }
+    .wallet-item .w-icon {
+      width: 36px; height: 36px; border-radius: 8px; background: var(--card);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0; overflow: hidden;
     }
-    .account-option:hover {
-      border-color: var(--accent2);
-      background: #0f2033;
+    .wallet-item .w-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+    .wallet-item .w-name { font-weight: 600; font-size: 14px; }
+    .wallet-item .w-hint { font-size: 11px; color: var(--muted); }
+    .wallet-item .w-arrow { margin-left: auto; color: var(--muted); font-size: 18px; }
+    .wallet-item.connected { border-color: var(--green); }
+    .wallet-item.connected .w-arrow { color: var(--green); }
+
+    /* ── Connected wallet display ── */
+    .connected-wallet {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; background: var(--green-bg); border-radius: 10px;
+      border: 1px solid var(--green); margin-bottom: 12px; font-size: 13px;
     }
+    .connected-wallet .cw-icon { font-size: 20px; }
+    .connected-wallet .cw-addr {
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+      color: var(--green-text); word-break: break-all;
+    }
+
+    /* ── Primary button ── */
+    .btn {
+      width: 100%; padding: 14px; min-height: 44px; border: 0; border-radius: 10px;
+      font-weight: 700; font-size: 15px; cursor: pointer;
+      transition: all .2s; margin-top: 14px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary { background: var(--green); color: #052e16; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+
+    /* ── Status / result ── */
+    .result-card {
+      text-align: center; padding: 24px 20px;
+    }
+    .result-card .result-icon { font-size: 48px; margin-bottom: 12px; }
+    .result-card h2 { margin-bottom: 8px; }
+    .result-card p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+    .detail-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row .dt { color: var(--muted); }
+    .detail-row .dd { font-weight: 600; }
+    .pass { color: var(--green); }
+    .fail { color: var(--red); }
+
+    /* ── Spinner ── */
     .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--muted);
-      border-top-color: var(--accent2);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-right: 8px;
+      width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite; display: inline-block;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Progress bar ── */
+    .progress-bar {
+      width: 100%; height: 4px; background: var(--border);
+      border-radius: 2px; margin-top: 14px; overflow: hidden;
+    }
+    .progress-bar .fill {
+      height: 100%; background: var(--green); border-radius: 2px;
+      transition: width .4s ease; width: 0%;
+    }
+
+    /* ── Alerts ── */
+    .alert {
+      padding: 12px 14px; border-radius: 8px; font-size: 13px;
+      margin-top: 12px; line-height: 1.5; display: none;
+    }
+    .alert.show { display: block; }
+    .alert-error { background: var(--red-bg); color: var(--red-text); }
+    .alert-success { background: var(--green-bg); color: var(--green-text); }
+    .alert-info { background: var(--blue-bg); color: var(--blue-text); }
+
+    /* ── External-browser prompt ── */
+    .browser-prompt {
+      background: var(--blue-bg); border: 1px solid var(--blue);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+      text-align: center;
+    }
+    .browser-prompt .bp-icon { font-size: 32px; margin-bottom: 8px; }
+    .browser-prompt p {
+      color: var(--blue-text); font-size: 13px; line-height: 1.5; margin-bottom: 14px;
+    }
+    .btn-browser {
+      background: var(--blue); color: #fff;
+    }
+    .btn-browser:hover { filter: brightness(1.1); }
+
+    /* ── Change wallet link ── */
+    #changeWalletBtn:hover { text-decoration: underline; }
+
+    /* ── Sections ── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── Fade-in animation ── */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .section.active { animation: fadeIn .3s ease; }
+
+    /* ── Scanning animation ── */
+    .scanning { text-align: center; padding: 16px 0 8px; }
+    .scanning .spinner { width: 24px; height: 24px; }
+
+    /* ── Responsive ── */
+    @media (min-width: 520px) {
+      .app { padding: 24px 24px 40px; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>GuildSafe Wallet Verification</h2>
-    <p>Connect your Sui wallet and sign a challenge to verify ownership.</p>
-
-    <div>
-      <span class="pill" id="ctxGroup">group: -</span>
-      <span class="pill" id="ctxUser">user: -</span>
-      <span class="pill" id="ctxToken" style="display:none">token: -</span>
-      <span class="pill" id="ctxMinBalance" style="display:none">min: -</span>
-    </div>
-
-    <div id="status"><span class="spinner"></span> Looking for wallets&hellip;</div>
-    <div id="walletPicker">
-      <p>Select a wallet provider:</p>
-      <div id="walletList"></div>
-    </div>
-    <div id="accountPicker">
-      <p>Select an account:</p>
-      <div id="accountList"></div>
-    </div>
-    <div id="walletAddress"></div>
-    <div id="tokenBalance"></div>
-    <button class="btn-retry" id="retryBtn">Retry</button>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">🔐</div>
+    <h1>CityWatch Verification</h1>
+    <div class="subtitle">Connect your SUI wallet to verify holdings</div>
   </div>
 
-  <script>
-    // ---------- Telegram context ----------
-    const tg = window.Telegram?.WebApp || null;
-    if (tg) tg.ready();
+  <!-- Step indicators -->
+  <div class="steps">
+    <div class="step active" id="step1">
+      <div class="dot">1</div>
+      <span>Connect</span>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step" id="step2">
+      <div class="dot">2</div>
+      <span>Verify</span>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step" id="step3">
+      <div class="dot">3</div>
+      <span>Done</span>
+    </div>
+  </div>
 
-    const BOT_USERNAME = 'GuildSafeBot';
+  <!-- ▸ SECTION 1: Connect wallet -->
+  <div class="section active" id="sec-wallet">
+    <!-- Requirements info -->
+    <div class="card" id="reqCard">
+      <h2>📋 Requirements</h2>
+      <div id="reqList"></div>
+    </div>
 
-    const qs = new URLSearchParams(window.location.search);
-    const groupId = qs.get('group_id') || '';
-    const tgUserId = qs.get('tg_user_id') || '';
-    const tokenType = qs.get('token_type') || '';
-    const minBalance = qs.get('min_balance') || qs.get('required_balance') || '0';
+    <div class="card" id="connectCard">
+      <h2>🔗 Connect Your SUI Wallet</h2>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:14px;">
+        Click the button below to connect your wallet and verify your holdings.
+      </p>
 
-    document.getElementById('ctxGroup').textContent = `group: ${groupId || '-'}`;
-    document.getElementById('ctxUser').textContent = `user: ${tgUserId || '-'}`;
+      <!-- Primary connect CTA (shown before wallet selection begins) -->
+      <div id="connectBtnWrapper">
+        <button class="btn btn-primary" id="connectWalletBtn">
+          🔗 Click to Verify Wallet Holdings
+        </button>
+      </div>
 
-    if (tokenType) {
-      const shortToken = tokenType.split('::').pop() || tokenType;
-      const ctxTokenEl = document.getElementById('ctxToken');
-      ctxTokenEl.textContent = `token: ${shortToken}`;
-      ctxTokenEl.style.display = 'inline-block';
-      const ctxMinEl = document.getElementById('ctxMinBalance');
-      ctxMinEl.textContent = `min: ${minBalance}`;
-      ctxMinEl.style.display = 'inline-block';
+      <!-- Detected wallets will be rendered here (shown after scan) -->
+      <div id="walletList" class="wallet-list" style="display:none;"></div>
+
+      <!-- Scanning indicator (shown while detecting wallets) -->
+      <div id="walletScanning" class="scanning" style="display:none;">
+        <div class="spinner"></div>
+        <p style="color:var(--muted); font-size:12px; margin-top:8px;">Detecting wallets…</p>
+      </div>
+
+      <!-- Connected wallet indicator (hidden initially) -->
+      <div id="connectedWallet" class="connected-wallet" style="display:none;">
+        <span class="cw-icon">✅</span>
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13px; color:var(--green-text);">Wallet Connected</div>
+          <div class="cw-addr" id="connectedAddr"></div>
+        </div>
+        <a href="#" id="changeWalletBtn" role="button" style="font-size:12px; color:var(--blue); text-decoration:none; white-space:nowrap;">Change ↻</a>
+      </div>
+
+      <button class="btn btn-primary" id="verifyBtn" disabled>
+        Verify On-Chain
+      </button>
+      <div class="alert" id="walletAlert"></div>
+    </div>
+  </div>
+
+  <!-- ▸ SECTION 2: Verifying -->
+  <div class="section" id="sec-verifying">
+    <div class="card" style="text-align:center; padding:32px 20px;">
+      <div style="font-size:40px; margin-bottom:12px;">🔍</div>
+      <h2>Verifying On-Chain…</h2>
+      <p style="color:var(--muted); font-size:13px; margin-top:8px;" id="verifyStatus">
+        Querying SUI blockchain for your holdings…
+      </p>
+      <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <!-- ▸ SECTION 3: Result -->
+  <div class="section" id="sec-result">
+    <div class="card result-card" id="resultCard"></div>
+    <div class="card" id="detailsCard" style="display:none;">
+      <h2>📊 Verification Details</h2>
+      <div id="detailRows"></div>
+    </div>
+    <div class="alert" id="resultAlert"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ── Telegram WebApp integration ── */
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  const isWebApp = !!(tg && tg.initData && tg.initData.length > 0);
+  // Detect Telegram's in-app browser (URL-button flow) vs. a real external browser.
+  const isInTelegramBrowser = !!(
+    (typeof window.TelegramWebviewProxy !== 'undefined') ||
+    (tg && tg.platform && tg.platform !== 'unknown' && tg.platform !== '')
+  );
+  if (tg) {
+    try { tg.ready(); } catch (_) {}
+    try { tg.expand(); } catch (_) {}
+    // Apply Telegram theme colours when available.
+    const tp = tg.themeParams || {};
+    if (tp.bg_color) document.documentElement.style.setProperty('--bg', tp.bg_color);
+    if (tp.secondary_bg_color) document.documentElement.style.setProperty('--card', tp.secondary_bg_color);
+    if (tp.text_color) document.documentElement.style.setProperty('--text', tp.text_color);
+    if (tp.hint_color) document.documentElement.style.setProperty('--muted', tp.hint_color);
+    if (tp.button_color) document.documentElement.style.setProperty('--blue', tp.button_color);
+  }
+
+  /* ── Configuration from query params (parsed client-side) ── */
+  const qs = new URLSearchParams(window.location.search);
+  const GROUP_ID        = qs.get('group_id') || qs.get('groupId') || '';
+  const TG_USER_ID      = qs.get('tg_user_id') || qs.get('tgUserId') || '';
+  const SUI_RPC         = qs.get('sui_rpc') || 'https://fullnode.mainnet.sui.io:443';
+  const TOKEN_TYPE      = qs.get('token_type') || '';
+  const REQUIRED_BAL    = qs.get('required_balance') || '0';
+  const DECIMALS        = parseInt(qs.get('decimals') || '6', 10);
+  const MIN_HOLDING     = parseFloat(qs.get('minimum_holding') || '0');
+  const REG_MODE        = qs.get('registration_mode') || 'token';
+  const NFT_COLLECTION  = qs.get('nft_collection_id') || '';
+  const NFT_THRESHOLD   = parseInt(qs.get('nft_threshold') || '1', 10);
+  const API_VERIFY_URL  = qs.get('api_verify_url') || '/api/verify';
+  const VERIFY_TOKEN    = qs.get('verify_token') || '';
+
+  /* ── State ── */
+  let connectedAddress = '';
+  let walletSignResult = null;  // { signature, message } from signWalletOwnership, or null
+  let _lastConnectedWallet = null;  // wallet object for disconnect
+
+  /* ── DOM refs ── */
+  const $verifyBtn   = document.getElementById('verifyBtn');
+  const $walletAlert = document.getElementById('walletAlert');
+
+  /* ── Render requirements panel ── */
+  (function renderReqs() {
+    const $list = document.getElementById('reqList');
+    const items = [];
+    if ((REG_MODE === 'token' || REG_MODE === 'both') && TOKEN_TYPE) {
+      const parts = TOKEN_TYPE.split('::');
+      const symbol = parts.length >= 3 ? parts[parts.length - 1] : TOKEN_TYPE;
+      items.push({
+        icon: '💰', label: 'Minimum Token Balance',
+        value: Number(MIN_HOLDING).toLocaleString() + ' ' + symbol
+      });
     }
-
-    // ---------- UI refs ----------
-    const statusEl = document.getElementById('status');
-    const walletAddressEl = document.getElementById('walletAddress');
-    const tokenBalanceEl = document.getElementById('tokenBalance');
-    const retryBtn = document.getElementById('retryBtn');
-    const walletPickerEl = document.getElementById('walletPicker');
-    const walletListEl = document.getElementById('walletList');
-    const accountPickerEl = document.getElementById('accountPicker');
-    const accountPickerLabel = accountPickerEl.querySelector('p');
-    const accountListEl = document.getElementById('accountList');
-
-    function setStatus(html) { statusEl.innerHTML = html; }
-    function showRetry() { retryBtn.style.display = 'block'; }
-    function showWalletPicker() { walletPickerEl.style.display = 'block'; }
-    function hideWalletPicker() { walletPickerEl.style.display = 'none'; }
-    function showAccountPicker() { accountPickerEl.style.display = 'block'; }
-    function hideAccountPicker() { accountPickerEl.style.display = 'none'; }
-
-    function showTelegramFallback(walletAddress) {
-      // The page was opened inside Telegram but not as a proper WebApp,
-      // so sendData() is unavailable.  Direct the user back to the bot
-      // where the /register flow can finalise their registration.
-      const deepLink = groupId
-        ? `https://t.me/${BOT_USERNAME}?start=register_${groupId}`
-        : `https://t.me/${BOT_USERNAME}`;
-      const short = walletAddress.length > 14
-        ? walletAddress.slice(0, 6) + '&hellip;' + walletAddress.slice(-4)
-        : walletAddress;
-      setStatus(
-        '&#x2705; Wallet <b>' + short + '</b> verified on-chain!<br><br>' +
-        'To complete your group registration, return to the bot and run ' +
-        '<b>/register ' + walletAddress + '</b><br><br>' +
-        '<a href="' + deepLink + '" style="color:var(--accent2)">Open GuildSafe Bot &rarr;</a>'
-      );
+    if ((REG_MODE === 'nft' || REG_MODE === 'both') && NFT_COLLECTION) {
+      items.push({
+        icon: '🖼️', label: 'NFT Ownership',
+        value: NFT_THRESHOLD + '+ NFT' + (NFT_THRESHOLD > 1 ? 's' : '') + ' required'
+      });
     }
-
-    // ---------- Helpers ----------
-    const enc = new TextEncoder();
-
-    // ---------- Wallet Standard API ----------
-    // Mirrors the approach used by the staking page to discover wallets
-    // via the Wallet Standard (https://github.com/wallet-standard/wallet-standard)
-    const registeredWallets = new Set();
-    let walletListCache;
-
-    function registerWallet(wallet) {
-      walletListCache = undefined;
-      registeredWallets.add(wallet);
+    if (REG_MODE === 'both' && items.length === 2) {
+      const note = document.createElement('div');
+      note.className = 'req-item';
+      note.innerHTML = '<span class="icon">ℹ️</span><div><div class="label">Mode</div><div class="value">Meet either token OR NFT requirement</div></div>';
+      items.push({ _el: note });
     }
-
-    function getRegisteredWallets() {
-      if (!walletListCache) walletListCache = [...registeredWallets];
-      return walletListCache;
+    if (items.length === 0) {
+      document.getElementById('reqCard').style.display = 'none';
+      return;
     }
+    items.forEach(function(it) {
+      if (it._el) { $list.appendChild(it._el); return; }
+      const el = document.createElement('div');
+      el.className = 'req-item';
+      el.innerHTML = '<span class="icon">' + it.icon + '</span><div><div class="label">' + it.label + '</div><div class="value">' + it.value + '</div></div>';
+      $list.appendChild(el);
+    });
+  })();
 
-    function initWalletStandard() {
-      const appApi = Object.freeze({ register: (...wallets) => {
-        wallets.forEach(w => registerWallet(w));
-      }});
+  /* ── Wallet address validation ── */
+  function isValidSuiAddress(addr) {
+    return /^0x[0-9a-fA-F]{40,64}$/.test((addr || '').trim());
+  }
 
-      try {
-        window.addEventListener('wallet-standard:register-wallet', (e) => e.detail(appApi));
-      } catch (err) {
-        console.error('wallet-standard:register-wallet listener error', err);
-      }
-
-      try {
-        window.dispatchEvent(new CustomWalletEvent(appApi));
-      } catch (err) {
-        console.error('wallet-standard:app-ready dispatch error', err);
-      }
+  /* ── Update connected state ── */
+  function setConnectedWallet(addr, signRes, walletObj) {
+    connectedAddress = addr;
+    walletSignResult = signRes || null;
+    _lastConnectedWallet = walletObj || null;
+    const $cw = document.getElementById('connectedWallet');
+    const $ca = document.getElementById('connectedAddr');
+    if (addr) {
+      $ca.textContent = addr.slice(0, 10) + '…' + addr.slice(-8);
+      $cw.style.display = 'flex';
+      $verifyBtn.disabled = false;
+      $verifyBtn.textContent = 'Verify On-Chain';
+    } else {
+      $cw.style.display = 'none';
+      $verifyBtn.disabled = true;
     }
+  }
 
-    class CustomWalletEvent extends Event {
-      #api;
-      get detail() { return this.#api; }
-      get type() { return 'wallet-standard:app-ready'; }
-      constructor(api) {
-        super('wallet-standard:app-ready', { bubbles: false, cancelable: false, composed: false });
-        this.#api = api;
-      }
-    }
+  /* ══════════════════════════════════════════════════════
+     ── SUI Wallet Standard: event-based initialisation ──
+     ══════════════════════════════════════════════════════ */
+  const _registeredWallets = new Set();
+  let _walletListCache;
 
-    // ---------- Wallet discovery ----------
-    function discoverWallets() {
-      const found = [];
-      const seen = new Set();
+  function _registerWallet(wallet) {
+    _walletListCache = undefined;
+    _registeredWallets.add(wallet);
+  }
 
-      // 1. Wallet Standard wallets (preferred — used by Slush, Sui Wallet, etc.)
-      for (const w of getRegisteredWallets()) {
-        const hasConnect = !!w.features?.['standard:connect'];
-        const hasSign = !!w.features?.['sui:signPersonalMessage'];
-        if (hasConnect && hasSign && !seen.has(w.name)) {
+  function _getRegisteredWallets() {
+    if (!_walletListCache) _walletListCache = Array.from(_registeredWallets);
+    return _walletListCache;
+  }
+
+  function WalletAppReadyEvent(api) {
+    var evt = new Event('wallet-standard:app-ready', {
+      bubbles: false, cancelable: false, composed: false
+    });
+    evt.detail = api;
+    return evt;
+  }
+
+  function initWalletStandard() {
+    var appApi = Object.freeze({ register: function() {
+      for (var i = 0; i < arguments.length; i++) _registerWallet(arguments[i]);
+    } });
+
+    try {
+      window.addEventListener('wallet-standard:register-wallet', function(e) {
+        if (e && e.detail && typeof e.detail === 'function') e.detail(appApi);
+      });
+    } catch (err) {}
+
+    try {
+      window.dispatchEvent(WalletAppReadyEvent(appApi));
+    } catch (err) {}
+  }
+
+  initWalletStandard();
+
+  /* ══════════════════════════════════════════════════════
+     ── SUI Wallet Standard: detect & connect wallets ──
+     ══════════════════════════════════════════════════════ */
+  function discoverWallets() {
+    const found = [];
+    const seen = new Set();
+    try {
+      for (const w of _getRegisteredWallets()) {
+        const chains = w.chains || [];
+        const hasSui = chains.some(function(c) { return c.startsWith('sui:'); });
+        if (hasSui && !seen.has(w.name)) {
           seen.add(w.name);
-          found.push({ source: 'standard', name: w.name, wallet: w });
+          found.push(w);
         }
       }
 
-      // 2. Legacy global providers as fallback
-      const legacy = [
-        { name: 'Slush', obj: window.slush?.sui || window.slush },
-        { name: 'Sui Wallet', obj: window.suiWallet },
-        { name: 'Sui', obj: window.sui },
-        { name: 'Martian', obj: window.martian?.sui || window.martian },
-        { name: 'Ethos', obj: window.ethos?.sui || window.ethos },
+      if (window.__wallet_standard__) {
+        const reg = window.__wallet_standard__;
+        const list = typeof reg.get === 'function' ? reg.get()
+          : (reg.wallets && typeof reg.wallets.get === 'function') ? reg.wallets.get()
+          : (Array.isArray(reg.wallets) ? reg.wallets : []);
+        for (const w of list) {
+          const chains = w.chains || [];
+          const hasSui = chains.some(function(c) { return c.startsWith('sui:'); });
+          if (hasSui && !seen.has(w.name)) {
+            seen.add(w.name);
+            found.push(w);
+          }
+        }
+      }
+
+      const knownInjections = [
+        { key: 'suiWallet', name: 'Sui Wallet' },
+        { key: 'slush',     name: 'Slush (Sui Wallet)' },
+        { key: 'suiet',     name: 'Suiet' },
+        { key: 'nightly',   name: 'Nightly' },
+        { key: 'martian',   name: 'Martian' },
+        { key: 'ethos',     name: 'Ethos' },
       ];
-      for (const c of legacy) {
-        if (c.obj && !seen.has(c.name)) {
-          seen.add(c.name);
-          found.push({ source: 'legacy', name: c.name, provider: c.obj });
+      for (const inj of knownInjections) {
+        const provider = window[inj.key];
+        if (provider && typeof provider === 'object') {
+          if (!seen.has(inj.name)) {
+            seen.add(inj.name);
+            found.push({
+              name: inj.name,
+              icon: provider.icon || null,
+              _provider: provider,
+              features: provider.features || {},
+              accounts: provider.accounts || [],
+            });
+          }
         }
       }
 
-      return found;
-    }
-
-    function isValidSuiAddress(a) {
-      return /^0x[0-9a-fA-F]{40,64}$/.test((a || '').trim());
-    }
-
-    function makeChallenge(addr, tokenBal) {
-      const nonce = crypto.randomUUID
-        ? crypto.randomUUID()
-        : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
-      const ts = Date.now();
-      let text =
-`GuildSafe Wallet Verification
-Group: ${groupId}
-TelegramUser: ${tgUserId}
-Wallet: ${addr}`;
-      if (tokenType && tokenBal !== null && tokenBal !== undefined) {
-        text += `\nToken: ${tokenType}`;
-        text += `\nRequiredBalance: ${minBalance}`;
-        text += `\nTokenBalance: ${tokenBal}`;
+      if (window.phantom && window.phantom.sui) {
+        const phantomSui = window.phantom.sui;
+        if (!seen.has('Phantom')) {
+          seen.add('Phantom');
+          found.push({
+            name: 'Phantom',
+            icon: (phantomSui.icon || null),
+            _provider: phantomSui,
+            features: phantomSui.features || {},
+            accounts: phantomSui.accounts || [],
+          });
+        }
       }
-      text += `\nNonce: ${nonce}`;
-      text += `\nTimestamp: ${ts}`;
-      return { nonce, ts, text };
-    }
+    } catch (e) {}
+    return found;
+  }
 
-    function bytesToB64(bytes) {
+  async function connectToWallet(wallet) {
+    try {
       try {
-        const arr = Array.from(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
-        return btoa(String.fromCharCode(...arr));
-      } catch {
-        return null;
-      }
-    }
+        const dcFeature = wallet.features && wallet.features['standard:disconnect'];
+        if (dcFeature && typeof dcFeature.disconnect === 'function') {
+          await dcFeature.disconnect.call(dcFeature);
+        } else if (wallet._provider && typeof wallet._provider.disconnect === 'function') {
+          await wallet._provider.disconnect();
+        }
+      } catch (_) {}
 
-    function normalizeSigResult(r) {
-      return {
-        signature: r?.signature || r?.signatureBase64 || r?.signedMessage || null,
-        bytes: r?.bytes || r?.messageBytes || null,
-        publicKey: r?.publicKey || r?.pubKey || null,
-        scheme: r?.signatureScheme || r?.scheme || null,
-        raw: r
-      };
-    }
+      const connectFeature = wallet.features && wallet.features['standard:connect'];
+      const connectFn = connectFeature
+        ? (typeof connectFeature.connect === 'function'
+            ? connectFeature.connect.bind(connectFeature)
+            : null)
+        : (wallet._provider && typeof wallet._provider.connect === 'function')
+          ? wallet._provider.connect.bind(wallet._provider)
+          : null;
 
-    // ---------- Token balance check ----------
-    async function getSuiTokenBalance(address, coinType) {
-      const res = await fetch('https://fullnode.mainnet.sui.io', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'suix_getBalance',
-          params: [address, coinType]
-        })
-      });
-      if (!res.ok) throw new Error('Failed to fetch token balance from Sui RPC (HTTP ' + res.status + ' ' + res.statusText + ')');
-      const data = await res.json();
-      if (data.error) throw new Error('RPC error: ' + data.error.message);
-      return data?.result?.totalBalance || '0';
-    }
-
-    // ---------- Connect & sign via Wallet Standard ----------
-    async function connectStandard(entry) {
-      const w = entry.wallet;
-      const connectFeature = w.features['standard:connect'];
-      const result = await connectFeature.connect();
-      const accounts = result?.accounts || w.accounts || [];
-      const suiAccounts = accounts.filter(a => !a.chains || a.chains.includes('sui:mainnet'));
-      const allAccounts = suiAccounts.length ? suiAccounts : accounts;
-      return { accounts: allAccounts };
-    }
-
-    async function signStandard(entry, account, msgBytes) {
-      const signFeature = entry.wallet.features['sui:signPersonalMessage'];
-      const result = await signFeature.signPersonalMessage({ message: msgBytes, account });
-      return Array.isArray(result) ? result[0] : result;
-    }
-
-    // ---------- Connect & sign via legacy provider ----------
-    async function connectLegacy(entry) {
-      const p = entry.provider;
-      if (typeof p.connect === 'function') await p.connect();
-
-      let addrs = [];
-      if (typeof p.getAccounts === 'function') {
-        const accts = await p.getAccounts();
-        addrs = (accts || []).map(a => a?.address || a).filter(Boolean);
-      }
-      if (!addrs.length && Array.isArray(p.accounts)) {
-        addrs = p.accounts.map(a => a?.address || a).filter(Boolean);
-      }
-      if (!addrs.length && typeof p.account === 'string') {
-        addrs = [p.account];
-      }
-      return { accounts: addrs.map(addr => ({ address: addr })) };
-    }
-
-    async function signLegacy(entry, msgBytes, challengeText) {
-      const p = entry.provider;
-      if (typeof p.signPersonalMessage === 'function') {
-        return await p.signPersonalMessage({ message: msgBytes });
-      } else if (typeof p.signMessage === 'function') {
-        return await p.signMessage({ message: challengeText });
-      }
-      throw new Error('This wallet does not support message signing.');
-    }
-
-    // ---------- Wallet selection UI ----------
-    function pickWallet(wallets) {
-      return new Promise((resolve) => {
-        walletListEl.innerHTML = '';
-        wallets.forEach(entry => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'wallet-option';
-          btn.textContent = entry.name;
-          btn.addEventListener('click', () => {
-            hideWalletPicker();
-            resolve(entry);
-          });
-          walletListEl.appendChild(btn);
-        });
-        showWalletPicker();
-      });
-    }
-
-    function shortAddr(addr) {
-      // Addresses shorter than 11 chars can't be meaningfully shortened (6 + ... + 4 = 13 chars)
-      if (!addr || addr.length < 11) return addr;
-      return addr.slice(0, 6) + '...' + addr.slice(-4);
-    }
-
-    function pickAccount(accounts, walletName) {
-      if (accounts.length === 1) return Promise.resolve(accounts[0]);
-      return new Promise((resolve) => {
-        accountListEl.innerHTML = '';
-        accountPickerLabel.textContent =
-          `Multiple accounts found in ${walletName}. Select one:`;
-        accounts.forEach(account => {
-          const addr = account?.address || account;
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'account-option';
-          btn.textContent = shortAddr(addr);
-          btn.title = addr;
-          btn.addEventListener('click', () => {
-            hideAccountPicker();
-            resolve(account);
-          });
-          accountListEl.appendChild(btn);
-        });
-        showAccountPicker();
-      });
-    }
-
-    // ---------- Main verification flow ----------
-    async function verify() {
-      retryBtn.style.display = 'none';
-      hideWalletPicker();
-      hideAccountPicker();
-      tokenBalanceEl.style.display = 'none';
-      setStatus('<span class="spinner"></span> Looking for wallets&hellip;');
-
-      // 1. Discover wallets (standard + legacy)
-      const wallets = discoverWallets();
-      if (!wallets.length) {
-        setStatus('&#x26A0;&#xFE0F; No Sui wallet found. Please open this page in a wallet-enabled browser.');
-        showRetry();
-        return;
+      if (!connectFn) {
+        throw new Error('This wallet is not supported. Please try a different wallet.');
       }
 
-      // 2. Let user choose their wallet provider
-      setStatus('Select a wallet to continue.');
-      const entry = await pickWallet(wallets);
+      const result = await connectFn();
 
-      // 3. Connect and get accounts
-      setStatus('<span class="spinner"></span> Connecting to ' + entry.name + '&hellip;');
-      let rawAccounts;
-      if (entry.source === 'standard') {
-        ({ accounts: rawAccounts } = await connectStandard(entry));
-      } else {
-        ({ accounts: rawAccounts } = await connectLegacy(entry));
+      let address = '';
+      let connectedAccount = null;
+      const accounts = result && result.accounts ? result.accounts
+        : (wallet.accounts && wallet.accounts.length > 0 ? wallet.accounts : []);
+
+      if (accounts.length > 0) {
+        connectedAccount = accounts[0];
+        address = connectedAccount.address || '';
       }
 
-      if (!rawAccounts || !rawAccounts.length) {
-        setStatus('&#x26A0;&#xFE0F; ' + entry.name + ' did not provide any Sui accounts.');
-        showRetry();
-        return;
+      if (!address && result && result.publicKey) {
+        const pk = result.publicKey;
+        if (typeof pk.toSuiAddress === 'function') {
+          address = pk.toSuiAddress();
+        } else if (typeof pk === 'string') {
+          address = pk;
+        }
       }
 
-      // 4. Let user pick an account if multiple are available
-      const account = await pickAccount(rawAccounts, entry.name);
-      const address = String(account?.address || account || '').trim();
+      if (!address && wallet._provider && typeof wallet._provider.getAccounts === 'function') {
+        const accts = await wallet._provider.getAccounts();
+        if (accts && accts.length > 0) {
+          address = typeof accts[0] === 'string' ? accts[0] : (accts[0].address || accts[0]);
+        }
+      }
 
       if (!address || !isValidSuiAddress(address)) {
-        setStatus('&#x26A0;&#xFE0F; Wallet did not provide a valid Sui address.');
-        showRetry();
-        return;
+        throw new Error('Could not retrieve a valid wallet address. Please try again.');
       }
 
-      walletAddressEl.textContent = address;
-      walletAddressEl.style.display = 'block';
+      return { address: address, account: connectedAccount, wallet: wallet };
+    } catch (e) {
+      throw e;
+    }
+  }
 
-      // 5. Check token balance against required threshold
-      let tokenBalance = null;
-      let balanceVerified = null;
-      if (tokenType) {
-        setStatus('<span class="spinner"></span> Checking token balance&hellip;');
-        try {
-          tokenBalance = await getSuiTokenBalance(address, tokenType);
-          try {
-            balanceVerified = BigInt(tokenBalance) >= BigInt(minBalance);
-          } catch (bigIntErr) {
-            console.error('BigInt comparison failed:', bigIntErr);
-            balanceVerified = false;
+  async function signWalletOwnership(wallet, account, address) {
+    const signFeatureKeys = [
+      'sui:signPersonalMessage',
+      'standard:signMessage',
+    ];
+    const signMsg = 'Token Gate: verify wallet ownership for address ' + address;
+    for (const key of signFeatureKeys) {
+      const feat = wallet.features && wallet.features[key];
+      if (!feat) continue;
+      const signFn = (feat.signPersonalMessage || feat.signMessage);
+      if (typeof signFn !== 'function') continue;
+      try {
+        const messageBytes = new TextEncoder().encode(signMsg);
+        const input = account
+          ? { message: messageBytes, account: account }
+          : { message: messageBytes };
+        const sigResult = await signFn.call(feat, input);
+        const sig = sigResult && (sigResult.signature || sigResult.bytes);
+        if (sig) return { signature: sig, message: signMsg };
+      } catch (e) {}
+    }
+    if (wallet._provider && typeof wallet._provider.signMessage === 'function') {
+      try {
+        const messageBytes = new TextEncoder().encode(signMsg);
+        const sigResult = await wallet._provider.signMessage({ message: messageBytes });
+        const sig = sigResult && (sigResult.signature || sigResult.bytes);
+        if (sig) return { signature: sig, message: signMsg };
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  function renderWalletList(wallets) {
+    const $list = document.getElementById('walletList');
+    const $scanning = document.getElementById('walletScanning');
+    $scanning.style.display = 'none';
+    $list.style.display = '';
+    $list.innerHTML = '';
+
+    if (wallets.length === 0) {
+      if (isWebApp || isInTelegramBrowser) {
+        document.querySelector('#connectCard h2').textContent = '🔗 Connect Your SUI Wallet';
+        document.querySelector('#connectCard > p').textContent =
+          'Wallet extensions cannot run inside Telegram\'s browser. ' +
+          'Tap the button below to open this page in your device\'s browser ' +
+          'where your Sui wallet app can connect.';
+
+        var bpDiv = document.createElement('div');
+        bpDiv.className = 'browser-prompt';
+        bpDiv.innerHTML =
+          '<div class="bp-icon">🌐</div>' +
+          '<p>Your Sui wallet (Phantom, Slush, Suiet, Nightly, etc.) will be ' +
+          'detected automatically once you open this page in your browser.</p>';
+        var openBtn = document.createElement('button');
+        openBtn.className = 'btn btn-browser';
+        openBtn.style.marginTop = '0';
+        openBtn.textContent = '🌐 Open in External Browser';
+        openBtn.addEventListener('click', function() {
+          var url = window.location.href;
+          if (tg && typeof tg.openLink === 'function') {
+            try { tg.openLink(url); } catch (_) { window.open(url, '_blank'); }
+          } else {
+            window.open(url, '_blank');
           }
-          tokenBalanceEl.textContent = balanceVerified
-            ? `\u2705 Token balance: ${tokenBalance} (meets threshold: ${minBalance})`
-            : `\u26A0\uFE0F Token balance: ${tokenBalance} (below threshold: ${minBalance})`;
-          tokenBalanceEl.style.color = balanceVerified ? 'var(--accent)' : 'var(--danger)';
-          tokenBalanceEl.style.display = 'block';
-        } catch (e) {
-          setStatus(`&#x26A0;&#xFE0F; Failed to check token balance: ${e?.message || e}`);
-          showRetry();
-          return;
-        }
-      }
-
-      // 6. Sign challenge to prove wallet ownership
-      setStatus('<span class="spinner"></span> Signing verification challenge&hellip;');
-
-      const c = makeChallenge(address, tokenBalance);
-      const challenge = c.text;
-      const msgBytes = enc.encode(challenge);
-      let res = null;
-
-      if (entry.source === 'standard') {
-        res = await signStandard(entry, account, msgBytes);
+        });
+        bpDiv.appendChild(openBtn);
+        $list.appendChild(bpDiv);
       } else {
-        res = await signLegacy(entry, msgBytes, challenge);
+        document.querySelector('#connectCard h2').textContent = '👛 No Wallet Detected';
+        document.querySelector('#connectCard > p').textContent =
+          'No SUI wallet extension was detected. Please install a supported ' +
+          'wallet (Phantom, Slush, Suiet, or Nightly) and reload this page.';
+
+        const installDiv = document.createElement('div');
+        installDiv.className = 'browser-prompt';
+        installDiv.innerHTML =
+          '<div class="bp-icon">🛠️</div>' +
+          '<p>Install one of the following browser extensions, then click <strong>Retry</strong> to continue:</p>';
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'btn btn-browser';
+        retryBtn.style.marginTop = '0';
+        retryBtn.textContent = '🔄 Retry Wallet Detection';
+        retryBtn.addEventListener('click', function() {
+          $list.innerHTML = '';
+          $list.style.display = 'none';
+          document.getElementById('walletScanning').style.display = '';
+          const wallets2 = discoverWallets();
+          renderWalletList(wallets2);
+        });
+        installDiv.appendChild(retryBtn);
+        $list.appendChild(installDiv);
       }
+      return;
+    }
 
-      const norm = normalizeSigResult(res);
+    wallets.forEach(function(w) {
+      const el = document.createElement('div');
+      el.className = 'wallet-item';
 
-      // 7. Submit signed payload to Telegram bot
-      setStatus('<span class="spinner"></span> Submitting for verification&hellip;');
+      const iconDiv = document.createElement('div');
+      iconDiv.className = 'w-icon';
+      if (w.icon) {
+        const img = document.createElement('img');
+        img.src = typeof w.icon === 'string' ? w.icon : (w.icon.src || '');
+        img.alt = w.name || 'Wallet';
+        img.onerror = function() { iconDiv.textContent = '👛'; };
+        iconDiv.appendChild(img);
+      } else {
+        iconDiv.textContent = '👛';
+      }
+      el.appendChild(iconDiv);
 
-      const signaturePayload = {
-        wallet_address: address,
-        group_id: groupId,
-        tg_user_id: tgUserId,
-        provider: entry.name,
-        challenge,
-        signature: norm.signature || null,
-        signature_bytes_b64: norm.bytes ? bytesToB64(norm.bytes) : null,
-        public_key: norm.publicKey || null,
-        signature_scheme: norm.scheme || null,
-        signed_at: Date.now(),
-        token_type: tokenType || null,
-        required_balance: tokenType ? minBalance : null,
-        token_balance: tokenBalance,
-        balance_verified: balanceVerified
-      };
+      const info = document.createElement('div');
+      const nameEl = document.createElement('div');
+      nameEl.className = 'w-name';
+      nameEl.textContent = w.name || 'SUI Wallet';
+      info.appendChild(nameEl);
+      const hintEl = document.createElement('div');
+      hintEl.className = 'w-hint';
+      hintEl.textContent = 'Click to connect';
+      info.appendChild(hintEl);
+      el.appendChild(info);
 
-      const payload = JSON.stringify(signaturePayload);
+      const arrow = document.createElement('span');
+      arrow.className = 'w-arrow';
+      arrow.textContent = '→';
+      el.appendChild(arrow);
 
-      // tg.initData is non-empty only when the page was opened as a proper
-      // Telegram WebApp (e.g. via a web_app keyboard button).  When opened
-      // through a regular URL button sendData() exists but silently fails.
-      if (tg?.sendData && tg.initData) {
+      el.addEventListener('click', async function() {
+        const allItems = $list.querySelectorAll('.wallet-item');
+        allItems.forEach(function(item) { item.style.pointerEvents = 'none'; item.style.opacity = '0.5'; });
+        hintEl.textContent = 'Connecting…';
+        arrow.innerHTML = '<span class="spinner"></span>';
+
         try {
-          tg.sendData(payload);
-          setStatus('&#x2705; Wallet verified! Returning to Telegram&hellip;');
-          // Brief delay so sendData() completes before the WebApp is closed.
-          setTimeout(() => { try { tg.close(); } catch (_) {} }, 500);
-        } catch (e) {
-          console.error('sendData failed:', e);
-          showTelegramFallback(address);
+          const { address, account, wallet: connectedWallet } = await connectToWallet(w);
+
+          hintEl.textContent = 'Sign to verify ownership…';
+          const signResult = await signWalletOwnership(connectedWallet, account, address);
+
+          setConnectedWallet(address, signResult, w);
+          el.classList.add('connected');
+          hintEl.textContent = 'Connected ✓';
+          arrow.textContent = '✓';
+          setTimeout(function() { startVerification(); }, 600);
+        } catch (err) {
+          hintEl.textContent = 'Connection failed — try again';
+          arrow.textContent = '→';
+          allItems.forEach(function(item) { item.style.pointerEvents = ''; item.style.opacity = ''; });
+          showAlert('walletAlert', 'Could not connect to ' + (w.name || 'wallet') + '. Please try another wallet or install a supported Sui wallet extension.', 'error');
         }
-      } else if (tg) {
-        // Opened inside Telegram but not as a full WebApp (e.g. URL button).
-        showTelegramFallback(address);
+      });
+
+      $list.appendChild(el);
+    });
+  }
+
+  function initWalletDiscovery() {
+    var scanDone = false;
+
+    function doScan() {
+      if (scanDone) return;
+      scanDone = true;
+      const wallets = discoverWallets();
+      renderWalletList(wallets);
+
+      if (window.__wallet_standard__ && typeof window.__wallet_standard__.on === 'function') {
+        window.__wallet_standard__.on('register', function() {
+          const updated = discoverWallets();
+          renderWalletList(updated);
+        });
+      }
+
+      window.addEventListener('wallet-standard:register-wallet', function(e) {
+        if (e && e.detail && typeof e.detail === 'function') {
+          var appApi = Object.freeze({ register: function() {
+            for (var i = 0; i < arguments.length; i++) _registerWallet(arguments[i]);
+          } });
+          try { e.detail(appApi); } catch (_) {}
+        }
+        var updated = discoverWallets();
+        renderWalletList(updated);
+      });
+    }
+
+    function tryEarlyScan() {
+      if (scanDone) return;
+      if (discoverWallets().length > 0) doScan();
+    }
+    var scanTimers = [
+      setTimeout(tryEarlyScan, 300),
+      setTimeout(tryEarlyScan, 800)
+    ];
+
+    setTimeout(function() {
+      if (!scanDone) {
+        doScan();
+      }
+    }, 3000);
+
+    window.addEventListener('wallet-standard:register-wallet', function() {
+      for (var t = 0; t < scanTimers.length; t++) clearTimeout(scanTimers[t]);
+      scanTimers = [setTimeout(doScan, 50)];
+    }, { once: true });
+  }
+
+  document.getElementById('connectWalletBtn').addEventListener('click', function() {
+    document.getElementById('connectBtnWrapper').style.display = 'none';
+    document.getElementById('walletScanning').style.display = '';
+    initWalletDiscovery();
+  });
+
+  function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'alert alert-' + type + ' show';
+  }
+
+  function goToSection(n) {
+    ['sec-wallet', 'sec-verifying', 'sec-result'].forEach(function(id, i) {
+      const el = document.getElementById(id);
+      if (i + 1 === n) el.classList.add('active');
+      else el.classList.remove('active');
+    });
+    for (let i = 1; i <= 3; i++) {
+      const s = document.getElementById('step' + i);
+      s.classList.remove('active', 'done');
+      if (i < n) s.classList.add('done');
+      else if (i === n) s.classList.add('active');
+    }
+    for (let i = 1; i <= 2; i++) {
+      const l = document.getElementById('line' + i);
+      if (i < n) l.classList.add('done');
+      else l.classList.remove('done');
+    }
+  }
+
+  async function changeWallet() {
+    if (_lastConnectedWallet) {
+      try {
+        const feat = _lastConnectedWallet.features &&
+                     _lastConnectedWallet.features['standard:disconnect'];
+        if (feat && typeof feat.disconnect === 'function') {
+          await feat.disconnect.call(feat);
+        } else if (_lastConnectedWallet._provider &&
+                   typeof _lastConnectedWallet._provider.disconnect === 'function') {
+          await _lastConnectedWallet._provider.disconnect();
+        }
+      } catch (_) {}
+    }
+    setConnectedWallet('', null, null);
+    const $list = document.getElementById('walletList');
+    const allItems = $list.querySelectorAll('.wallet-item');
+    allItems.forEach(function(item) {
+      item.classList.remove('connected');
+      item.style.pointerEvents = '';
+      item.style.opacity = '';
+      const hint = item.querySelector('.w-hint');
+      const arrow = item.querySelector('.w-arrow');
+      if (hint) hint.textContent = 'Click to connect';
+      if (arrow) arrow.textContent = '→';
+    });
+    $list.style.display = '';
+    document.getElementById('walletScanning').style.display = 'none';
+    const freshWallets = discoverWallets();
+    renderWalletList(freshWallets);
+    if (freshWallets.length === 0) {
+      document.getElementById('connectBtnWrapper').style.display = '';
+    } else {
+      document.getElementById('connectBtnWrapper').style.display = 'none';
+    }
+    goToSection(1);
+    document.getElementById('walletAlert').className = 'alert';
+  }
+
+  document.getElementById('changeWalletBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    changeWallet();
+  });
+
+  async function suiRpc(method, params) {
+    const resp = await fetch(SUI_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'RPC error');
+    return data.result;
+  }
+
+  async function verifyOnChain(wallet) {
+    const result = { tokenOk: false, nftOk: false, tokenBalance: null, nftCount: null };
+    const $status = document.getElementById('verifyStatus');
+    const $fill = document.getElementById('progressFill');
+
+    if ((REG_MODE === 'token' || REG_MODE === 'both') && TOKEN_TYPE) {
+      $status.textContent = 'Checking token balance…';
+      $fill.style.width = '25%';
+      try {
+        const bal = await suiRpc('suix_getBalance', [wallet, TOKEN_TYPE]);
+        const raw = BigInt(bal.totalBalance || '0');
+        const divisor = BigInt(Math.pow(10, DECIMALS));
+        const thresholdRaw = BigInt(Math.floor(MIN_HOLDING * Number(divisor)));
+        result.tokenOk = raw >= thresholdRaw;
+        const intPart = Number(raw / divisor);
+        const fracPart = Number(raw % divisor) / Number(divisor);
+        result.tokenBalance = intPart + fracPart;
+      } catch (e) {
+        result.tokenBalance = null;
+      }
+      $fill.style.width = '50%';
+
+      const CITY_TOKEN = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
+      const CITY_STAKING_PKG = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9';
+      if (TOKEN_TYPE === CITY_TOKEN && result.tokenBalance !== null) {
+        $status.textContent = 'Checking staked $CITY…';
+        try {
+          const stakingType = CITY_STAKING_PKG + '::city_staking::UserStake<' + CITY_TOKEN + '>';
+          let stakedAtomic = BigInt(0);
+          let stakeCursor = null;
+          do {
+            const stakePage = await suiRpc('suix_getOwnedObjects', [
+              wallet,
+              { filter: { StructType: stakingType }, options: { showContent: true } },
+              stakeCursor,
+              50
+            ]);
+            const stakeItems = stakePage.data || [];
+            for (const item of stakeItems) {
+              const fields = (((item.data || {}).content || {}).fields) || {};
+              let staked = fields.staked_amount;
+              if (staked == null) {
+                const principal = fields.principal || {};
+                staked = ((principal.fields || {}).value);
+              }
+              if (staked != null) stakedAtomic += BigInt(staked);
+            }
+            stakeCursor = stakePage.hasNextPage ? stakePage.nextCursor : null;
+          } while (stakeCursor);
+
+          const divisor = BigInt(Math.pow(10, DECIMALS));
+          const stakedIntPart = Number(stakedAtomic / divisor);
+          const stakedFracPart = Number(stakedAtomic % divisor) / Number(divisor);
+          result.tokenBalance += stakedIntPart + stakedFracPart;
+          result.tokenOk = result.tokenBalance >= MIN_HOLDING;
+        } catch (e) {
+          console.warn('Failed to fetch staked CITY balance:', e);
+        }
+      }
+    }
+
+    if ((REG_MODE === 'nft' || REG_MODE === 'both') && NFT_COLLECTION) {
+      $status.textContent = 'Checking NFT ownership…';
+      $fill.style.width = '60%';
+      try {
+        let count = 0;
+        const MAX_NFT_ENUMERATE = 500;
+        const collLower = NFT_COLLECTION.toLowerCase();
+        const baseOpts = { showType: true };
+        let rpcFilter = null;
+        if (collLower.indexOf('::') !== -1) {
+          rpcFilter = { StructType: NFT_COLLECTION };
+        } else if (/^0x[0-9a-f]+$/i.test(NFT_COLLECTION)) {
+          rpcFilter = { Package: NFT_COLLECTION };
+        }
+
+        let cursor = null;
+        do {
+          const query = rpcFilter
+            ? { filter: rpcFilter, options: baseOpts }
+            : { options: baseOpts };
+          const page = await suiRpc('suix_getOwnedObjects', [wallet, query, cursor, 50]);
+          const items = page.data || [];
+          for (const item of items) {
+            const obj = item.data || {};
+            const objType = (obj.type || '').toLowerCase();
+            if (!objType || objType.indexOf('::') === -1) continue;
+            if (objType.indexOf('coin::') !== -1) continue;
+            if (rpcFilter) {
+              count++;
+            } else {
+              if (objType.startsWith(collLower + '::') ||
+                  objType === collLower ||
+                  objType.indexOf(collLower) !== -1) {
+                count++;
+              }
+            }
+          }
+          cursor = page.hasNextPage ? page.nextCursor : null;
+        } while (cursor && count < MAX_NFT_ENUMERATE);
+
+        if (count < MAX_NFT_ENUMERATE) {
+          $status.textContent = 'Checking Kiosk NFTs…';
+          $fill.style.width = '65%';
+          const KIOSK_CAP_TYPE = '0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::KioskOwnerCap';
+          const PERSONAL_CAP_SUFFIX = '::personal_kiosk::PersonalKioskCap';
+          const capQuery = {
+            filter: { StructType: KIOSK_CAP_TYPE },
+            options: { showType: true, showContent: true }
+          };
+          const kioskIds = [];
+          const seenKioskIds = new Set();
+          let capCursor = null;
+          do {
+            const capPage = await suiRpc('suix_getOwnedObjects', [wallet, capQuery, capCursor, 50]);
+            const capItems = capPage.data || [];
+            for (const ci of capItems) {
+              const capObj = ci.data || {};
+              const capFields = ((capObj.content || {}).fields) || {};
+              const kioskId = capFields['for'];
+              if (kioskId && !seenKioskIds.has(kioskId)) {
+                seenKioskIds.add(kioskId);
+                kioskIds.push(kioskId);
+              }
+            }
+            capCursor = capPage.hasNextPage ? capPage.nextCursor : null;
+          } while (capCursor);
+
+          $status.textContent = 'Checking Personal Kiosk NFTs…';
+          $fill.style.width = '70%';
+          try {
+            const personalCapIds = [];
+            const scanQuery = { options: { showType: true } };
+            let scanCursor = null;
+            do {
+              const scanPage = await suiRpc('suix_getOwnedObjects', [wallet, scanQuery, scanCursor, 50]);
+              const scanItems = scanPage.data || [];
+              for (const si of scanItems) {
+                const sObj = si.data || {};
+                const sType = sObj.type || '';
+                if (sType.endsWith(PERSONAL_CAP_SUFFIX)) {
+                  const sId = sObj.objectId;
+                  if (sId) personalCapIds.push(sId);
+                }
+              }
+              scanCursor = scanPage.hasNextPage ? scanPage.nextCursor : null;
+            } while (scanCursor);
+
+            for (const pcId of personalCapIds) {
+              try {
+                const pcObj = await suiRpc('sui_getObject', [pcId, { showType: true, showContent: true }]);
+                if (pcObj && pcObj.data) {
+                  const pcFields = ((pcObj.data.content || {}).fields) || {};
+                  const pcCap = pcFields.cap;
+                  let pkKioskId = null;
+                  if (pcCap && typeof pcCap === 'object') {
+                    const pcCapFields = pcCap.fields || {};
+                    pkKioskId = pcCapFields['for'] || null;
+                    if (!pkKioskId && Array.isArray(pcCapFields.vec) && pcCapFields.vec.length > 0) {
+                      const inner = pcCapFields.vec[0];
+                      if (inner && typeof inner === 'object') {
+                        pkKioskId = (inner.fields || inner)['for'] || null;
+                      }
+                    }
+                  }
+                  if (pkKioskId && !seenKioskIds.has(pkKioskId)) {
+                    seenKioskIds.add(pkKioskId);
+                    kioskIds.push(pkKioskId);
+                  }
+                }
+              } catch (_pcErr) {
+                console.warn('Error fetching PersonalKioskCap', pcId, _pcErr);
+              }
+            }
+          } catch (_scanErr) {
+            console.warn('PersonalKioskCap scan error:', _scanErr);
+          }
+
+          $fill.style.width = '75%';
+          for (let ki = 0; ki < kioskIds.length && count < MAX_NFT_ENUMERATE; ki++) {
+            try {
+              let dfCursor = null;
+              do {
+                const dfPage = await suiRpc('suix_getDynamicFields', [kioskIds[ki], dfCursor, 50]);
+                const dfItems = dfPage.data || [];
+                for (const df of dfItems) {
+                  const nameType = ((df.name || {}).type || '').toLowerCase();
+                  if (nameType.indexOf('kiosk::item') === -1) continue;
+                  const dfObjType = (df.objectType || '').toLowerCase();
+                  if (dfObjType && dfObjType.indexOf(collLower) !== -1) {
+                    count++;
+                  }
+                }
+                dfCursor = dfPage.hasNextPage ? dfPage.nextCursor : null;
+              } while (dfCursor && count < MAX_NFT_ENUMERATE);
+            } catch (_kioskErr) {
+              console.warn('Kiosk enumeration error for', kioskIds[ki], _kioskErr);
+            }
+          }
+        }
+
+        result.nftCount = count;
+        result.nftOk = count >= NFT_THRESHOLD;
+      } catch (e) {
+        result.nftCount = null;
+      }
+      $fill.style.width = '80%';
+    }
+
+    $status.textContent = 'Submitting results…';
+    $fill.style.width = '100%';
+
+    return result;
+  }
+
+  function showResult(wallet, check) {
+    let passed = false;
+    if (REG_MODE === 'token') passed = check.tokenOk;
+    else if (REG_MODE === 'nft') passed = check.nftOk;
+    else if (REG_MODE === 'both') passed = check.tokenOk || check.nftOk;
+
+    const $rc = document.getElementById('resultCard');
+    if (passed) {
+      $rc.innerHTML =
+        '<div class="result-icon">✅</div>' +
+        '<h2>Verification Passed!</h2>' +
+        '<p>Your wallet meets the group requirements.<br>Sending result to the bot…</p>';
+    } else {
+      $rc.innerHTML =
+        '<div class="result-icon">❌</div>' +
+        '<h2>Requirements Not Met</h2>' +
+        '<p>Your wallet does not currently meet the group\'s token/NFT requirements.</p>';
+    }
+
+    const $details = document.getElementById('detailsCard');
+    const $rows = document.getElementById('detailRows');
+    $rows.innerHTML = '';
+    const tokenParts = TOKEN_TYPE.split('::');
+    const tokenSymbol = tokenParts.length >= 3 ? tokenParts[tokenParts.length - 1] : TOKEN_TYPE;
+
+    if (check.tokenBalance !== null) {
+      const row = document.createElement('div');
+      row.className = 'detail-row';
+      const ok = check.tokenOk;
+      row.innerHTML = '<span class="dt">Token Balance</span><span class="dd ' + (ok ? 'pass' : 'fail') + '">' +
+        Number(check.tokenBalance).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + tokenSymbol +
+        ' ' + (ok ? '✓' : '✗') + '</span>';
+      $rows.appendChild(row);
+    }
+    if (check.nftCount !== null) {
+      const row = document.createElement('div');
+      row.className = 'detail-row';
+      const ok = check.nftOk;
+      row.innerHTML = '<span class="dt">NFTs Owned</span><span class="dd ' + (ok ? 'pass' : 'fail') + '">' +
+        check.nftCount + ' ' + (ok ? '✓' : '✗') + '</span>';
+      $rows.appendChild(row);
+    }
+    const walletRow = document.createElement('div');
+    walletRow.className = 'detail-row';
+    walletRow.innerHTML = '<span class="dt">Wallet</span><span class="dd" style="font-size:11px;word-break:break-all;">' +
+      wallet.slice(0, 6) + '…' + wallet.slice(-6) + '</span>';
+    $rows.appendChild(walletRow);
+
+    if ($rows.children.length > 0) $details.style.display = '';
+
+    goToSection(3);
+    return passed;
+  }
+
+  async function startVerification() {
+    const wallet = connectedAddress;
+    if (!isValidSuiAddress(wallet)) return;
+
+    $verifyBtn.disabled = true;
+    document.getElementById('walletAlert').className = 'alert';
+
+    goToSection(2);
+
+    let check;
+    try {
+      check = await Promise.race([
+        verifyOnChain(wallet),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 30000))
+      ]);
+    } catch (err) {
+      if (err.message === 'timeout') {
+        check = { tokenOk: false, nftOk: false, tokenBalance: null, nftCount: null, timedOut: true };
       } else {
-        navigator.clipboard?.writeText(payload);
-        setStatus('&#x2705; Verified (debug mode &mdash; payload copied to clipboard).');
+        check = { tokenOk: false, nftOk: false, tokenBalance: null, nftCount: null };
       }
     }
 
-    // ---------- Error handling ----------
-    function handleError(err) {
-      hideWalletPicker();
-      hideAccountPicker();
-      setStatus(`&#x274C; Error: ${err?.message || err}`);
-      showRetry();
-    }
+    const passed = showResult(wallet, check);
 
-    retryBtn.addEventListener('click', () => verify().catch(handleError));
+    const payload = {
+      wallet_address: wallet,
+      group_id: GROUP_ID,
+      tg_user_id: TG_USER_ID,
+      balance_verified: passed,
+      token_type: TOKEN_TYPE,
+      required_balance: REQUIRED_BAL,
+      token_balance: check.tokenBalance,
+      nft_count: check.nftCount,
+      wallet_signature: walletSignResult ? walletSignResult.signature : null,
+      sign_message: walletSignResult ? walletSignResult.message : null,
+      verify_token: VERIFY_TOKEN
+    };
 
-    initWalletStandard();
-
-    // Auto-trigger the wallet picker on load.
-    // Wallet Standard wallets register asynchronously, so retry at short
-    // intervals before giving up and showing an error.
-    // discoverWallets() only iterates in-memory Sets and window globals — lightweight.
-    const WALLET_RETRY_DELAYS = [0, 800, 2500]; // intermediate checks
-    const WALLET_FINAL_DELAY = 5000;            // last-resort trigger regardless of discovery
-    let started = false;
-
-    function attemptStart() {
-      if (started) return;
-      if (discoverWallets().length > 0) {
-        started = true;
-        verify().catch(handleError);
+    if (isWebApp) {
+      setTimeout(function() {
+        tg.sendData(JSON.stringify(payload));
+      }, passed ? 1200 : 2500);
+    } else {
+      const $alert = document.getElementById('resultAlert');
+      const $rc = document.getElementById('resultCard');
+      try {
+        const resp = await fetch(API_VERIFY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await resp.json();
+        if (result.success) {
+          $rc.innerHTML =
+            '<div class="result-icon">✅</div>' +
+            '<h2>Verification Passed!</h2>' +
+            '<p>Your wallet has been verified and registered.</p>';
+          $alert.textContent = '✅ Wallet verified! Check Telegram for your confirmation and group invite link.';
+          $alert.className = 'alert alert-success show';
+        } else {
+          $rc.innerHTML =
+            '<div class="result-icon">❌</div>' +
+            '<h2>Verification Failed</h2>';
+          var errP = document.createElement('p');
+          errP.textContent = result.error || 'Your wallet does not currently meet the group\'s requirements.';
+          $rc.appendChild(errP);
+          $alert.textContent = '❌ ' + (result.error || 'Verification failed. Please try again.');
+          $alert.className = 'alert alert-error show';
+        }
+      } catch (_) {
+        $alert.textContent = '❌ Network error. Please try again.';
+        $alert.className = 'alert alert-error show';
       }
     }
+  }
 
-    WALLET_RETRY_DELAYS.forEach(delay => setTimeout(attemptStart, delay));
+  $verifyBtn.addEventListener('click', function() {
+    startVerification();
+  });
 
-    // Final fallback: start regardless after WALLET_FINAL_DELAY (wallets may be
-    // slow to register, and verify() will surface the "no wallet" error itself)
-    setTimeout(() => {
-      if (!started) {
-        started = true;
-        verify().catch(handleError);
-      }
-    }, WALLET_FINAL_DELAY);
-  </script>
+})();
+</script>
 </body>
 </html>
