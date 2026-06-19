@@ -338,7 +338,7 @@
   const REG_MODE        = qs.get('registration_mode') || 'token';
   const NFT_COLLECTION  = qs.get('nft_collection_id') || '';
   const NFT_THRESHOLD   = parseInt(qs.get('nft_threshold') || '1', 10);
-  const API_VERIFY_URL  = qs.get('api_verify_url') || '/api/verify';
+  const API_VERIFY_URL  = qs.get('api_verify_url') || 'https://token-gate-bot-production.up.railway.app/api/verify';
   const VERIFY_TOKEN    = qs.get('verify_token') || '';
 
   /* ── State ── */
