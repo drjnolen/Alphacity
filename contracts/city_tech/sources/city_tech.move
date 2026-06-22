@@ -5,6 +5,8 @@ module city_tech::city_tech {
     use std::string::{Self, String};
     use sui::package;
     use sui::display;
+    use sui::vec_map::{Self, VecMap};
+    use std::vector;
 
     /// One-Time-Witness to claim Publisher capability.
     public struct CITY_TECH has drop {}
@@ -14,14 +16,13 @@ module city_tech::city_tech {
         id: UID,
     }
 
-    /// The NFT struct representing a Biologic Upgrade.
-    public struct BiologicUpgrade has key, store {
+    /// The NFT struct representing a City Tech item.
+    public struct CityTech has key, store {
         id: UID,
         name: String,
         description: String,
         image_url: String,
-        rarity: String,
-        amp: u64,
+        attributes: VecMap<String, String>, // Using VecMap for standard wallet/explorer traits support
     }
 
     fun init(otw: CITY_TECH, ctx: &mut TxContext) {
@@ -32,23 +33,27 @@ module city_tech::city_tech {
             string::utf8(b"description"),
             string::utf8(b"project_url"),
             string::utf8(b"creator"),
-            string::utf8(b"rarity"),
-            string::utf8(b"amp"),
+            string::utf8(b"attributes"),
+            string::utf8(b"collection_name"),
+            string::utf8(b"collection_description"),
+            string::utf8(b"collection_image_url"),
         ];
 
         let values = vector[
             string::utf8(b"{name}"),
-            string::utf8(b"https://alphacity.io/tech/{id}"),
+            string::utf8(b"https://alphacity.tech/gear/{id}"),
             string::utf8(b"{image_url}"),
             string::utf8(b"{description}"),
-            string::utf8(b"https://alphacity.io"),
-            string::utf8(b"Alpha City Tech Lab"),
-            string::utf8(b"{rarity}"),
-            string::utf8(b"{amp}"),
+            string::utf8(b"https://alphacity.tech"),
+            string::utf8(b"Alpha City"),
+            string::utf8(b"{attributes}"),
+            string::utf8(b"City Tech"),
+            string::utf8(b"A collection of mysterious items. Something tells you they're important."),
+            string::utf8(b"https://alphacity.tech/assets/city-tech/Peerless.png"),
         ];
 
         let publisher = package::claim(otw, ctx);
-        let mut display = display::new_with_fields<BiologicUpgrade>(
+        let mut display = display::new_with_fields<CityTech>(
             &publisher, keys, values, ctx
         );
 
@@ -72,18 +77,27 @@ module city_tech::city_tech {
         name: String,
         description: String,
         image_url: String,
-        rarity: String,
-        amp: u64,
+        attribute_keys: vector<String>,
+        attribute_values: vector<String>,
         recipient: address,
         ctx: &mut TxContext
     ) {
-        let nft = BiologicUpgrade {
+        let mut attributes = vec_map::empty<String, String>();
+        let len = vector::length(&attribute_keys);
+        let mut i = 0;
+        while (i < len) {
+            let key = *vector::borrow(&attribute_keys, i);
+            let value = *vector::borrow(&attribute_values, i);
+            vec_map::insert(&mut attributes, key, value);
+            i = i + 1;
+        };
+
+        let nft = CityTech {
             id: object::new(ctx),
             name,
             description,
             image_url,
-            rarity,
-            amp,
+            attributes,
         };
         transfer::public_transfer(nft, recipient);
     }
@@ -94,30 +108,46 @@ module city_tech::city_tech {
         names: vector<String>,
         descriptions: vector<String>,
         image_urls: vector<String>,
-        rarities: vector<String>,
-        amps: vector<u64>,
+        attribute_keys_flat: vector<String>,
+        attribute_values_flat: vector<String>,
+        attributes_sizes: vector<u64>,
         recipient: address,
         ctx: &mut TxContext
     ) {
         let len = vector::length(&names);
         let mut i = 0;
+        let mut flat_index = 0;
         while (i < len) {
             let name = *vector::borrow(&names, i);
             let description = *vector::borrow(&descriptions, i);
             let image_url = *vector::borrow(&image_urls, i);
-            let rarity = *vector::borrow(&rarities, i);
-            let amp = *vector::borrow(&amps, i);
+            let size = *vector::borrow(&attributes_sizes, i);
             
-            let nft = BiologicUpgrade {
+            let mut attributes = vec_map::empty<String, String>();
+            let mut j = 0;
+            while (j < size) {
+                let key = *vector::borrow(&attribute_keys_flat, flat_index);
+                let value = *vector::borrow(&attribute_values_flat, flat_index);
+                vec_map::insert(&mut attributes, key, value);
+                flat_index = flat_index + 1;
+                j = j + 1;
+            };
+
+            let nft = CityTech {
                 id: object::new(ctx),
                 name,
                 description,
                 image_url,
-                rarity,
-                amp,
+                attributes,
             };
             transfer::public_transfer(nft, recipient);
             i = i + 1;
         }
+    }
+
+    /// Burn a City Tech NFT. Anyone who owns their NFT can burn it.
+    public fun burn(nft: CityTech) {
+        let CityTech { id, name: _, description: _, image_url: _, attributes: _ } = nft;
+        object::delete(id);
     }
 }
