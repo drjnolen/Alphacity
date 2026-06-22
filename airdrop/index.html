@@ -129,10 +129,13 @@
                 <!-- Tab switcher -->
                 <div class="flex flex-wrap gap-2 bg-dark-bg p-1 rounded-xl border border-gray-800 inline-flex">
                     <button id="tab-credits" class="px-6 py-2 rounded-lg font-bold text-sm transition-all bg-brand-primary text-white shadow-lg">
-                        Citizen Credits
+                        Claimed Credits
+                    </button>
+                    <button id="tab-total" class="px-6 py-2 rounded-lg font-bold text-sm transition-all text-dark-text-secondary hover:text-white">
+                        Total Credits
                     </button>
                     <button id="tab-holders" class="px-6 py-2 rounded-lg font-bold text-sm transition-all text-dark-text-secondary hover:text-white">
-                        Top $CITY Holders
+                        Top $CITY holders
                     </button>
                     <button id="tab-custom" class="px-6 py-2 rounded-lg font-bold text-sm transition-all text-dark-text-secondary hover:text-white">
                         Custom Airdrop
@@ -145,7 +148,7 @@
                 <div class="bg-dark-card rounded-2xl border border-gray-800 overflow-hidden">
                     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700">
                         <div>
-                            <h2 class="text-white font-bold text-lg">Citizen Credits Leaderboard</h2>
+                            <h2 class="text-white font-bold text-lg">Claimed Credits Leaderboard</h2>
                             <p class="text-dark-text-secondary text-xs mt-0.5">Based on total lifetime claimed credits from staking events</p>
                         </div>
                         <button id="load-leaderboard-btn"
@@ -203,6 +206,71 @@
                     </div>
                 </div>
                 </div><!-- end credits-pane -->
+
+                <!-- TOTAL CREDITS PANE -->
+                <div id="total-pane" class="hidden">
+                <!-- Leaderboard Card -->
+                <div class="bg-dark-card rounded-2xl border border-gray-800 overflow-hidden">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+                        <div>
+                            <h2 class="text-white font-bold text-lg">Total Citizen Credits Leaderboard</h2>
+                            <p class="text-dark-text-secondary text-xs mt-0.5">Based on total combined claimed + unclaimed (accrued) credits on-chain</p>
+                        </div>
+                        <button id="load-total-btn"
+                            class="px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-primary-hover transition-colors flex items-center gap-2">
+                            <svg id="total-lb-icon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                            </svg>
+                            <span id="total-lb-btn-text">Load Total Credits</span>
+                        </button>
+                    </div>
+
+                    <!-- Loading bar -->
+                    <div id="total-progress" class="hidden px-6 py-3 border-b border-gray-700 bg-dark-bg/40">
+                        <p id="total-progress-text" class="text-xs text-dark-text-secondary mb-1">Fetching on-chain data…</p>
+                        <div class="w-full bg-gray-700 rounded-full h-1.5">
+                            <div id="total-progress-bar" class="bg-brand-primary h-1.5 rounded-full transition-all duration-300" style="width:0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Top-N Quick Select -->
+                    <div id="total-topn-bar" class="hidden px-6 py-3 border-b border-gray-700 bg-dark-bg/20 flex flex-wrap items-center gap-2">
+                        <span class="text-xs text-dark-text-secondary uppercase tracking-wide font-medium">Select top:</span>
+                        <button class="total-topn-btn px-3 py-1 text-xs rounded border border-gray-700 text-dark-text-secondary hover:border-brand-primary hover:text-white transition-colors" data-n="10">Top 10</button>
+                        <button class="total-topn-btn px-3 py-1 text-xs rounded border border-gray-700 text-dark-text-secondary hover:border-brand-primary hover:text-white transition-colors" data-n="20">Top 20</button>
+                        <button class="total-topn-btn px-3 py-1 text-xs rounded border border-gray-700 text-dark-text-secondary hover:border-brand-primary hover:text-white transition-colors" data-n="50">Top 50</button>
+                        <button class="total-topn-btn px-3 py-1 text-xs rounded border border-gray-700 text-dark-text-secondary hover:border-brand-primary hover:text-white transition-colors" data-n="100">Top 100</button>
+                        <button class="total-topn-btn px-3 py-1 text-xs rounded border border-gray-700 text-dark-text-secondary hover:border-brand-primary hover:text-white transition-colors" data-n="all">All</button>
+                        <button id="total-deselect-all-btn" class="ml-auto px-3 py-1 text-xs rounded border border-gray-700 text-dark-text-secondary hover:border-red-500 hover:text-red-400 transition-colors">Deselect All</button>
+                        <span class="text-xs text-dark-text-secondary ml-1">
+                            <span id="total-selected-count">0</span> selected
+                        </span>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-700 bg-dark-bg/40">
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider w-10">
+                                        <input type="checkbox" id="total-select-all-cb" class="rounded accent-brand-primary cursor-pointer" disabled>
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider w-12">#</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Address</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Total Credits</th>
+                                </tr>
+                            </thead>
+                            <tbody id="total-tbody">
+                                <tr>
+                                    <td colspan="4" class="px-6 py-12 text-center text-dark-text-secondary text-sm">
+                                        Connect your wallet and click "Load Total Credits" to fetch on-chain staking data.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div><!-- end total-pane -->
 
                 <!-- HOLDERS PANE -->
                 <div id="holders-pane" class="hidden">
@@ -464,8 +532,9 @@
     let connectedAccount     = null;
     let connectedWalletEntry = null;
     let leaderboardData      = [];   // [{address, creditsAtomic}]
+    let totalCreditsData     = [];   // [{address, creditsAtomic}]
     let holdersData          = [];   // [{address, liquidAtomic, stakedAtomic, totalAtomic}]
-    let activeTab            = 'credits'; // 'credits' | 'holders' | 'custom'
+    let activeTab            = 'credits'; // 'credits' | 'total' | 'holders' | 'custom'
     let selectedAddresses    = new Set();
     let currentTokenType     = 'city';  // 'city' | 'sui' | 'custom'
     let customAddresses      = [];      // up to 20 manually-entered SUI addresses
@@ -479,18 +548,22 @@
     // ================================================================
     function getActiveLeaderboardData() {
         if (activeTab === 'credits') return leaderboardData;
+        if (activeTab === 'total') return totalCreditsData;
         if (activeTab === 'holders') return holdersData;
         return [];
     }
 
+    // Get active select-all checkbox element
     function getActiveSelectAllCb() {
         if (activeTab === 'credits') return document.getElementById('select-all-cb');
+        if (activeTab === 'total') return document.getElementById('total-select-all-cb');
         if (activeTab === 'holders') return document.getElementById('holders-select-all-cb');
         return null;
     }
 
     function getActiveRowCbSelector() {
         if (activeTab === 'credits') return '.row-cb';
+        if (activeTab === 'total') return '.total-row-cb';
         if (activeTab === 'holders') return '.holders-row-cb';
         return '.custom-row-cb';
     }
@@ -514,19 +587,25 @@
     function switchTab(tab) {
         activeTab = tab;
         const creditsBtn = document.getElementById('tab-credits');
+        const totalBtn   = document.getElementById('tab-total');
         const holdersBtn = document.getElementById('tab-holders');
         const customBtn  = document.getElementById('tab-custom');
         const activeClass   = 'px-6 py-2 rounded-lg font-bold text-sm transition-all bg-brand-primary text-white shadow-lg';
         const inactiveClass = 'px-6 py-2 rounded-lg font-bold text-sm transition-all text-dark-text-secondary hover:text-white';
         creditsBtn.className = inactiveClass;
+        totalBtn.className   = inactiveClass;
         holdersBtn.className = inactiveClass;
         customBtn.className  = inactiveClass;
         document.getElementById('credits-pane').classList.add('hidden');
+        document.getElementById('total-pane').classList.add('hidden');
         document.getElementById('holders-pane').classList.add('hidden');
         document.getElementById('custom-pane').classList.add('hidden');
         if (tab === 'credits') {
             creditsBtn.className = activeClass;
             document.getElementById('credits-pane').classList.remove('hidden');
+        } else if (tab === 'total') {
+            totalBtn.className = activeClass;
+            document.getElementById('total-pane').classList.remove('hidden');
         } else if (tab === 'holders') {
             holdersBtn.className = activeClass;
             document.getElementById('holders-pane').classList.remove('hidden');
@@ -541,9 +620,6 @@
         updateExecuteBtn();
     }
 
-    document.getElementById('current-year').textContent = new Date().getFullYear();
-
-    // ================================================================
     // UTILITIES
     // ================================================================
     function isValidSuiAddress(a) { return /^0x[0-9a-fA-F]{40,64}$/.test((a || '').trim()); }
@@ -987,6 +1063,227 @@
         });
         updateSelectedCount();
         updateSelectAllState();
+    }
+
+    // ================================================================
+    // TOTAL CREDITS LEADERBOARD
+    // ================================================================
+    async function loadTotalLeaderboard() {
+        const btn  = document.getElementById('load-total-btn');
+        const icon = document.getElementById('total-lb-icon');
+        const text = document.getElementById('total-lb-btn-text');
+        const prog = document.getElementById('total-progress');
+        const progText = document.getElementById('total-progress-text');
+        const progBar  = document.getElementById('total-progress-bar');
+        const tbody    = document.getElementById('total-tbody');
+
+        btn.disabled    = true;
+        icon.classList.add('spin');
+        text.textContent = 'Loading…';
+        prog.classList.remove('hidden');
+        progText.textContent = 'Fetching staking events…';
+        progBar.style.width  = '0%';
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-dark-text-secondary text-sm">Fetching on-chain events…</td></tr>`;
+
+        try {
+            const totalPackages = STAKING_PKGS.length;
+            const perPkg = 4;
+            let completed = 0;
+            const updateProgress = (msg) => {
+                completed++;
+                const pct = Math.round((completed / (totalPackages * perPkg)) * 30);
+                progBar.style.width = pct + '%';
+                progText.textContent = msg;
+            };
+
+            const eventGroups = await Promise.all(STAKING_PKGS.flatMap(pkg => [
+                queryAllEvents(`${pkg}::city_staking::StakeCreated`).then(r  => { updateProgress('Processing StakeCreated events…'); return r; }),
+                queryAllEvents(`${pkg}::city_staking::StakeIncreased`).then(r => { updateProgress('Processing StakeIncreased events…'); return r; }),
+                queryAllEvents(`${pkg}::city_staking::Unstaked`).then(r       => { updateProgress('Processing Unstaked events…'); return r; }),
+                queryAllEvents(`${pkg}::city_staking::CreditsClaimed`).then(r => { updateProgress('Processing CreditsClaimed events…'); return r; }),
+            ]));
+
+            const stakeIdToStaker = new Map();
+            for (let i = 0; i < totalPackages; i++) {
+                const stakeCreated   = eventGroups[i * 4 + 0];
+                const creditsClaimed = eventGroups[i * 4 + 3];
+                stakeCreated.forEach(ev => {
+                    const d = ev.parsedJson || {};
+                    if (d.stake_id && d.staker) stakeIdToStaker.set(d.stake_id, d.staker);
+                });
+                creditsClaimed.forEach(ev => {
+                    const d = ev.parsedJson || {};
+                    if (d.stake_id && d.staker) stakeIdToStaker.set(d.stake_id, d.staker);
+                });
+            }
+
+            const uniqueStakers = Array.from(new Set(stakeIdToStaker.values()));
+
+            progBar.style.width = '40%';
+            progText.textContent = `Fetching stakes for ${uniqueStakers.length} stakers…`;
+
+            const BATCH_SIZE = 10;
+            const stakerTotalCredits = new Map();
+            uniqueStakers.forEach(addr => stakerTotalCredits.set(addr, 0n));
+
+            const STAKING_TYPE = `${STAKING_PKGS[0]}::city_staking::UserStake<${CITY_TYPE}>`;
+
+            for (let i = 0; i < uniqueStakers.length; i += BATCH_SIZE) {
+                const batch = uniqueStakers.slice(i, i + BATCH_SIZE);
+                const results = await Promise.allSettled(batch.map(async (stakerAddr) => {
+                    let allStakes = [];
+                    let cursor = null;
+                    for (;;) {
+                        const r = await rpc('suix_getOwnedObjects', [
+                            stakerAddr,
+                            {
+                                filter: { StructType: STAKING_TYPE },
+                                options: { showContent: true }
+                            },
+                            cursor,
+                            50
+                        ]);
+                        allStakes.push(...(r.data || []));
+                        if (!r.hasNextPage) break;
+                        cursor = r.nextCursor;
+                    }
+                    return { stakerAddr, stakes: allStakes };
+                }));
+
+                results.forEach(res => {
+                    if (res.status === 'fulfilled') {
+                        const { stakerAddr, stakes } = res.value;
+                        let total = 0n;
+                        stakes.forEach(obj => {
+                            const fields = obj.data?.content?.fields;
+                            if (!fields) return;
+                            const s = fields.principal?.fields?.value;
+                            const stakeObj = {
+                                stakedAmountAtomic: BigInt(fields.staked_amount || s || '0'),
+                                lockDays: Number(fields.lock_days || '0'),
+                                multiplierBps: Number(fields.multiplier_bps || '0'),
+                                lockStartMs: Number(fields.lock_start_ms || '0'),
+                                lockEndMs: Number(fields.lock_end_ms || '0'),
+                                lastAccrualMs: Number(fields.last_accrual_ms || '0'),
+                                unclaimedCreditsAtomic: BigInt(fields.unclaimed_credits || '0'),
+                                claimedCreditsAtomic: BigInt(fields.claimed_credits || '0')
+                            };
+                            const claimed = stakeObj.claimedCreditsAtomic;
+                            const currentUnclaimed = calculateCurrentUnclaimed(stakeObj);
+                            total += claimed + currentUnclaimed;
+                        });
+                        stakerTotalCredits.set(stakerAddr, (stakerTotalCredits.get(stakerAddr) || 0n) + total);
+                    }
+                });
+
+                const pct = 40 + Math.round((Math.min(i + BATCH_SIZE, uniqueStakers.length) / uniqueStakers.length) * 55);
+                progBar.style.width = pct + '%';
+                progText.textContent = `Fetching stakes… (${Math.min(i + BATCH_SIZE, uniqueStakers.length)}/${uniqueStakers.length})`;
+            }
+
+            function calculateGr(stake, timeMs) {
+                const oo = 10n;
+                const Ln = 1000000000n;
+                const qr = 3600000n;
+                const io = 1000000000000000n;
+                return !stake || timeMs <= 0n ? 0n : stake.stakedAmountAtomic * timeMs * BigInt(stake.multiplierBps) * oo * Ln / (qr * io * 10000n);
+            }
+
+            function calculateCurrentUnclaimed(stake) {
+                const now = Date.now();
+                if (!stake) return 0n;
+                if (stake.stakedAmountAtomic === 0n) return stake.unclaimedCreditsAtomic;
+                const limitTime = Math.min(now, stake.lockEndMs);
+                if (limitTime <= stake.lastAccrualMs) return stake.unclaimedCreditsAtomic;
+                const diffTime = BigInt(limitTime - stake.lastAccrualMs);
+                const accrued = calculateGr(stake, diffTime);
+                return stake.unclaimedCreditsAtomic + accrued;
+            }
+
+            totalCreditsData = [...stakerTotalCredits.entries()]
+                .map(([address, creditsAtomic]) => ({ address, creditsAtomic }))
+                .filter(entry => entry.creditsAtomic > 0n)
+                .sort((a, b) => a.creditsAtomic > b.creditsAtomic ? -1 : a.creditsAtomic < b.creditsAtomic ? 1 : a.address.localeCompare(b.address));
+
+            progBar.style.width = '100%';
+            progText.textContent = `Loaded ${totalCreditsData.length} stakers.`;
+
+            renderTotalLeaderboard();
+            document.getElementById('total-topn-bar').classList.remove('hidden');
+            document.getElementById('total-select-all-cb').disabled = false;
+
+        } catch (err) {
+            console.error('[airdrop] loadTotalLeaderboard error:', err);
+            showStatus('Failed to load total leaderboard: ' + (err?.message || String(err)), 'error');
+            tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-red-400 text-sm">Error loading total leaderboard. See status bar below.</td></tr>`;
+        } finally {
+            btn.disabled = false;
+            icon.classList.remove('spin');
+            text.textContent = 'Refresh';
+            setTimeout(() => prog.classList.add('hidden'), 2000);
+        }
+    }
+
+    function renderTotalLeaderboard() {
+        const tbody = document.getElementById('total-tbody');
+        if (!totalCreditsData.length) {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-dark-text-secondary text-sm">No staking data found on-chain.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        totalCreditsData.forEach((entry, idx) => {
+            const rank = idx + 1;
+            const isSelected = selectedAddresses.has(entry.address);
+
+            const tr = document.createElement('tr');
+            tr.className = `border-b border-gray-700/50 hover:bg-dark-bg/30 transition-colors ${isSelected ? 'bg-brand-primary/5' : ''}`;
+            tr.dataset.address = entry.address;
+
+            const tdCb = document.createElement('td');
+            tdCb.className = 'px-4 py-3';
+            const cb = document.createElement('input');
+            cb.type      = 'checkbox';
+            cb.checked   = isSelected;
+            cb.className = 'rounded accent-brand-primary cursor-pointer total-row-cb';
+            cb.dataset.address = entry.address;
+            cb.addEventListener('change', () => onRowCheckbox(entry.address, cb.checked, tr));
+            tdCb.appendChild(cb);
+
+            const tdRank = document.createElement('td');
+            tdRank.className = 'px-4 py-3 text-dark-text-secondary font-mono text-xs';
+            tdRank.textContent = rank;
+
+            const tdAddr = document.createElement('td');
+            tdAddr.className = 'px-4 py-3';
+            const addrSpan = document.createElement('span');
+            addrSpan.className = 'font-mono text-brand-primary text-xs cursor-pointer hover:underline';
+            addrSpan.textContent = shortAddr(entry.address);
+            addrSpan.title = entry.address;
+            addrSpan.addEventListener('click', () => {
+                navigator.clipboard.writeText(entry.address);
+                showStatus('Copied address to clipboard: ' + entry.address, 'success');
+            });
+            tdAddr.appendChild(addrSpan);
+            
+            // On larger screens, show full address
+            const fullDiv = document.createElement('div');
+            fullDiv.className = 'hidden lg:block text-dark-text-secondary text-xs mt-0.5 font-mono';
+            fullDiv.textContent = entry.address;
+            tdAddr.appendChild(fullDiv);
+
+            const tdCredits = document.createElement('td');
+            tdCredits.className = 'px-4 py-3 text-right text-white font-mono text-xs font-semibold';
+            tdCredits.textContent = formatCredits(entry.creditsAtomic);
+
+            tr.appendChild(tdCb);
+            tr.appendChild(tdRank);
+            tr.appendChild(tdAddr);
+            tr.appendChild(tdCredits);
+            tbody.appendChild(tr);
+        });
+
+        updateSelectedCount();
     }
 
     // ================================================================
@@ -2154,15 +2451,21 @@
     // EVENT LISTENERS
     // ================================================================
 
+    // Initialize current year
+    const yearEl = document.getElementById('current-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+
     // Tab switching
     document.getElementById('tab-credits').addEventListener('click', () => switchTab('credits'));
+    document.getElementById('tab-total').addEventListener('click',   () => switchTab('total'));
     document.getElementById('tab-holders').addEventListener('click', () => switchTab('holders'));
     document.getElementById('tab-custom').addEventListener('click',  () => switchTab('custom'));
 
-    // Load leaderboard button
+    // Load leaderboard buttons
     document.getElementById('load-leaderboard-btn').addEventListener('click', loadLeaderboard);
+    document.getElementById('load-total-btn').addEventListener('click', loadTotalLeaderboard);
 
-    // Select all checkbox
+    // Select all checkboxes
     document.getElementById('select-all-cb').addEventListener('change', function () {
         const checked = this.checked;
         if (checked) {
@@ -2181,8 +2484,27 @@
         updateSelectedCount();
     });
 
-    // Deselect all button
+    document.getElementById('total-select-all-cb').addEventListener('change', function () {
+        const checked = this.checked;
+        if (checked) {
+            totalCreditsData.forEach(e => selectedAddresses.add(e.address));
+        } else {
+            selectedAddresses.clear();
+        }
+        document.querySelectorAll('.total-row-cb').forEach(cb => {
+            cb.checked = checked;
+            const tr = cb.closest('tr');
+            if (tr) {
+                if (checked) tr.classList.add('bg-brand-primary/5');
+                else         tr.classList.remove('bg-brand-primary/5');
+            }
+        });
+        updateSelectedCount();
+    });
+
+    // Deselect all buttons
     document.getElementById('deselect-all-btn').addEventListener('click', deselectAll);
+    document.getElementById('total-deselect-all-btn').addEventListener('click', deselectAll);
 
     // Load holders button
     document.getElementById('load-holders-btn').addEventListener('click', loadHoldersLeaderboard);
@@ -2216,6 +2538,21 @@
             selectTopN(n);
             // Highlight active button
             document.querySelectorAll('.holders-topn-btn').forEach(b => {
+                b.classList.remove('border-brand-primary', 'text-brand-primary', 'bg-brand-primary/10');
+                b.classList.add('border-gray-700', 'text-dark-text-secondary');
+            });
+            btn.classList.remove('border-gray-700', 'text-dark-text-secondary');
+            btn.classList.add('border-brand-primary', 'text-brand-primary', 'bg-brand-primary/10');
+        });
+    });
+
+    // Total Top-N buttons
+    document.querySelectorAll('.total-topn-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const n = btn.dataset.n === 'all' ? 'all' : parseInt(btn.dataset.n, 10);
+            selectTopN(n);
+            // Highlight active button
+            document.querySelectorAll('.total-topn-btn').forEach(b => {
                 b.classList.remove('border-brand-primary', 'text-brand-primary', 'bg-brand-primary/10');
                 b.classList.add('border-gray-700', 'text-dark-text-secondary');
             });
