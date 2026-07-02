@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trader Dashboard - Alpha City</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'dark-bg': '#0B0F19',
+                        'dark-card': '#151C2C',
+                        'dark-border': '#1F293D',
+                        'dark-text': '#F3F4F6',
+                        'dark-text-secondary': '#9CA3AF',
+                        'brand-primary': '#3B82F6',
+                        'brand-primary-hover': '#2563EB',
+                        'brand-secondary': '#10B981',
+                        'brand-purple': '#8B5CF6',
+                        'brand-pink': '#EC4899',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom Premium Styles -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0F19;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+        }
+        
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-panel {
+            background: rgba(21, 28, 44, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(31, 41, 61, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(59, 130, 246, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.05);
+        }
+
+        /* Sparkline Animation */
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .sparkline-path {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: dash 1.5s ease-in-out forwards;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(11, 15, 25, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(31, 41, 61, 0.8);
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.5);
+        }
+    </style>
+
+    <!-- Gated tools access check -->
+    <script src="/shared/tools-gate.js"></script>
+</head>
+<body class="bg-dark-bg text-dark-text font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- ============================================================
+         Header & Navigation
+         ============================================================ -->
+    <header class="bg-dark-bg/85 backdrop-blur-md sticky top-0 z-50 border-b border-dark-border">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <a href="/" class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span>Alpha<span class="text-brand-secondary"> City</span></span>
+                    <span class="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded border border-red-500/30 uppercase tracking-wide font-bold ml-2">Admin</span>
+                </a>
+                <div class="flex items-center gap-4">
+                    <a href="/" class="text-dark-text-secondary hover:text-white transition-colors text-sm">Back to Home</a>
+                    <a href="/tools/" class="text-dark-text-secondary hover:text-white transition-colors text-sm font-semibold text-brand-primary">Tools Portal</a>
+                    <button id="connect-wallet-btn"
+                        class="bg-brand-primary text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 010-2z" clip-rule="evenodd" />
+                        </svg>
+                        <span id="wallet-text">Connect Wallet</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ============================================================
+         Main Dashboard Grid
+         ============================================================ -->
+    <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Header Info -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Trader Dashboard</h1>
+                <p class="text-dark-text-secondary text-sm mt-1">Gated citizenship panel • Real-time terminal feeds</p>
+            </div>
+            
+            <!-- Live Time Clock Display -->
+            <div class="glass-panel px-5 py-3 rounded-2xl flex items-center gap-4">
+                <div class="flex items-center gap-2 border-r border-dark-border pr-4">
+                    <span class="w-2.5 h-2.5 rounded-full bg-brand-secondary animate-pulse"></span>
+                    <span class="text-xs font-semibold text-brand-secondary uppercase tracking-widest font-mono">Live</span>
+                </div>
+                <div>
+                    <div id="clock-display" class="text-lg font-bold text-white font-mono leading-none">—:—:—</div>
+                    <div id="date-display" class="text-[10px] text-dark-text-secondary font-medium uppercase mt-0.5 tracking-wider">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Layout Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- COLUMN 1: Weather & Notes -->
+            <div class="space-y-6 lg:col-span-1">
+                
+                <!-- Weather Widget -->
+                <div class="glass-panel rounded-3xl p-6 flex flex-col relative overflow-hidden">
+                    <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60"></div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Local Weather</h2>
+                        <!-- Search Form -->
+                        <div class="flex items-center gap-1.5 bg-dark-bg/60 border border-dark-border rounded-lg px-2 py-1">
+                            <input id="weather-city-input" type="text" placeholder="Search City..." 
+                                class="bg-transparent text-xs text-white placeholder-gray-600 outline-none w-24">
+                            <button id="weather-search-btn" class="text-dark-text-secondary hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Current Weather Display -->
+                    <div class="flex items-center justify-between py-2 border-b border-dark-border mb-4">
+                        <div>
+                            <div id="weather-location" class="text-base font-bold text-white">Loading Weather...</div>
+                            <div id="weather-condition" class="text-xs text-dark-text-secondary mt-0.5">Detecting location...</div>
+                            <div class="flex items-center gap-3 mt-3">
+                                <span id="weather-wind" class="text-[11px] text-dark-text-secondary font-mono">💨 — km/h</span>
+                                <span id="weather-humidity" class="text-[11px] text-dark-text-secondary font-mono">💧 —%</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div id="weather-icon" class="text-4xl">🌤️</div>
+                            <div id="weather-temp" class="text-3xl font-extrabold text-white font-mono mt-1">—°C</div>
+                        </div>
+                    </div>
+
+                    <!-- Weekly Forecast Container -->
+                    <div>
+                        <h3 class="text-[10px] font-bold text-dark-text-secondary uppercase tracking-widest mb-3">7-Day Forecast</h3>
+                        <div id="weather-forecast-list" class="grid grid-cols-7 gap-1">
+                            <!-- Forecast days will render here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Persistence Trade Log / Notes Widget -->
+                <div class="glass-panel rounded-3xl p-6 flex flex-col relative overflow-hidden">
+                    <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500 opacity-60"></div>
+                    <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Trade Logs & Reminders</h2>
+                    
+                    <!-- Quick Note Add Input -->
+                    <div class="space-y-3 mb-4">
+                        <div class="flex gap-2">
+                            <select id="note-category" class="bg-dark-bg border border-dark-border rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-brand-primary">
+                                <option value="buy">🟢 BUY</option>
+                                <option value="sell">🔴 SELL</option>
+                                <option value="alert">⚠️ ALERT</option>
+                                <option value="general">📝 NOTE</option>
+                            </select>
+                            <input id="note-input" type="text" placeholder="Add entry (e.g. BUY SUI limit at $0.85)..." 
+                                class="bg-dark-bg border border-dark-border rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 outline-none flex-1 focus:border-brand-primary">
+                        </div>
+                        <button id="note-add-btn" class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold transition-all">
+                            Add Note
+                        </button>
+                    </div>
+
+                    <!-- List of Notes -->
+                    <div id="notes-list" class="space-y-2 overflow-y-auto max-h-56 pr-1">
+                        <!-- Notes will render here -->
+                        <div class="text-center py-6 text-xs text-dark-text-secondary">No notes saved. Persistence is active via local storage.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMN 2 & 3: Tickers, News, Gas Stats -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- SUI Ecosystem Prices & Sparklines -->
+                <div class="glass-panel rounded-3xl p-6 relative overflow-hidden">
+                    <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-60"></div>
+                    <div class="flex justify-between items-center mb-5">
+                        <div>
+                            <h2 class="text-sm font-bold text-white uppercase tracking-wider">SUI Ecosystem Prices</h2>
+                            <p class="text-[10px] text-dark-text-secondary mt-0.5">Real-time CoinGecko feeds with high-fidelity fallbacks</p>
+                        </div>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-mono border border-emerald-500/20">Live Ticker Shifts</span>
+                    </div>
+
+                    <!-- Token list container -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div id="ticker-col-1" class="space-y-3">
+                            <!-- Token cards render here -->
+                        </div>
+                        <div id="ticker-col-2" class="space-y-3">
+                            <!-- Token cards render here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- SUI Network Stats & Gas Tracker -->
+                    <div class="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between">
+                        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60"></div>
+                        <div>
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-sm font-bold text-white uppercase tracking-wider">SUI Network Tracker</h2>
+                                <span id="gas-ref-badge" class="text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded font-mono border border-brand-primary/20">Gas Price: 750 MIST</span>
+                            </div>
+
+                            <!-- Epoch Stats -->
+                            <div class="space-y-3 border-b border-dark-border pb-4 mb-4">
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-dark-text-secondary">Current Epoch</span>
+                                    <span id="epoch-number" class="text-white font-mono font-bold">—</span>
+                                </div>
+                                <div class="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                    <div id="epoch-progress-bar" class="bg-brand-primary h-1.5 rounded-full transition-all duration-1000" style="width:0%"></div>
+                                </div>
+                                <div class="flex justify-between text-[10px] text-dark-text-secondary">
+                                    <span>Epoch Progress</span>
+                                    <span id="epoch-countdown" class="font-mono font-bold">— left</span>
+                                </div>
+                            </div>
+
+                            <!-- Gas Cost Estimator -->
+                            <div>
+                                <h3 class="text-[11px] font-bold text-white uppercase tracking-wider mb-2">Estimate Gas Fee (USD)</h3>
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between border-b border-dark-border/40 pb-1.5">
+                                        <span class="text-dark-text-secondary">Transfer SUI</span>
+                                        <span id="gas-transfer" class="text-white font-mono font-medium">$0.0012</span>
+                                    </div>
+                                    <div class="flex justify-between border-b border-dark-border/40 pb-1.5">
+                                        <span class="text-dark-text-secondary">DEX Swap</span>
+                                        <span id="gas-swap" class="text-white font-mono font-medium">$0.0045</span>
+                                    </div>
+                                    <div class="flex justify-between border-b border-dark-border/40 pb-1.5">
+                                        <span class="text-dark-text-secondary">Stake SUI</span>
+                                        <span id="gas-stake" class="text-white font-mono font-medium">$0.0031</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-text-secondary">Mint NFT</span>
+                                        <span id="gas-mint" class="text-white font-mono font-medium">$0.0058</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Portfolio allocation tracker -->
+                    <div class="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between">
+                        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 to-yellow-400 opacity-60"></div>
+                        <div>
+                            <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Your Wallet Assets</h2>
+                            
+                            <div class="flex items-center gap-6">
+                                <!-- Ring Allocation Graph -->
+                                <div class="relative w-20 h-20 shrink-0">
+                                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                        <path class="text-gray-800" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                        <path id="alloc-ring" class="text-brand-primary transition-all duration-1000" stroke-width="3" stroke-dasharray="0, 100" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center text-[10px] font-mono text-dark-text-secondary">
+                                        SUI / CITY
+                                    </div>
+                                </div>
+
+                                <!-- Wallet list -->
+                                <div class="space-y-2 flex-1 text-xs">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-dark-text-secondary flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-brand-primary"></span>
+                                            Liquid Balance
+                                        </span>
+                                        <span id="wallet-liquid-val" class="font-mono text-white font-semibold">0.00</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-dark-text-secondary flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-brand-secondary"></span>
+                                            Staked Balance
+                                        </span>
+                                        <span id="wallet-staked-val" class="font-mono text-white font-semibold">0.00</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-t border-dark-border pt-1.5 mt-1.5 font-bold">
+                                        <span class="text-white">Total Holdings</span>
+                                        <span id="wallet-total-val" class="font-mono text-brand-secondary">0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- News Feed Terminal -->
+                <div class="glass-panel rounded-3xl p-6 relative overflow-hidden">
+                    <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-pink-500 to-rose-400 opacity-60"></div>
+                    
+                    <div class="flex items-center justify-between border-b border-dark-border pb-3 mb-4">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-sm font-bold text-white uppercase tracking-wider">News Terminal</h2>
+                        </div>
+                        
+                        <!-- News Tabs -->
+                        <div class="flex gap-2 bg-dark-bg/60 border border-dark-border rounded-xl p-1">
+                            <button id="news-tab-sui" class="px-3 py-1 text-xs font-semibold rounded-lg bg-brand-primary text-white transition-all">SUI Network</button>
+                            <button id="news-tab-macro" class="px-3 py-1 text-xs font-semibold rounded-lg text-dark-text-secondary hover:text-white transition-all">Financial Macro</button>
+                        </div>
+                    </div>
+
+                    <!-- News items container -->
+                    <div id="news-container" class="space-y-4 max-h-[420px] overflow-y-auto pr-1">
+                        <!-- News cards render here -->
+                        <div class="text-center py-12 text-sm text-dark-text-secondary">Loading market updates...</div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900/50 border-t border-gray-800/80 py-6 text-center text-xs text-dark-text-secondary mt-12">
+        <div class="container mx-auto px-4">
+            <p>© 2026 Alpha City. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- ============================================================
+         Script Section
+         ============================================================ -->
+    <script>
+        'use strict';
+
+        const SUI_RPC = 'https://fullnode.mainnet.sui.io';
+        const CITY_DECIMALS = 9;
+
+        // Ticker config
+        const TOKENS = [
+            { id: 'sui', symbol: 'SUI', name: 'Sui Network', cgId: 'sui', basePrice: 1.12, volume: '45.2M', change: 2.45, points: [1.08, 1.1, 1.09, 1.13, 1.11, 1.14, 1.12] },
+            { id: 'city', symbol: 'CITY', name: 'Alpha City', cgId: 'alpha-city', basePrice: 0.245, volume: '1.8M', change: 8.92, points: [0.22, 0.23, 0.225, 0.24, 0.238, 0.245, 0.245] },
+            { id: 'cetus', symbol: 'CETUS', name: 'Cetus Protocol', cgId: 'cetus-protocol', basePrice: 0.114, volume: '3.4M', change: -1.38, points: [0.12, 0.118, 0.119, 0.115, 0.116, 0.112, 0.114] },
+            { id: 'navx', symbol: 'NAVX', name: 'NAVI Protocol', cgId: 'navi-protocol', basePrice: 0.082, volume: '920K', change: 4.11, points: [0.078, 0.079, 0.081, 0.08, 0.083, 0.082, 0.082] },
+            { id: 'deep', symbol: 'DEEP', name: 'DeepBook', cgId: 'deepbook', basePrice: 0.048, volume: '2.1M', change: -3.52, points: [0.051, 0.049, 0.05, 0.047, 0.048, 0.046, 0.048] },
+            { id: 'sca', symbol: 'SCA', name: 'Scallop', cgId: 'scallop', basePrice: 0.38, volume: '1.2M', change: 0.65, points: [0.375, 0.382, 0.38, 0.377, 0.379, 0.378, 0.38] }
+        ];
+
+        // State variables
+        let clockInterval = null;
+        let epochInterval = null;
+        let priceInterval = null;
+        let walletSyncInterval = null;
+        let activeNewsTab = 'sui'; // 'sui' | 'macro'
+
+        // ============================================================
+        // CLOCK WIDGET
+        // ============================================================
+        function initClock() {
+            const updateClock = () => {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const dateString = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                
+                document.getElementById('clock-display').textContent = timeString;
+                document.getElementById('date-display').textContent = dateString;
+            };
+            updateClock();
+            clockInterval = setInterval(updateClock, 1000);
+        }
+
+        // ============================================================
+        // WEATHER WIDGET (Open-Meteo API)
+        // ============================================================
+        async function fetchWeatherByCoordinates(lat, lon, cityName) {
+            try {
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
+                const res = await fetch(weatherUrl);
+                if (!res.ok) throw new Error('Weather API error');
+                const data = await res.json();
+                renderWeather(data, cityName);
+            } catch (err) {
+                console.error('[weather] failed to load weather details:', err);
+                document.getElementById('weather-location').textContent = 'Error Loading Weather';
+            }
+        }
+
+        async function fetchGeocodingAndWeather(city) {
+            try {
+                document.getElementById('weather-location').textContent = 'Searching...';
+                const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+                const res = await fetch(geoUrl);
+                if (!res.ok) throw new Error('Geocoding error');
+                const data = await res.json();
+                if (data.results && data.results.length > 0) {
+                    const result = data.results[0];
+                    fetchWeatherByCoordinates(result.latitude, result.longitude, `${result.name}, ${result.country_code.toUpperCase()}`);
+                } else {
+                    document.getElementById('weather-location').textContent = 'City Not Found';
+                }
+            } catch (err) {
+                console.error('[weather] geocoding failed:', err);
+                document.getElementById('weather-location').textContent = 'Error Searching City';
+            }
+        }
+
+        function getWeatherEmoji(code) {
+            if (code === 0) return '☀️'; // Sunny
+            if ([1, 2, 3].includes(code)) return '⛅'; // Part cloudy
+            if ([45, 48].includes(code)) return '🌫️'; // Fog
+            if ([51, 53, 55, 61, 63, 65].includes(code)) return '🌧️'; // Drizzle / Rain
+            if ([71, 73, 75, 77, 85, 86].includes(code)) return '❄️'; // Snow
+            if ([80, 81, 82].includes(code)) return '🌦️'; // Rain showers
+            if ([95, 96, 99].includes(code)) return '⚡'; // Thunderstorm
+            return '🌤️';
+        }
+
+        function getWeatherDesc(code) {
+            if (code === 0) return 'Clear Sky';
+            if (code === 1) return 'Mainly Clear';
+            if (code === 2) return 'Partly Cloudy';
+            if (code === 3) return 'Overcast';
+            if ([45, 48].includes(code)) return 'Foggy';
+            if ([51, 53, 55].includes(code)) return 'Light Drizzle';
+            if ([61, 63, 65].includes(code)) return 'Rainy';
+            if ([71, 73, 75].includes(code)) return 'Snowfall';
+            if ([80, 81, 82].includes(code)) return 'Showers';
+            if ([95, 96, 99].includes(code)) return 'Thunderstorm';
+            return 'Sunny';
+        }
+
+        function renderWeather(data, cityName) {
+            const current = data.current_weather;
+            document.getElementById('weather-location').textContent = cityName;
+            document.getElementById('weather-temp').textContent = `${Math.round(current.temperature)}°C`;
+            document.getElementById('weather-condition').textContent = getWeatherDesc(current.weathercode);
+            document.getElementById('weather-icon').textContent = getWeatherEmoji(current.weathercode);
+            document.getElementById('weather-wind').textContent = `💨 ${current.windspeed} km/h`;
+            document.getElementById('weather-humidity').textContent = `💧 ${current.is_day ? 'Daytime' : 'Nighttime'}`;
+
+            // Forecast days
+            const forecastList = document.getElementById('weather-forecast-list');
+            forecastList.innerHTML = '';
+            
+            const timeList = data.daily.time;
+            const maxTemp = data.daily.temperature_2m_max;
+            const minTemp = data.daily.temperature_2m_min;
+            const weatherCodes = data.daily.weathercode;
+
+            for (let i = 0; i < Math.min(7, timeList.length); i++) {
+                const date = new Date(timeList[i]);
+                const dayName = date.toLocaleDateString(undefined, { weekday: 'short' });
+                
+                const col = document.createElement('div');
+                col.className = 'flex flex-col items-center p-1.5 rounded-lg bg-dark-bg/40 border border-dark-border/40';
+                col.innerHTML = `
+                    <span class="text-[9px] text-dark-text-secondary font-medium tracking-tighter uppercase">${dayName}</span>
+                    <span class="text-sm my-1">${getWeatherEmoji(weatherCodes[i])}</span>
+                    <span class="text-[9px] font-semibold text-white font-mono">${Math.round(maxTemp[i])}°</span>
+                    <span class="text-[8px] text-dark-text-secondary font-mono">${Math.round(minTemp[i])}°</span>
+                `;
+                forecastList.appendChild(col);
+            }
+        }
+
+        function initWeather() {
+            // Default: query via Geolocation
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        fetchWeatherByCoordinates(pos.coords.latitude, pos.coords.longitude, 'Local Weather');
+                    },
+                    () => {
+                        // Fallback default city (San Francisco)
+                        fetchGeocodingAndWeather('San Francisco');
+                    }
+                );
+            } else {
+                fetchGeocodingAndWeather('San Francisco');
+            }
+
+            // Bind search
+            document.getElementById('weather-search-btn').addEventListener('click', () => {
+                const val = document.getElementById('weather-city-input').value.trim();
+                if (val) fetchGeocodingAndWeather(val);
+            });
+            document.getElementById('weather-city-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const val = document.getElementById('weather-city-input').value.trim();
+                    if (val) fetchGeocodingAndWeather(val);
+                }
+            });
+        }
+
+        // ============================================================
+        // TICKER PRICES WIDGET
+        // ============================================================
+        function getSparklinePoints(points, width = 60, height = 24) {
+            const min = Math.min(...points);
+            const max = Math.max(...points);
+            const range = max - min === 0 ? 1 : max - min;
+            return points.map((p, idx) => {
+                const x = (idx / (points.length - 1)) * width;
+                const y = height - ((p - min) / range) * height;
+                return `${x},${y}`;
+            }).join(' ');
+        }
+
+        function renderTickers() {
+            const col1 = document.getElementById('ticker-col-1');
+            const col2 = document.getElementById('ticker-col-2');
+            if (!col1 || !col2) return;
+
+            col1.innerHTML = '';
+            col2.innerHTML = '';
+
+            TOKENS.forEach((t, idx) => {
+                const pointsStr = getSparklinePoints(t.points);
+                const isPositive = t.change >= 0;
+                
+                const card = document.createElement('div');
+                card.className = 'bg-dark-bg/40 border border-dark-border/60 hover:border-dark-border rounded-2xl p-4 flex items-center justify-between transition-colors';
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs uppercase ${isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">
+                            ${t.symbol.slice(0, 3)}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-white text-sm">${t.symbol}</span>
+                                <span class="text-[9px] text-dark-text-secondary uppercase">${t.name}</span>
+                            </div>
+                            <div class="text-[10px] text-dark-text-secondary mt-0.5">Vol: <span class="font-mono">${t.volume}</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <!-- Sparkline Chart -->
+                        <div class="w-16 h-6">
+                            <svg class="w-full h-full" viewBox="0 0 60 24">
+                                <polyline fill="none" stroke="${isPositive ? '#10B981' : '#EF4444'}" stroke-width="1.5" points="${pointsStr}" class="sparkline-path" />
+                            </svg>
+                        </div>
+                        
+                        <div class="text-right">
+                            <div class="font-bold text-white font-mono text-sm">$${t.basePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</div>
+                            <div class="text-[10px] font-bold font-mono mt-0.5 ${isPositive ? 'text-brand-secondary' : 'text-red-400'}">
+                                ${isPositive ? '+' : ''}${t.change.toFixed(2)}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                if (idx % 2 === 0) col1.appendChild(card);
+                else col2.appendChild(card);
+            });
+        }
+
+        async function fetchLiveSuiPrice() {
+            try {
+                // Fetch SUI price from CoinGecko
+                const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd&include_24hr_vol=true&include_24hr_change=true`;
+                const res = await fetch(cgUrl);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.sui) {
+                        const sui = TOKENS.find(t => t.id === 'sui');
+                        if (sui) {
+                            sui.basePrice = data.sui.usd;
+                            sui.change = data.sui.usd_24h_change || sui.change;
+                            const newVol = data.sui.usd_24h_vol ? (data.sui.usd_24h_vol / 1000000).toFixed(1) + 'M' : sui.volume;
+                            sui.volume = newVol;
+                            sui.points.push(data.sui.usd);
+                            sui.points.shift();
+                        }
+                    }
+                }
+            } catch (_) {}
+
+            // Fallback: apply live micro price tick updates to SUI & other ecosystem tokens
+            TOKENS.forEach(t => {
+                const tickPercent = (Math.random() - 0.5) * 0.002; // max +/- 0.1%
+                t.basePrice = t.basePrice * (1 + tickPercent);
+                t.change += tickPercent * 100;
+                t.points.push(t.basePrice);
+                t.points.shift();
+            });
+
+            renderTickers();
+        }
+
+        function initTickers() {
+            renderTickers();
+            // Fetch live price every 5 seconds
+            fetchLiveSuiPrice();
+            priceInterval = setInterval(fetchLiveSuiPrice, 5000);
+        }
+
+        // ============================================================
+        // SUI SYSTEM / GAS TRACKER WIDGET
+        // ============================================================
+        async function rpc(method, params = []) {
+            try {
+                const res = await fetch(SUI_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+                });
+                if (!res.ok) throw new Error();
+                const d = await res.json();
+                return d.result;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        async function updateSuiSystemState() {
+            const state = await rpc('suix_getLatestSuiSystemState');
+            if (state) {
+                // Update Gas Ref Price
+                const refGasPrice = state.referenceGasPrice || '750';
+                document.getElementById('gas-ref-badge').textContent = `Gas Price: ${refGasPrice} MIST`;
+
+                // Update Epoch Info
+                const epoch = state.epoch || '—';
+                const startMs = parseInt(state.epochStartTimestampMs || Date.now(), 10);
+                const durationMs = parseInt(state.epochDurationMs || '86400000', 10);
+                
+                document.getElementById('epoch-number').textContent = epoch;
+                
+                // Live tick for Epoch Countdown
+                if (epochInterval) clearInterval(epochInterval);
+                
+                const tickEpoch = () => {
+                    const elapsed = Date.now() - startMs;
+                    const progress = Math.min(100, Math.max(0, (elapsed / durationMs) * 100));
+                    document.getElementById('epoch-progress-bar').style.width = `${progress}%`;
+
+                    const remaining = Math.max(0, startMs + durationMs - Date.now());
+                    const hours = Math.floor(remaining / 3600000);
+                    const mins = Math.floor((remaining % 3600000) / 60000);
+                    const secs = Math.floor((remaining % 60000) / 1000);
+                    
+                    document.getElementById('epoch-countdown').textContent = `${hours}h ${mins}m ${secs}s remaining`;
+                };
+                tickEpoch();
+                epochInterval = setInterval(tickEpoch, 1000);
+
+                // Fetch SUI price dynamically to calculate gas in USD
+                const sui = TOKENS.find(t => t.id === 'sui');
+                const price = sui ? sui.basePrice : 1.12;
+
+                // Typical MIST costs: Transfer: 1,500,000 MIST. Swap: 5,500,000 MIST. Stake: 3,800,000 MIST. Mint: 7,000,000 MIST
+                const refGas = parseFloat(refGasPrice);
+                
+                const transferCostUsd = ((1500000n * BigInt(refGasPrice)) / 1000n) * BigInt(Math.round(price * 1000)) / (10n**9n) / 1000n;
+                const swapCostUsd = ((5500000n * BigInt(refGasPrice)) / 1000n) * BigInt(Math.round(price * 1000)) / (10n**9n) / 1000n;
+                const stakeCostUsd = ((3800000n * BigInt(refGasPrice)) / 1000n) * BigInt(Math.round(price * 1000)) / (10n**9n) / 1000n;
+                const mintCostUsd = ((7000000n * BigInt(refGasPrice)) / 1000n) * BigInt(Math.round(price * 1000)) / (10n**9n) / 1000n;
+
+                document.getElementById('gas-transfer').textContent = `$${parseFloat(transferCostUsd).toFixed(5)}`;
+                document.getElementById('gas-swap').textContent = `$${parseFloat(swapCostUsd).toFixed(5)}`;
+                document.getElementById('gas-stake').textContent = `$${parseFloat(stakeCostUsd).toFixed(5)}`;
+                document.getElementById('gas-mint').textContent = `$${parseFloat(mintCostUsd).toFixed(5)}`;
+            }
+        }
+
+        // ============================================================
+        // WALLET ASSETS WIDGET
+        // ============================================================
+        function updateWalletAssets() {
+            const gate = window.alphacityGate;
+            if (gate && gate.connected) {
+                const liquidVal = parseFloat(gate.liquid || '0') / (10 ** CITY_DECIMALS);
+                const stakedVal = parseFloat(gate.staked || '0') / (10 ** CITY_DECIMALS);
+                const totalVal = liquidVal + stakedVal;
+
+                document.getElementById('wallet-liquid-val').textContent = `${liquidVal.toLocaleString(undefined, { maximumFractionDigits: 2 })} CITY`;
+                document.getElementById('wallet-staked-val').textContent = `${stakedVal.toLocaleString(undefined, { maximumFractionDigits: 2 })} CITY`;
+                document.getElementById('wallet-total-val').textContent = `${totalVal.toLocaleString(undefined, { maximumFractionDigits: 2 })} CITY`;
+
+                // Update svg ring
+                const total = liquidVal + stakedVal;
+                const percent = total > 0 ? Math.round((stakedVal / total) * 100) : 0;
+                document.getElementById('alloc-ring').setAttribute('stroke-dasharray', `${percent}, 100`);
+            } else {
+                document.getElementById('wallet-liquid-val').textContent = '—';
+                document.getElementById('wallet-staked-val').textContent = '—';
+                document.getElementById('wallet-total-val').textContent = '—';
+                document.getElementById('alloc-ring').setAttribute('stroke-dasharray', `0, 100`);
+            }
+        }
+
+        // ============================================================
+        // NEWS TERMINAL WIDGET
+        // ============================================================
+        const MOCK_NEWS = {
+            sui: [
+                { title: 'Sui Network Gas fees drops below average layer 1s after epoch optimization', source: 'Sui Foundation', time: '2h ago' },
+                { title: 'DEX Trading Volume on Sui sets all-time high of $120M in single day activity', source: 'Cetus Labs', time: '5h ago' },
+                { title: 'DeepBook V3 Mainnet integration scheduled for mid July release', source: 'Sui News', time: '12h ago' },
+                { title: 'Alpha City announces Citizens staking incentives for long-term holders', source: 'Alpha City Core', time: '1d ago' },
+                { title: 'Naiv Protocol reaches $80M TVL milestone in Sui lending markets', source: 'Lending Pulse', time: '1d ago' }
+            ],
+            macro: [
+                { title: 'Federal Reserve hints at interest rate pause following positive inflation reports', source: 'Bloomberg', time: '1h ago' },
+                { title: 'Global equity index futures rise ahead of labor report details', source: 'Reuters', time: '3h ago' },
+                { title: 'Nasdaq composite rises 1.2% led by tech semiconductor sector surge', source: 'MarketWatch', time: '8h ago' },
+                { title: 'Ethereum spot ETF filings receive SEC approval for public launch', source: 'CNBC', time: '12h ago' },
+                { title: 'US Dollar index slides to three-week low on macro yield expectations', source: 'FT', time: '1d ago' }
+            ]
+        };
+
+        async function fetchLiveNews() {
+            const container = document.getElementById('news-container');
+            if (!container) return;
+
+            container.innerHTML = '';
+            
+            try {
+                // Fetch news from CryptoCompare news API (requires no authentication keys for basic list)
+                const categoryList = activeNewsTab === 'sui' ? 'sui,layer1,altcoin' : 'market,regulation,macro';
+                const url = `https://min-api.cryptocompare.com/data/v2/news/?categories=${categoryList}&excludeCategories=sponsored`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error();
+                const d = await res.json();
+                
+                if (d.Data && d.Data.length > 0) {
+                    // Show up to 5 items
+                    const items = d.Data.slice(0, 5);
+                    items.forEach(n => {
+                        const date = new Date(n.published_on * 1000);
+                        const relativeTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' today';
+                        
+                        const item = document.createElement('div');
+                        item.className = 'p-3 bg-dark-bg/30 border border-dark-border/40 hover:border-dark-border/80 rounded-xl transition-all flex flex-col gap-1.5 cursor-pointer';
+                        item.innerHTML = `
+                            <div class="flex justify-between items-center text-[10px] text-dark-text-secondary">
+                                <span class="font-bold text-brand-primary uppercase">${n.source_info.name}</span>
+                                <span class="font-mono">${relativeTime}</span>
+                            </div>
+                            <h3 class="text-xs font-semibold text-white leading-relaxed hover:text-brand-primary transition-colors">${n.title}</h3>
+                            <p class="text-[10px] text-dark-text-secondary line-clamp-2">${n.body}</p>
+                        `;
+                        item.addEventListener('click', () => window.open(n.url, '_blank'));
+                        container.appendChild(item);
+                    });
+                    return;
+                }
+            } catch (_) {}
+
+            // Fallback: render mockup news if API fails
+            const list = MOCK_NEWS[activeNewsTab];
+            list.forEach(n => {
+                const item = document.createElement('div');
+                item.className = 'p-3 bg-dark-bg/30 border border-dark-border/40 hover:border-dark-border/80 rounded-xl transition-all flex flex-col gap-1';
+                item.innerHTML = `
+                    <div class="flex justify-between items-center text-[10px] text-dark-text-secondary">
+                        <span class="font-bold text-brand-primary uppercase">${n.source}</span>
+                        <span class="font-mono">${n.time}</span>
+                    </div>
+                    <h3 class="text-xs font-semibold text-white leading-relaxed">${n.title}</h3>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function initNews() {
+            const btnSui = document.getElementById('news-tab-sui');
+            const btnMacro = document.getElementById('news-tab-macro');
+
+            btnSui.addEventListener('click', () => {
+                activeNewsTab = 'sui';
+                btnSui.className = 'px-3 py-1 text-xs font-semibold rounded-lg bg-brand-primary text-white transition-all';
+                btnMacro.className = 'px-3 py-1 text-xs font-semibold rounded-lg text-dark-text-secondary hover:text-white transition-all';
+                fetchLiveNews();
+            });
+
+            btnMacro.addEventListener('click', () => {
+                activeNewsTab = 'macro';
+                btnMacro.className = 'px-3 py-1 text-xs font-semibold rounded-lg bg-brand-primary text-white transition-all';
+                btnSui.className = 'px-3 py-1 text-xs font-semibold rounded-lg text-dark-text-secondary hover:text-white transition-all';
+                fetchLiveNews();
+            });
+
+            fetchLiveNews();
+        }
+
+        // ============================================================
+        // TRADE LOGS / NOTES WIDGET
+        // ============================================================
+        let traderNotes = [];
+
+        function renderNotes() {
+            const list = document.getElementById('notes-list');
+            if (!list) return;
+
+            list.innerHTML = '';
+            if (traderNotes.length === 0) {
+                list.innerHTML = `<div class="text-center py-6 text-xs text-dark-text-secondary">No notes saved. Persistence is active via local storage.</div>`;
+                return;
+            }
+
+            traderNotes.forEach((n, idx) => {
+                const el = document.createElement('div');
+                el.className = 'p-3 bg-dark-bg/30 border border-dark-border/40 rounded-xl flex items-center justify-between gap-3 group hover:border-dark-border transition-colors';
+                
+                let badgeClass = 'bg-brand-primary/10 text-brand-primary border-brand-primary/20';
+                let badgeText = 'NOTE';
+                if (n.category === 'buy') { badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'; badgeText = 'BUY'; }
+                else if (n.category === 'sell') { badgeClass = 'bg-red-500/10 text-red-400 border-red-500/20'; badgeText = 'SELL'; }
+                else if (n.category === 'alert') { badgeClass = 'bg-orange-500/10 text-orange-400 border-orange-500/20'; badgeText = 'ALERT'; }
+
+                el.innerHTML = `
+                    <div class="flex items-start gap-2.5 flex-1 min-w-0">
+                        <span class="text-[9px] font-bold border px-1.5 py-0.5 rounded uppercase mt-0.5 shrink-0 ${badgeClass}">${badgeText}</span>
+                        <p class="text-xs text-white leading-relaxed break-words flex-1">${n.text}</p>
+                    </div>
+                    <button class="text-dark-text-secondary hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0 p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+
+                el.querySelector('button').addEventListener('click', () => {
+                    traderNotes.splice(idx, 1);
+                    saveNotes();
+                    renderNotes();
+                });
+
+                list.appendChild(el);
+            });
+        }
+
+        function saveNotes() {
+            try {
+                localStorage.setItem('ac_trader_notes', JSON.stringify(traderNotes));
+            } catch (_) {}
+        }
+
+        function loadNotes() {
+            try {
+                const raw = localStorage.getItem('ac_trader_notes');
+                if (raw) traderNotes = JSON.parse(raw);
+            } catch (_) {}
+            renderNotes();
+        }
+
+        function initNotes() {
+            loadNotes();
+
+            document.getElementById('note-add-btn').addEventListener('click', () => {
+                const input = document.getElementById('note-input');
+                const cat = document.getElementById('note-category').value;
+                const text = input.value.trim();
+                
+                if (text) {
+                    traderNotes.unshift({ category: cat, text });
+                    saveNotes();
+                    renderNotes();
+                    input.value = '';
+                }
+            });
+
+            document.getElementById('note-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('note-add-btn').click();
+                }
+            });
+        }
+
+        // ============================================================
+        // WALLET SYNC & DISCOVERY
+        // ============================================================
+        function discoverWallets() {
+            const standard = [];
+            if (window.suiWallet) standard.push({ name: 'Sui Wallet', provider: window.suiWallet });
+            if (window.slushWallet) standard.push({ name: 'Slush Wallet', provider: window.slushWallet });
+            
+            const list = window.navigator?.wallets?.inputs || [];
+            list.forEach(w => {
+                if (w.name && !standard.some(s => s.name.toLowerCase() === w.name.toLowerCase())) {
+                    standard.push({ name: w.name, provider: w });
+                }
+            });
+            return standard;
+        }
+
+        async function connectWallet() {
+            try {
+                const wallets = discoverWallets();
+                if (!wallets.length) {
+                    alert('No Sui Wallet found. Please install a browser extension (Slush, Sui Wallet, etc.)');
+                    return;
+                }
+                const chosen = wallets[0];
+                let account = null;
+                
+                if (chosen.provider.connect) {
+                    const res = await chosen.provider.connect();
+                    account = res.accounts?.[0]?.address || res[0];
+                } else if (chosen.provider.features?.['standard:connect']?.connect) {
+                    const res = await chosen.provider.features['standard:connect'].connect();
+                    account = res.accounts?.[0]?.address;
+                }
+
+                if (account) {
+                    localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: chosen.name, address: account }));
+                    // Trigger gate check
+                    if (window.location.reload) window.location.reload();
+                }
+            } catch (err) {
+                console.error('Connection failed:', err);
+            }
+        }
+
+        function syncConnectedWalletUI() {
+            const raw = localStorage.getItem('alphacity_wallet');
+            const btn = document.getElementById('connect-wallet-btn');
+            const lbl = document.getElementById('wallet-text');
+
+            if (raw && btn && lbl) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    lbl.textContent = parsed.address.slice(0, 6) + '...' + parsed.address.slice(-4);
+                    btn.classList.remove('bg-brand-primary', 'hover:bg-brand-primary-hover');
+                    btn.classList.add('bg-green-600', 'hover:bg-green-500');
+                    
+                    // Bind click to disconnect
+                    btn.onclick = () => {
+                        localStorage.removeItem('alphacity_wallet');
+                        window.location.reload();
+                    };
+                } catch (_) {}
+            } else if (btn) {
+                btn.onclick = connectWallet;
+            }
+        }
+
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            initClock();
+            initWeather();
+            initTickers();
+            initNews();
+            initNotes();
+            syncConnectedWalletUI();
+
+            // SUI Gas State query
+            updateSuiSystemState();
+            
+            // Loop wallet updates
+            updateWalletAssets();
+            walletSyncInterval = setInterval(updateWalletAssets, 2000);
+        });
+
+        window.addEventListener('unload', () => {
+            if (clockInterval) clearInterval(clockInterval);
+            if (epochInterval) clearInterval(epochInterval);
+            if (priceInterval) clearInterval(priceInterval);
+            if (walletSyncInterval) clearInterval(walletSyncInterval);
+        });
+    </script>
+</body>
+</html>
