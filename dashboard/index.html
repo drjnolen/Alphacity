@@ -860,28 +860,85 @@
             ]
         };
 
+        function formatRelativeTime(date) {
+            const diffMs = Date.now() - date.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `${diffHours}h ago`;
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+
+        function renderFallbackNews() {
+            const container = document.getElementById('news-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const list = MOCK_NEWS[activeNewsTab];
+            list.forEach(n => {
+                const item = document.createElement('a');
+                item.href = n.url;
+                item.target = '_blank';
+                item.className = 'block p-3 bg-dark-bg/30 border border-dark-border/40 hover:border-brand-primary/80 rounded-xl transition-all flex flex-col gap-1 group';
+                item.innerHTML = `
+                    <div class="flex justify-between items-center text-[10px] text-dark-text-secondary">
+                        <span class="font-bold text-brand-primary uppercase">${n.source}</span>
+                        <span class="font-mono">${n.time}</span>
+                    </div>
+                    <h3 class="text-xs font-semibold text-white leading-relaxed group-hover:text-brand-primary transition-colors">${n.title}</h3>
+                `;
+                container.appendChild(item);
+            });
+        }
+
         async function fetchLiveNews() {
             const container = document.getElementById('news-container');
             if (!container) return;
 
-            container.innerHTML = '';
+            container.innerHTML = '<div class="text-center py-12 text-sm text-dark-text-secondary">Loading market updates...</div>';
             
             try {
-                let categoryList = '';
-                if (activeNewsTab === 'sui') categoryList = 'sui,layer1,altcoin';
-                else if (activeNewsTab === 'crypto') categoryList = 'btc,eth,altcoin,blockchain';
-                else if (activeNewsTab === 'macro') categoryList = 'market,regulation,macro';
-
-                const url = `https://min-api.cryptocompare.com/data/v2/news/?categories=${categoryList}&excludeCategories=sponsored`;
+                // Fetch latest general news stream (highly reliable keyless endpoint)
+                const url = 'https://min-api.cryptocompare.com/data/v2/news/?lang=EN';
                 const res = await fetch(url);
                 if (!res.ok) throw new Error();
                 const d = await res.json();
                 
                 if (d.Data && d.Data.length > 0) {
-                    const items = d.Data.slice(0, 5);
-                    items.forEach(n => {
+                    let items = d.Data;
+                    
+                    if (activeNewsTab === 'sui') {
+                        // Filter for articles mentioning Sui, Cetus, NAVI, or Layer-1 networks
+                        items = d.Data.filter(n => {
+                            const txt = (n.title + ' ' + n.body + ' ' + n.categories).toLowerCase();
+                            return txt.includes('sui') || txt.includes('layer-1') || txt.includes('layer1') || txt.includes('cetus') || txt.includes('navi') || txt.includes('deepbook');
+                        });
+                        // Fallback: if no specific Sui/L1 articles are currently in the 50 items feed, show top altcoin/L1 news
+                        if (items.length === 0) {
+                            items = d.Data.filter(n => {
+                                const txt = (n.categories || '').toLowerCase();
+                                return txt.includes('altcoin') || txt.includes('sol') || txt.includes('eth');
+                            });
+                        }
+                    } else if (activeNewsTab === 'macro') {
+                        // Filter for macro finance, interest rates, SEC, regulations, and economy
+                        items = d.Data.filter(n => {
+                            const txt = (n.categories || n.title + ' ' + n.body).toLowerCase();
+                            return txt.includes('regulation') || txt.includes('sec') || txt.includes('macro') || txt.includes('fed') || txt.includes('etf') || txt.includes('market') || txt.includes('economy');
+                        });
+                    }
+                    
+                    // Fallback to general list if filtered list is empty
+                    if (items.length === 0) {
+                        items = d.Data;
+                    }
+                    
+                    const displayItems = items.slice(0, 6);
+                    container.innerHTML = '';
+                    displayItems.forEach(n => {
                         const date = new Date(n.published_on * 1000);
-                        const relativeTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' today';
+                        const relativeTime = formatRelativeTime(date);
                         
                         const item = document.createElement('a');
                         item.href = n.url;
@@ -899,24 +956,12 @@
                     });
                     return;
                 }
-            } catch (_) {}
-
-            // Fallback news
-            const list = MOCK_NEWS[activeNewsTab];
-            list.forEach(n => {
-                const item = document.createElement('a');
-                item.href = n.url || 'https://sui.io';
-                item.target = '_blank';
-                item.className = 'block p-3 bg-dark-bg/30 border border-dark-border/40 hover:border-brand-primary/80 rounded-xl transition-all flex flex-col gap-1 group';
-                item.innerHTML = `
-                    <div class="flex justify-between items-center text-[10px] text-dark-text-secondary">
-                        <span class="font-bold text-brand-primary uppercase">${n.source}</span>
-                        <span class="font-mono">${n.time}</span>
-                    </div>
-                    <h3 class="text-xs font-semibold text-white leading-relaxed group-hover:text-brand-primary transition-colors">${n.title}</h3>
-                `;
-                container.appendChild(item);
-            });
+            } catch (err) {
+                console.error('[news] fetch error:', err);
+            }
+            
+            // Offline/API failure fallback
+            renderFallbackNews();
         }
 
         function initNews() {
