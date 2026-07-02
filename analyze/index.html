@@ -233,6 +233,13 @@
                 <div class="flex items-center gap-4">
                     <a href="/" class="hidden md:block text-dark-text-secondary hover:text-white transition-colors">Back to Home</a>
                     <a href="/tools/" class="text-dark-text-secondary hover:text-white transition-colors text-sm font-semibold text-brand-primary">Tools Portal</a>
+                    <!-- Settings Button -->
+                    <button id="ai-settings-btn" class="text-dark-text-secondary hover:text-white p-2 rounded-lg transition-colors border border-gray-800 bg-dark-card" title="AI Analyzer Settings">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
                     <button id="connect-wallet-btn"
                         class="bg-brand-primary text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -469,10 +476,16 @@
                     <div class="text-4xl mb-4">⚠️</div>
                     <p class="text-white font-semibold mb-2">Analysis Failed</p>
                     <p class="text-dark-text-secondary text-sm mb-5" id="ai-error-msg">An unexpected error occurred.</p>
-                    <button id="error-retry-btn"
-                        class="px-6 py-2 bg-dark-card border border-gray-700 text-white rounded-lg text-sm hover:border-brand-primary transition-colors">
-                        Try Again
-                    </button>
+                    <div class="flex justify-center gap-3">
+                        <button id="error-retry-btn"
+                            class="px-6 py-2 bg-dark-card border border-gray-700 text-white rounded-lg text-sm hover:border-brand-primary transition-colors">
+                            Try Again
+                        </button>
+                        <button id="error-settings-btn"
+                            class="px-6 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold rounded-lg text-sm transition-colors shadow-lg shadow-blue-500/20">
+                            Configure API
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -681,7 +694,108 @@
     // Detect if the placeholder was never replaced (e.g. running from source without
     // going through the deploy workflow, or the OPENAI proxy was not configured).
     const PROXY_PLACEHOLDER = '__OPENAI_PROXY' + '_URL__';
-    const isAiConfigured = OPENAI_PROXY_URL !== PROXY_PLACEHOLDER && OPENAI_PROXY_URL.length > 0;
+    function getCustomApiKey() {
+        try {
+            return (window.localStorage.getItem('ac_custom_api_key') || '').trim();
+        } catch (err) {
+            console.warn('localStorage access failed in getCustomApiKey:', err);
+            return '';
+        }
+    }
+
+    function getCustomProxyUrl() {
+        try {
+            return (window.localStorage.getItem('ac_custom_proxy_url') || '').trim();
+        } catch (err) {
+            console.warn('localStorage access failed in getCustomProxyUrl:', err);
+            return '';
+        }
+    }
+
+    function checkAiConfigured() {
+        const hasProxy = OPENAI_PROXY_URL !== PROXY_PLACEHOLDER && OPENAI_PROXY_URL.length > 0;
+        return hasProxy || getCustomApiKey().length > 0 || getCustomProxyUrl().length > 0;
+    }
+
+    function openSettingsModal() {
+        const overlay = makeOverlay();
+        const currentKey = escHtml(getCustomApiKey());
+        const currentProxy = escHtml(getCustomProxyUrl());
+        overlay.innerHTML = `
+            <div class="bg-dark-card border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl relative text-left">
+                <h3 class="text-white font-bold text-lg mb-2">AI Analyzer Settings</h3>
+                <p class="text-xs text-dark-text-secondary mb-4 leading-relaxed">
+                    If the default AI service proxy is not configured or deployed, you can supply your own OpenAI API Key or a custom Proxy URL. These settings are stored locally in your browser.
+                </p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">OpenAI API Key</label>
+                        <p class="text-[10px] text-dark-text-secondary mb-1">Stored locally in your browser</p>
+                        <input id="_settings_api_key" type="password" placeholder="sk-..." class="watchlist-input" value="${currentKey}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Custom Proxy URL</label>
+                        <p class="text-[10px] text-dark-text-secondary mb-1">Stored locally in your browser</p>
+                        <input id="_settings_proxy_url" type="text" placeholder="https://..." class="watchlist-input" value="${currentProxy}">
+                    </div>
+                </div>
+                <p class="text-[10px] text-red-400 mt-3 leading-relaxed">
+                    ⚠️ <strong>Security Warning:</strong> API keys stored in local browser storage can be exposed if the site has any cross-site scripting (XSS) vulnerabilities. We recommend using scoped, environment-specific API keys with strict usage limits rather than your main production keys.
+                </p>
+                <div id="_settings_error" class="hidden text-red-400 text-xs mt-3 text-center"></div>
+                <div class="mt-6 flex justify-end gap-3 text-sm">
+                    <button id="_settings_cancel" class="px-4 py-2 border border-gray-700 text-dark-text-secondary hover:text-white rounded-lg transition-colors">Cancel</button>
+                    <button id="_settings_save" class="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold rounded-lg transition-colors shadow-lg shadow-blue-500/20">Save</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        document.getElementById('_settings_cancel').addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+
+        document.getElementById('_settings_save').addEventListener('click', () => {
+            const key = document.getElementById('_settings_api_key').value.trim();
+            const proxy = document.getElementById('_settings_proxy_url').value.trim();
+            
+            try {
+                if (key) {
+                    window.localStorage.setItem('ac_custom_api_key', key);
+                } else {
+                    window.localStorage.removeItem('ac_custom_api_key');
+                }
+
+                if (proxy) {
+                    window.localStorage.setItem('ac_custom_proxy_url', proxy);
+                } else {
+                    window.localStorage.removeItem('ac_custom_proxy_url');
+                }
+            } catch (err) {
+                const errMsg = err?.message ?? 'Unable to save to browser storage';
+                const errDiv = document.getElementById('_settings_error');
+                if (errDiv) {
+                    errDiv.textContent = 'Failed to save settings: ' + errMsg + '. Please ensure localStorage is enabled.';
+                    errDiv.classList.remove('hidden');
+                } else {
+                    console.error('Failed to save settings:', err);
+                }
+                return;
+            }
+
+            document.body.removeChild(overlay);
+            
+            // Re-evaluate if AI is configured and refresh buttons
+            if (checkAiConfigured()) {
+                hide('ai-error');
+                if (connectedAddress) {
+                    updateAccessState();
+                } else {
+                    show('ai-idle');
+                    hide('ai-locked');
+                }
+            }
+        });
+    }
 
     // =========================================================
     // APPLICATION STATE
@@ -1327,6 +1441,8 @@
     document.getElementById('analyze-btn').addEventListener('click', runAnalysis);
     document.getElementById('reanalyze-btn').addEventListener('click', runAnalysis);
     document.getElementById('error-retry-btn').addEventListener('click', runAnalysis);
+    document.getElementById('error-settings-btn').addEventListener('click', openSettingsModal);
+    document.getElementById('ai-settings-btn').addEventListener('click', openSettingsModal);
 
     async function runAnalysis() {
         if (!connectedAddress) return;
@@ -1334,7 +1450,7 @@
             updateAccessState();
             return;
         }
-        if (!isAiConfigured) {
+        if (!checkAiConfigured()) {
             showError('The AI service proxy is not configured. Please contact the administrator.');
             return;
         }
@@ -1426,11 +1542,35 @@ Return ONLY a valid JSON object with two string keys:
   "yield": "<markdown: 4-6 specific yield strategies tailored to these holdings — include protocol, strategy, estimated APY, risk level (Low/Medium/High), and one action item each. Always mention Alpha City $CITY staking if they hold SUI or CITY. Include native SUI staking as a baseline.>"
 }`;
 
-        const resp = await fetch(OPENAI_PROXY_URL, {
+        let targetUrl = '';
+        let authHeader = '';
+        const customProxy = getCustomProxyUrl();
+        const customKey = getCustomApiKey();
+
+        if (customProxy) {
+            targetUrl = customProxy;
+            if (customKey) {
+                authHeader = 'Bearer ' + customKey;
+            }
+        } else if (customKey) {
+            targetUrl = 'https://api.openai.com/v1/chat/completions';
+            authHeader = 'Bearer ' + customKey;
+        } else if (OPENAI_PROXY_URL !== PROXY_PLACEHOLDER && OPENAI_PROXY_URL.length > 0) {
+            targetUrl = OPENAI_PROXY_URL;
+        } else {
+            throw new Error('AI service not configured. Please configure API credentials in AI Analyzer Settings.');
+        }
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (authHeader) {
+            headers['Authorization'] = authHeader;
+        }
+
+        const resp = await fetch(targetUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: headers,
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
