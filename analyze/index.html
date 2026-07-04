@@ -403,6 +403,48 @@
                     </div>
                 </div>
 
+                <!-- X Ecosystem Tracker -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span class="text-brand-primary">⚡</span> X Ecosystem Tracker
+                        </h3>
+                        <button id="x-feed-refresh" class="text-[10px] text-dark-text-secondary hover:text-white transition-colors cursor-pointer" title="Refresh tweets">
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4" id="x-feed-container">
+                        <!-- Tweet 1: SuiNetwork -->
+                        <div class="p-3.5 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-sui">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-bold text-white">Sui Network</span>
+                                    <span class="text-[10px] text-gray-500">@SuiNetwork</span>
+                                </div>
+                                <span class="text-[9px] text-gray-500 font-mono" id="tweet-sui-time">-</span>
+                            </div>
+                            <div class="text-xs text-dark-text-secondary leading-relaxed break-words ai-response" id="tweet-sui-body">
+                                Loading latest tweet...
+                            </div>
+                        </div>
+
+                        <!-- Tweet 2: DeepBookonSui -->
+                        <div class="p-3.5 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-deepbook">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-bold text-white">DeepBook</span>
+                                    <span class="text-[10px] text-gray-500">@DeepBookonSui</span>
+                                </div>
+                                <span class="text-[9px] text-gray-500 font-mono" id="tweet-deep-time">-</span>
+                            </div>
+                            <div class="text-xs text-dark-text-secondary leading-relaxed break-words ai-response" id="tweet-deep-body">
+                                Loading latest tweet...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- ===== RIGHT COLUMN: AI Copilot & Habit Tracker ===== -->
@@ -2700,6 +2742,85 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
+    // X (TWITTER) ECOSYSTEM TRACKER
+    // =========================================================
+    const NITTER_INSTANCES = [
+        'https://nitter.net',
+        'https://nitter.cz',
+        'https://nitter.privacydev.net'
+    ];
+
+    async function fetchNitterFeed(username) {
+        for (const instance of NITTER_INSTANCES) {
+            try {
+                const feedUrl = `${instance}/${username}/rss`;
+                const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
+                const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+                if (!resp.ok) continue;
+                const data = await resp.json();
+                if (data.status === 'ok' && data.items && data.items.length > 0) {
+                    return data.items[0];
+                }
+            } catch (_) {}
+        }
+        throw new Error(`Failed to fetch feed for @${username}`);
+    }
+
+    function cleanNitterHtml(html) {
+        if (!html) return '';
+        let clean = html.replace(/https:\/\/nitter\.net/g, 'https://x.com');
+        clean = clean.replace(/<blockquote>/g, '<blockquote class="border-l-2 border-gray-700 pl-3 my-2 text-dark-text-secondary italic">');
+        clean = clean.replace(/<hr>/g, '');
+        return clean;
+    }
+
+    async function loadXFeed() {
+        const suiBody = document.getElementById('tweet-sui-body');
+        const suiTime = document.getElementById('tweet-sui-time');
+        const deepBody = document.getElementById('tweet-deep-body');
+        const deepTime = document.getElementById('tweet-deep-time');
+
+        if (suiBody) suiBody.innerHTML = '<p class="text-gray-500 animate-pulse">Loading latest tweet...</p>';
+        if (deepBody) deepBody.innerHTML = '<p class="text-gray-500 animate-pulse">Loading latest tweet...</p>';
+
+        try {
+            const tweet = await fetchNitterFeed('SuiNetwork');
+            if (suiBody && suiTime) {
+                suiBody.innerHTML = cleanNitterHtml(tweet.description || tweet.title);
+                let ts = Date.now();
+                if (tweet.pubDate) {
+                    try { ts = new Date(tweet.pubDate.replace(' ', 'T')).getTime(); } catch(_) {}
+                }
+                suiTime.innerHTML = `<a href="${escHtml(tweet.link.replace(/https:\/\/nitter\.net/g, 'https://x.com'))}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
+            }
+        } catch (err) {
+            console.error(err);
+            if (suiBody) suiBody.innerHTML = '<span class="text-red-400">Failed to load tweet.</span>';
+        }
+
+        try {
+            const tweet = await fetchNitterFeed('DeepBookonSui');
+            if (deepBody && deepTime) {
+                deepBody.innerHTML = cleanNitterHtml(tweet.description || tweet.title);
+                let ts = Date.now();
+                if (tweet.pubDate) {
+                    try { ts = new Date(tweet.pubDate.replace(' ', 'T')).getTime(); } catch(_) {}
+                }
+                deepTime.innerHTML = `<a href="${escHtml(tweet.link.replace(/https:\/\/nitter\.net/g, 'https://x.com'))}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
+            }
+        } catch (err) {
+            console.error(err);
+            if (deepBody) deepBody.innerHTML = '<span class="text-red-400">Failed to load tweet.</span>';
+        }
+    }
+
+    function initXFeed() {
+        loadXFeed();
+        const refreshBtn = document.getElementById('x-feed-refresh');
+        if (refreshBtn) refreshBtn.addEventListener('click', loadXFeed);
+    }
+
+    // =========================================================
     // INIT
     // =========================================================
     initWalletStandard();
@@ -2708,6 +2829,7 @@ Return ONLY a valid JSON object with two string keys:
     initNotes();
     initNewsTerminal();
     initHabitTracker();
+    initXFeed();
 
     // Launch the intelligence dashboard (non-blocking — doesn't delay wallet reconnect)
     initIntelDashboard();
