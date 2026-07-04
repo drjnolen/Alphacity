@@ -292,11 +292,11 @@
             </div>
         </div>
 
-        <!-- Two-column layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Three-column layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-            <!-- ===== LEFT COLUMN: Portfolio data ===== -->
-            <div class="lg:col-span-1 space-y-5">
+            <!-- ===== LEFT COLUMN: Portfolio & Notes ===== -->
+            <div class="lg:col-span-3 space-y-6">
 
                 <!-- Connect prompt (shown before wallet connect) -->
                 <div id="connect-prompt" class="glass-panel p-8 rounded-xl text-center">
@@ -309,7 +309,7 @@
                 </div>
 
                 <!-- Portfolio summary (shown after wallet connect) -->
-                <div id="portfolio-panel" class="hidden space-y-5">
+                <div id="portfolio-panel" class="hidden space-y-6">
 
                     <!-- Wallet card -->
                     <div class="glass-panel p-5 rounded-xl">
@@ -324,7 +324,7 @@
                         </div>
                     </div>
 
-                    <!-- Token Balances -->
+                    <!-- Token Balances (shrunk to 5 coins height, scrollable) -->
                     <div class="glass-panel p-5 rounded-xl">
                         <div class="flex items-center justify-between mb-3">
                             <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider">Token Holdings</h3>
@@ -335,7 +335,7 @@
                                 </svg>
                             </span>
                         </div>
-                        <div id="token-list" class="space-y-1 overflow-y-auto" style="max-height:420px">
+                        <div id="token-list" class="space-y-1 overflow-y-auto" style="height: 180px;">
                             <p class="text-xs text-gray-600">Loading...</p>
                         </div>
                     </div>
@@ -356,41 +356,102 @@
 
                 </div>
 
+                <!-- Notes Widget -->
+                <div class="glass-panel p-5 rounded-xl space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>📝</span> Notes Terminal
+                        </h3>
+                        <span id="notes-save-status" class="text-[9px] text-gray-600 uppercase tracking-wider">Saved</span>
+                    </div>
+                    <textarea id="notes-textarea" class="watchlist-input text-xs font-sans h-36 resize-none" placeholder="Type notes here... State is saved automatically."></textarea>
+                </div>
+
             </div>
 
-            <!-- ===== RIGHT COLUMN: AI Results ===== -->
-            <div class="lg:col-span-2 space-y-6">
+            <!-- ===== MIDDLE COLUMN: Clock/Weather & News ===== -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- Time & Weather Widget -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span id="weather-location" class="text-white font-bold text-sm">Detecting location...</span>
+                            <span id="local-clock" class="text-2xl font-bold text-brand-secondary font-mono">00:00:00</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-right">
+                            <div id="weather-temp-icon" class="text-3xl" style="line-height: 1">☀️</div>
+                            <div class="flex flex-col">
+                                <span id="weather-temp" class="text-xl font-bold text-white">--°C</span>
+                                <span class="text-[10px] text-dark-text-secondary" id="weather-high-low">H: --° L: --°</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-gray-800/80 flex justify-between items-center text-xs">
+                        <span class="text-dark-text-secondary">Air Quality Index (AQI)</span>
+                        <span id="weather-aqi" class="mini-badge bg-green-500/20 text-green-400 border border-green-500/30">Loading...</span>
+                    </div>
+                    <div class="pt-3 border-t border-gray-800/80">
+                        <h4 class="text-[10px] font-semibold uppercase tracking-wider text-dark-text-secondary mb-2">7-Day Forecast</h4>
+                        <div id="weather-forecast" class="grid grid-cols-7 gap-1.5 text-center">
+                            <!-- Generated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- News Terminal -->
+                <div class="glass-panel p-5 rounded-xl flex flex-col space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>📰</span> News Terminal
+                        </h3>
+                        <span id="news-status" class="text-[10px] text-gray-500 font-mono">Loading...</span>
+                    </div>
+                    <div class="flex gap-1.5 overflow-x-auto pb-1 border-b border-gray-800/60">
+                        <button class="news-tab-btn active px-2.5 py-1.5 rounded text-[10px] font-semibold bg-brand-primary/10 border border-brand-primary/20 text-brand-primary cursor-pointer whitespace-nowrap" data-category="sui">SUI Network</button>
+                        <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="crypto">Crypto News</button>
+                        <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="macro">Financial Macro</button>
+                        <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="good">Good News</button>
+                    </div>
+                    <div id="news-content" class="space-y-3 overflow-y-auto pr-1" style="height: 320px;">
+                        <p class="text-xs text-gray-600 py-8 text-center font-medium">Loading news feed...</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ===== RIGHT COLUMN: AI Copilot & Habit Tracker ===== -->
+            <div class="lg:col-span-4 space-y-6">
 
                 <!-- Default / idle state -->
-                <div id="ai-idle" class="glass-panel p-10 rounded-xl text-center">
-                    <div class="w-16 h-16 rounded-full bg-brand-secondary/10 border border-brand-secondary/20 flex items-center justify-center mx-auto mb-5">
-                        <svg class="w-8 h-8 text-brand-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div id="ai-idle" class="glass-panel p-6 rounded-xl text-center">
+                    <div class="w-12 h-12 rounded-full bg-brand-secondary/10 border border-brand-secondary/20 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-brand-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                     </div>
-                    <h2 class="text-xl font-bold text-white mb-3">Ready for Alpha</h2>
-                    <p class="text-dark-text-secondary max-w-sm mx-auto text-sm leading-relaxed">
-                        Connect your wallet, then click
-                        <strong class="text-white">Analyze Portfolio</strong> for a full AI-powered breakdown.
+                    <h2 class="text-base font-bold text-white mb-2">Ready for Alpha</h2>
+                    <p class="text-dark-text-secondary max-w-sm mx-auto text-xs leading-relaxed">
+                        Connect your wallet, then click <strong class="text-white">Analyze Portfolio</strong> for a full AI breakdown.
                     </p>
-                    <div class="mt-6 grid grid-cols-3 gap-3 text-xs text-dark-text-secondary">
-                        <div class="bg-dark-bg rounded-lg p-3 border border-gray-800">
-                            <div class="text-brand-secondary font-bold text-base mb-1">📊</div>
+                    <div class="mt-4 grid grid-cols-3 gap-2 text-[10px] text-dark-text-secondary">
+                        <div class="bg-dark-bg/60 rounded-lg p-2 border border-gray-800/80">
+                            <div class="text-brand-secondary font-bold text-sm mb-0.5">📊</div>
                             Portfolio Breakdown
                         </div>
-                        <div class="bg-dark-bg rounded-lg p-3 border border-gray-800">
-                            <div class="text-brand-secondary font-bold text-base mb-1">💰</div>
+                        <div class="bg-dark-bg/60 rounded-lg p-2 border border-gray-800/80">
+                            <div class="text-brand-secondary font-bold text-sm mb-0.5">💰</div>
                             Yield Suggestions
                         </div>
-                        <div class="bg-dark-bg rounded-lg p-3 border border-gray-800">
-                            <div class="text-brand-secondary font-bold text-base mb-1">⚡</div>
+                        <div class="bg-dark-bg/60 rounded-lg p-2 border border-gray-800/80">
+                            <div class="text-brand-secondary font-bold text-sm mb-0.5">⚡</div>
                             Risk Analysis
                         </div>
                     </div>
                     <!-- Analyze Button -->
                     <button id="analyze-btn" disabled
-                        class="mt-6 w-full py-4 bg-gray-700 text-gray-400 font-bold text-base rounded-xl cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="mt-4 w-full py-3 bg-gray-700 text-gray-400 font-bold text-sm rounded-xl cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.344.346a3.5 3.5 0 00-1.028 2.471v.144a2 2 0 01-2 2h-1a2 2 0 01-2-2v-.144c0-.928-.372-1.816-1.028-2.47l-.344-.346z"/>
                         </svg>
                         Analyze Portfolio
@@ -398,81 +459,117 @@
                 </div>
 
                 <!-- Access required / locked state -->
-                <div id="ai-locked" class="hidden glass-panel p-10 rounded-xl text-center">
-                    <div class="text-4xl mb-5">🔒</div>
-                    <h2 class="text-xl font-bold text-white mb-3">Members Only</h2>
-                    <p class="text-dark-text-secondary max-w-sm mx-auto text-sm leading-relaxed mb-6">
-                        Portfolio Analyzer requires <strong class="text-brand-secondary">1,000,000 $CITY</strong>
-                        in your wallet or staked to unlock AI-powered portfolio analysis.
+                <div id="ai-locked" class="hidden glass-panel p-6 rounded-xl text-center">
+                    <div class="text-3xl mb-4">🔒</div>
+                    <h2 class="text-base font-bold text-white mb-2">Members Only</h2>
+                    <p class="text-dark-text-secondary max-w-sm mx-auto text-xs leading-relaxed mb-4">
+                        Portfolio Analyzer requires <strong class="text-brand-secondary">1,000,000 $CITY</strong> in your wallet or staked to unlock AI-powered portfolio analysis.
                     </p>
-                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <div class="flex flex-col sm:flex-row gap-2 justify-center">
                         <a href="https://app.cetus.zone/swap?from=0x2::sui::SUI&to=0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY"
                             target="_blank" rel="noopener noreferrer"
-                            class="px-5 py-2 bg-brand-secondary text-dark-bg font-semibold rounded-lg text-sm hover:bg-brand-secondary-hover transition-colors">
+                            class="px-4 py-1.5 bg-brand-secondary text-dark-bg font-semibold rounded-lg text-xs hover:bg-brand-secondary-hover transition-colors">
                             Buy $CITY
                         </a>
                         <a href="/staking/"
-                            class="px-5 py-2 bg-dark-card border border-gray-700 text-white rounded-lg text-sm hover:border-brand-primary transition-colors">
+                            class="px-4 py-1.5 bg-dark-card border border-gray-700 text-white rounded-lg text-xs hover:border-brand-primary transition-colors">
                             Stake $CITY
                         </a>
                     </div>
                 </div>
 
                 <!-- Thinking / loading state -->
-                <div id="ai-thinking" class="hidden glass-panel p-10 rounded-xl text-center">
-                    <div class="flex justify-center gap-3 mb-6">
-                        <span class="thinking-dot"></span>
-                        <span class="thinking-dot"></span>
-                        <span class="thinking-dot"></span>
+                <div id="ai-thinking" class="hidden glass-panel p-6 rounded-xl text-center">
+                    <div class="flex justify-center gap-2 mb-4">
+                        <span class="thinking-dot text-sm"></span>
+                        <span class="thinking-dot text-sm"></span>
+                        <span class="thinking-dot text-sm"></span>
                     </div>
-                    <p class="text-white font-semibold text-lg mb-2">Analyzing your portfolio&hellip;</p>
-                    <p class="text-dark-text-secondary text-sm" id="thinking-status">Fetching on-chain data</p>
+                    <p class="text-white font-semibold text-base mb-1">Analyzing your portfolio&hellip;</p>
+                    <p class="text-dark-text-secondary text-xs" id="thinking-status">Fetching on-chain data</p>
                 </div>
 
                 <!-- AI Results -->
                 <div id="ai-results" class="hidden space-y-6">
 
                     <!-- Portfolio Analysis -->
-                    <div class="glass-panel p-6 rounded-xl">
-                        <div class="flex items-center justify-between mb-5">
-                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                                <svg class="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="glass-panel p-5 rounded-xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                                <svg class="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                                 </svg>
                                 Portfolio Analysis
                             </h2>
-                            <span class="text-xs text-dark-text-secondary bg-dark-bg px-2 py-1 rounded border border-gray-800" id="analysis-timestamp">—</span>
+                            <span class="text-[10px] text-dark-text-secondary bg-dark-bg px-2 py-0.5 rounded border border-gray-800" id="analysis-timestamp">—</span>
                         </div>
-                        <div id="ai-analysis-content" class="ai-response text-sm"></div>
+                        <div id="ai-analysis-content" class="ai-response text-xs"></div>
                     </div>
 
                     <!-- Yield Opportunities -->
-                    <div class="glass-panel p-6 rounded-xl">
-                        <h2 class="text-lg font-bold text-white mb-5 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="glass-panel p-5 rounded-xl">
+                        <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                             </svg>
                             Yield Opportunities
                         </h2>
-                        <div id="ai-yield-content" class="ai-response text-sm"></div>
+                        <div id="ai-yield-content" class="ai-response text-xs"></div>
                     </div>
 
                     <!-- Re-analyze -->
                     <button id="reanalyze-btn"
-                        class="w-full py-3 border border-brand-primary/40 text-brand-primary rounded-xl font-medium hover:bg-brand-primary/10 transition-all text-sm">
+                        class="w-full py-2.5 border border-brand-primary/40 text-brand-primary rounded-xl font-medium hover:bg-brand-primary/10 transition-all text-xs">
                         ↻ Re-analyze
                     </button>
                 </div>
 
                 <!-- Error state -->
-                <div id="ai-error" class="hidden glass-panel p-10 rounded-xl text-center">
-                    <div class="text-4xl mb-4">⚠️</div>
-                    <p class="text-white font-semibold mb-2">Analysis Failed</p>
-                    <p class="text-dark-text-secondary text-sm mb-5" id="ai-error-msg">An unexpected error occurred.</p>
+                <div id="ai-error" class="hidden glass-panel p-6 rounded-xl text-center">
+                    <div class="text-3xl mb-3">⚠️</div>
+                    <p class="text-white font-semibold mb-1">Analysis Failed</p>
+                    <p class="text-dark-text-secondary text-xs mb-4" id="ai-error-msg">An unexpected error occurred.</p>
                     <button id="error-retry-btn"
-                        class="px-6 py-2 bg-dark-card border border-gray-700 text-white rounded-lg text-sm hover:border-brand-primary transition-colors">
+                        class="px-5 py-1.5 bg-dark-card border border-gray-700 text-white rounded-lg text-xs hover:border-brand-primary transition-colors">
                         Try Again
                     </button>
+                </div>
+
+                <!-- Habit Tracker Widget -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>✅</span> Habit Tracker
+                        </h3>
+                        <span id="habit-progress-badge" class="bg-brand-primary/10 text-brand-primary text-[10px] px-2 py-0.5 rounded border border-brand-primary/20 font-bold font-mono">
+                            0% completed today
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <!-- Days header -->
+                        <div class="grid grid-cols-12 gap-1 text-[10px] text-gray-500 font-semibold uppercase text-center items-center">
+                            <div class="col-span-5 text-left">Habits</div>
+                            <div class="col-span-1" id="habit-day-0">-</div>
+                            <div class="col-span-1" id="habit-day-1">-</div>
+                            <div class="col-span-1" id="habit-day-2">-</div>
+                            <div class="col-span-1" id="habit-day-3">-</div>
+                            <div class="col-span-1" id="habit-day-4">-</div>
+                            <div class="col-span-1" id="habit-day-5">-</div>
+                            <div class="col-span-1" id="habit-day-6">-</div>
+                        </div>
+                        
+                        <!-- Rows container -->
+                        <div id="habit-rows-container" class="space-y-2"></div>
+                    </div>
+                    
+                    <!-- Add habit form -->
+                    <div class="flex gap-2 pt-3 border-t border-gray-800/80">
+                        <input type="text" id="habit-new-input" class="watchlist-input text-xs" placeholder="New habit..." maxlength="25" autocomplete="off">
+                        <button id="habit-add-btn" class="px-3 py-1 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-xs font-semibold transition-colors whitespace-nowrap">
+                            Add
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -2146,9 +2243,518 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
+    // LOCAL CLOCK & WEATHER WIDGET
+    // =========================================================
+    const FALLBACK_WEATHER = {
+        name: "New York, NY",
+        lat: 40.7128,
+        lon: -74.0060
+    };
+
+    function initClock() {
+        function updateTime() {
+            const clockEl = document.getElementById('local-clock');
+            if (!clockEl) return;
+            const now = new Date();
+            clockEl.textContent = now.toLocaleTimeString([], { hour12: false });
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    }
+
+    async function initWeather() {
+        let location = { ...FALLBACK_WEATHER };
+        try {
+            const ipResp = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(4000) });
+            if (ipResp.ok) {
+                const ipData = await ipResp.json();
+                if (ipData.latitude && ipData.longitude) {
+                    location.name = (ipData.city && ipData.region) ? `${ipData.city}, ${ipData.region}` : ipData.city || "Local Area";
+                    location.lat = ipData.latitude;
+                    location.lon = ipData.longitude;
+                }
+            }
+        } catch (_) {}
+
+        document.getElementById('weather-location').textContent = location.name;
+
+        try {
+            const [weatherResp, aqiResp] = await Promise.all([
+                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto`, { signal: AbortSignal.timeout(6000) }),
+                fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${location.lat}&longitude=${location.lon}&current=us_aqi`, { signal: AbortSignal.timeout(6000) })
+            ]);
+
+            if (weatherResp.ok) {
+                const weatherData = await weatherResp.json();
+                renderWeather(weatherData);
+            }
+            if (aqiResp.ok) {
+                const aqiData = await aqiResp.json();
+                renderAqi(aqiData);
+            }
+        } catch (err) {
+            console.error('Weather load error:', err);
+            document.getElementById('weather-temp').textContent = "Err";
+            document.getElementById('weather-aqi').textContent = "N/A";
+        }
+    }
+
+    function getWeatherIcon(code) {
+        if (code === 0) return '☀️';
+        if (code >= 1 && code <= 3) return '🌤️';
+        if (code === 45 || code === 48) return '🌫️';
+        if ((code >= 51 && code <= 55) || (code >= 61 && code <= 65)) return '🌧️';
+        if (code >= 71 && code <= 75) return '❄️';
+        if (code >= 80 && code <= 82) return '🌦️';
+        if (code >= 95) return '⛈️';
+        return '☁️';
+    }
+
+    function getWeatherDesc(code) {
+        if (code === 0) return 'Clear';
+        if (code >= 1 && code <= 3) return 'Cloudy';
+        if (code === 45 || code === 48) return 'Fog';
+        if (code >= 51 && code <= 55) return 'Drizzle';
+        if (code >= 61 && code <= 65) return 'Rain';
+        if (code >= 71 && code <= 75) return 'Snow';
+        if (code >= 80 && code <= 82) return 'Showers';
+        if (code >= 95) return 'Storm';
+        return 'Cloudy';
+    }
+
+    function renderWeather(data) {
+        const curr = data.current;
+        const daily = data.daily;
+        if (!curr || !daily) return;
+
+        document.getElementById('weather-temp').textContent = `${Math.round(curr.temperature_2m)}°C`;
+        document.getElementById('weather-temp-icon').textContent = getWeatherIcon(curr.weather_code);
+        document.getElementById('weather-temp-icon').title = getWeatherDesc(curr.weather_code);
+
+        const high = Math.round(daily.temperature_2m_max[0]);
+        const low = Math.round(daily.temperature_2m_min[0]);
+        document.getElementById('weather-high-low').textContent = `H: ${high}° L: ${low}°`;
+
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const container = document.getElementById('weather-forecast');
+        if (!container) return;
+        container.innerHTML = '';
+
+        for (let i = 0; i < 7; i++) {
+            const dateStr = daily.time[i];
+            const dateObj = new Date(dateStr + 'T00:00:00');
+            const dayName = i === 0 ? 'Today' : days[dateObj.getDay()];
+            const icon = getWeatherIcon(daily.weather_code[i]);
+            const maxTemp = Math.round(daily.temperature_2m_max[i]);
+            const minTemp = Math.round(daily.temperature_2m_min[i]);
+
+            const item = document.createElement('div');
+            item.className = 'flex flex-col items-center p-1 bg-dark-bg/40 rounded border border-gray-800/40';
+            item.innerHTML = `
+                <span class="text-[8px] text-gray-500 font-medium">${dayName}</span>
+                <span class="text-xs my-0.5" title="${getWeatherDesc(daily.weather_code[i])}">${icon}</span>
+                <span class="text-[9px] font-semibold text-white">${maxTemp}°</span>
+                <span class="text-[8px] text-gray-600">${minTemp}°</span>
+            `;
+            container.appendChild(item);
+        }
+    }
+
+    function renderAqi(data) {
+        const aqiVal = data.current?.us_aqi;
+        if (aqiVal === undefined) return;
+
+        const aqiEl = document.getElementById('weather-aqi');
+        if (!aqiEl) return;
+        aqiEl.textContent = `${aqiVal} US AQI`;
+        aqiEl.className = 'mini-badge ';
+
+        if (aqiVal <= 50) {
+            aqiEl.className += 'bg-green-500/20 text-green-400 border-green-500/30';
+            aqiEl.title = "Good Air Quality";
+        } else if (aqiVal <= 100) {
+            aqiEl.className += 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+            aqiEl.title = "Moderate Air Quality";
+        } else {
+            aqiEl.className += 'bg-red-500/20 text-red-400 border-red-500/30';
+            aqiEl.title = "Poor Air Quality";
+        }
+    }
+
+    // =========================================================
+    // DYNAMIC NEWS TERMINAL WIDGET
+    // =========================================================
+    let newsCache = { sui: null, crypto: null, macro: null, good: null };
+
+    async function loadNewsCategory(category) {
+        const container = document.getElementById('news-content');
+        const statusEl = document.getElementById('news-status');
+        if (!container || !statusEl) return;
+        
+        container.innerHTML = '<p class="text-xs text-gray-600 py-8 text-center">Loading news...</p>';
+        statusEl.textContent = 'Loading...';
+
+        if (newsCache[category]) {
+            renderNews(newsCache[category]);
+            statusEl.textContent = 'Updated';
+            return;
+        }
+
+        try {
+            let articles = [];
+            if (category === 'crypto' || category === 'sui') {
+                const resp = await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN', { signal: AbortSignal.timeout(6000) });
+                if (!resp.ok) throw new Error('CryptoCompare error');
+                const data = await resp.json();
+                const rawArticles = data?.Data || [];
+
+                if (category === 'sui') {
+                    articles = rawArticles.filter(art => {
+                        const title = (art.title || '').toLowerCase();
+                        const body = (art.body || '').toLowerCase();
+                        const tags = (art.categories || '').toLowerCase();
+                        return title.includes('sui') || body.includes('sui') || tags.includes('sui');
+                    });
+                    if (articles.length === 0) articles = rawArticles.slice(0, 10);
+                } else {
+                    articles = rawArticles.slice(0, 20);
+                }
+                
+                newsCache[category] = articles.map(art => ({
+                    title: art.title,
+                    url: art.url,
+                    published_on: art.published_on,
+                    source: art.source_info?.name || art.source || 'CryptoNews'
+                }));
+
+            } else if (category === 'macro') {
+                const rssUrl = encodeURIComponent('https://finance.yahoo.com/news/rssindex');
+                const resp = await fetch(`https://api.allorigins.win/get?url=${rssUrl}`, { signal: AbortSignal.timeout(8000) });
+                if (!resp.ok) throw new Error('CORS proxy error');
+                const json = await resp.json();
+                
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(json.contents, "text/xml");
+                const items = xmlDoc.getElementsByTagName("item");
+                
+                for (let i = 0; i < Math.min(items.length, 20); i++) {
+                    const title = items[i].getElementsByTagName("title")[0]?.textContent;
+                    const link = items[i].getElementsByTagName("link")[0]?.textContent;
+                    const pubDate = items[i].getElementsByTagName("pubDate")[0]?.textContent;
+                    articles.push({
+                        title,
+                        url: link,
+                        published_on: Math.floor(new Date(pubDate).getTime() / 1000),
+                        source: 'Yahoo Finance'
+                    });
+                }
+                newsCache[category] = articles;
+
+            } else if (category === 'good') {
+                const rssUrl = encodeURIComponent('https://www.goodnewsnetwork.org/feed/');
+                const resp = await fetch(`https://api.allorigins.win/get?url=${rssUrl}`, { signal: AbortSignal.timeout(8000) });
+                if (!resp.ok) throw new Error('CORS proxy error');
+                const json = await resp.json();
+                
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(json.contents, "text/xml");
+                const items = xmlDoc.getElementsByTagName("item");
+                
+                for (let i = 0; i < Math.min(items.length, 20); i++) {
+                    const title = items[i].getElementsByTagName("title")[0]?.textContent;
+                    const link = items[i].getElementsByTagName("link")[0]?.textContent;
+                    const pubDate = items[i].getElementsByTagName("pubDate")[0]?.textContent;
+                    articles.push({
+                        title,
+                        url: link,
+                        published_on: Math.floor(new Date(pubDate).getTime() / 1000),
+                        source: 'Good News Network'
+                    });
+                }
+                newsCache[category] = articles;
+            }
+
+            renderNews(newsCache[category]);
+            statusEl.textContent = 'Updated';
+        } catch (err) {
+            console.error('Failed to load news:', err);
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-xs text-red-400 mb-2">Failed to load news</p>
+                    <button class="px-3 py-1 bg-dark-card border border-gray-700 rounded text-xs text-white hover:border-brand-primary cursor-pointer" onclick="loadNewsCategory('${category}')">
+                        Retry
+                    </button>
+                </div>`;
+            statusEl.textContent = 'Error';
+        }
+    }
+
+    function renderNews(articles) {
+        const container = document.getElementById('news-content');
+        if (!container) return;
+        if (!articles || articles.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-500 py-8 text-center">No articles found.</p>';
+            return;
+        }
+
+        container.innerHTML = articles.map(art => {
+            const timeStr = timeAgo(art.published_on * 1000);
+            return `
+                <a href="${escHtml(art.url)}" target="_blank" rel="noopener noreferrer" class="block p-3 rounded-lg bg-dark-bg/40 border border-gray-800/40 hover:border-brand-primary/30 hover:bg-dark-bg/60 transition-all group">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <h4 class="text-xs font-semibold text-white group-hover:text-brand-secondary transition-colors line-clamp-2 leading-snug mb-1.5">
+                                ${escHtml(art.title)}
+                            </h4>
+                            <div class="flex items-center gap-2 text-[10px] text-dark-text-secondary">
+                                <span class="bg-gray-800 px-1.5 py-0.5 rounded text-[9px] font-bold text-gray-400">${escHtml(art.source)}</span>
+                                <span>•</span>
+                                <span>${timeStr}</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>`;
+        }).join('');
+    }
+
+    function initNewsTerminal() {
+        document.querySelectorAll('.news-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.getAttribute('data-category');
+                document.querySelectorAll('.news-tab-btn').forEach(b => {
+                    b.className = 'news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap';
+                });
+                btn.className = 'news-tab-btn active px-2.5 py-1.5 rounded text-[10px] font-semibold bg-brand-primary/10 border border-brand-primary/20 text-brand-primary cursor-pointer whitespace-nowrap';
+                loadNewsCategory(category);
+            });
+        });
+        loadNewsCategory('sui');
+    }
+
+    // =========================================================
+    // CUSTOMIZABLE HABIT TRACKER
+    // =========================================================
+    const HABITS_STORAGE = 'ac_trader_habits';
+
+    function fmtDateLabel(d) {
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+
+    function getDayLetter(d) {
+        const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        return days[d.getDay()];
+    }
+
+    function getPast7Days() {
+        const list = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            list.push(d);
+        }
+        return list;
+    }
+
+    function getLocalDateKey(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function loadHabits() {
+        try {
+            const raw = localStorage.getItem(HABITS_STORAGE);
+            if (raw) return JSON.parse(raw);
+        } catch (_) {}
+        return [
+            { id: '1', name: 'Exercise', history: {} },
+            { id: '2', name: 'Hydration', history: {} },
+            { id: '3', name: 'Remodeling', history: {} },
+            { id: '4', name: 'Project Development', history: {} }
+        ];
+    }
+
+    function saveHabits(habits) {
+        try {
+            localStorage.setItem(HABITS_STORAGE, JSON.stringify(habits));
+        } catch (_) {}
+    }
+
+    function toggleHabitDay(habitId, dateKey) {
+        const habits = loadHabits();
+        const h = habits.find(x => x.id === habitId);
+        if (h) {
+            h.history[dateKey] = !h.history[dateKey];
+            saveHabits(habits);
+            renderHabits();
+        }
+    }
+
+    function addNewHabit() {
+        const input = document.getElementById('habit-new-input');
+        const name = (input?.value || '').trim();
+        if (!name) return;
+
+        const habits = loadHabits();
+        habits.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name: name,
+            history: {}
+        });
+        saveHabits(habits);
+        if (input) input.value = '';
+        renderHabits();
+    }
+
+    window.deleteHabit = function(habitId) {
+        const habits = loadHabits().filter(x => x.id !== habitId);
+        saveHabits(habits);
+        renderHabits();
+    };
+
+    function renderHabits() {
+        const habits = loadHabits();
+        const days = getPast7Days();
+        const container = document.getElementById('habit-rows-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (habits.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No habits added. Add one below!</p>';
+            document.getElementById('habit-progress-badge').textContent = 'No habits';
+            return;
+        }
+
+        const todayStr = getLocalDateKey(days[6]);
+        let completedToday = 0;
+        
+        habits.forEach(h => {
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-12 gap-1 text-xs text-white items-center py-1.5 border-b border-gray-800/40 last:border-0';
+            
+            const nameCol = document.createElement('div');
+            nameCol.className = 'col-span-5 text-left font-medium truncate flex items-center gap-1.5 group';
+            nameCol.innerHTML = `
+                <button class="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] cursor-pointer" onclick="deleteHabit('${h.id}')" title="Delete habit">✕</button>
+                <span>${escHtml(h.name)}</span>
+            `;
+            row.appendChild(nameCol);
+
+            if (h.history[todayStr]) completedToday++;
+
+            for (let i = 0; i < 7; i++) {
+                const dateKey = getLocalDateKey(days[i]);
+                const isDone = !!h.history[dateKey];
+                const dayCol = document.createElement('div');
+                dayCol.className = 'col-span-1 flex justify-center';
+                
+                const todayClass = (i === 6) ? 'border-brand-primary ring-1 ring-brand-primary/50' : 'border-gray-700';
+                
+                const btn = document.createElement('button');
+                btn.className = `w-5 h-5 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200`;
+                
+                if (isDone) {
+                    btn.className += ` bg-green-500/20 border border-green-500 text-green-400`;
+                    btn.innerHTML = `<svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+                } else {
+                    btn.className += ` bg-dark-bg/60 border ${todayClass} hover:border-gray-500`;
+                }
+
+                btn.addEventListener('click', () => {
+                    toggleHabitDay(h.id, dateKey);
+                });
+
+                dayCol.appendChild(btn);
+                row.appendChild(dayCol);
+            }
+
+            container.appendChild(row);
+        });
+
+        const progressBadge = document.getElementById('habit-progress-badge');
+        if (progressBadge) {
+            const pct = Math.round((completedToday / habits.length) * 100);
+            progressBadge.textContent = `${completedToday} of ${habits.length} completed today (${pct}%)`;
+        }
+    }
+
+    function initHabitTracker() {
+        const days = getPast7Days();
+        for (let i = 0; i < 7; i++) {
+            const dayEl = document.getElementById(`habit-day-${i}`);
+            if (dayEl) {
+                dayEl.innerHTML = `
+                    <div>${getDayLetter(days[i])}</div>
+                    <div class="text-[8px] text-gray-600 font-mono font-normal mt-0.5">${fmtDateLabel(days[i])}</div>
+                `;
+                if (i === 6) {
+                    dayEl.className = "col-span-1 text-center font-bold text-brand-secondary";
+                } else {
+                    dayEl.className = "col-span-1 text-center";
+                }
+            }
+        }
+
+        renderHabits();
+
+        const addBtn = document.getElementById('habit-add-btn');
+        if (addBtn) addBtn.addEventListener('click', addNewHabit);
+
+        const input = document.getElementById('habit-new-input');
+        if (input) {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') addNewHabit();
+            });
+        }
+    }
+
+    // =========================================================
+    // QUICK NOTES WIDGET
+    // =========================================================
+    const NOTES_STORAGE = 'ac_trader_notes';
+
+    function initNotes() {
+        const textarea = document.getElementById('notes-textarea');
+        const statusEl = document.getElementById('notes-save-status');
+        if (!textarea || !statusEl) return;
+
+        try {
+            const saved = localStorage.getItem(NOTES_STORAGE);
+            if (saved) textarea.value = saved;
+        } catch (_) {}
+
+        let saveTimeout = null;
+
+        textarea.addEventListener('input', () => {
+            statusEl.textContent = 'Saving...';
+            statusEl.classList.remove('text-gray-600');
+            statusEl.classList.add('text-brand-secondary');
+
+            if (saveTimeout) clearTimeout(saveTimeout);
+
+            saveTimeout = setTimeout(() => {
+                try {
+                    localStorage.setItem(NOTES_STORAGE, textarea.value);
+                    statusEl.textContent = 'Saved';
+                    statusEl.classList.remove('text-brand-secondary');
+                    statusEl.classList.add('text-gray-600');
+                } catch (_) {
+                    statusEl.textContent = 'Error';
+                }
+            }, 800);
+        });
+    }
+
+    // =========================================================
     // INIT
     // =========================================================
     initWalletStandard();
+    initClock();
+    initWeather();
+    initNotes();
+    initNewsTerminal();
+    initHabitTracker();
 
     // Launch the intelligence dashboard (non-blocking — doesn't delay wallet reconnect)
     initIntelDashboard();
