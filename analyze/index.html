@@ -315,13 +315,6 @@
                     <div class="glass-panel p-5 rounded-xl">
                         <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider mb-3">Connected Wallet</h3>
                         <p class="text-white font-mono text-xs break-all leading-relaxed" id="connected-address">—</p>
-                        <div class="mt-3 pt-3 border-t border-gray-800 flex justify-between text-sm">
-                            <span class="text-dark-text-secondary">Network</span>
-                            <span class="text-green-400 font-medium flex items-center gap-1">
-                                <span class="animate-pulse-slow w-1.5 h-1.5 bg-green-400 rounded-full"></span>
-                                Mainnet
-                            </span>
-                        </div>
                     </div>
 
                     <!-- Token Balances (shrunk to 5 coins height, scrollable) -->
@@ -336,14 +329,6 @@
                             </span>
                         </div>
                         <div id="token-list" class="space-y-1 overflow-y-auto" style="height: 180px;">
-                            <p class="text-xs text-gray-600">Loading...</p>
-                        </div>
-                    </div>
-
-                    <!-- Object / NFT Summary -->
-                    <div class="glass-panel p-5 rounded-xl">
-                        <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider mb-3">On-Chain Objects</h3>
-                        <div id="nft-summary">
                             <p class="text-xs text-gray-600">Loading...</p>
                         </div>
                     </div>
@@ -1320,6 +1305,7 @@
 
     function renderObjectSummary(allObjects, balances) {
         const el = document.getElementById('nft-summary');
+        if (!el) return;
         const total = allObjects?.data?.length || 0;
         const coinTypes = balances.length;
         el.innerHTML = `
@@ -2401,78 +2387,50 @@ Return ONLY a valid JSON object with two string keys:
         }
 
         try {
-            let articles = [];
+            let rssUrl = '';
             if (category === 'crypto' || category === 'sui') {
-                const resp = await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN', { signal: AbortSignal.timeout(6000) });
-                if (!resp.ok) throw new Error('CryptoCompare error');
-                const data = await resp.json();
-                const rawArticles = data?.Data || [];
-
-                if (category === 'sui') {
-                    articles = rawArticles.filter(art => {
-                        const title = (art.title || '').toLowerCase();
-                        const body = (art.body || '').toLowerCase();
-                        const tags = (art.categories || '').toLowerCase();
-                        return title.includes('sui') || body.includes('sui') || tags.includes('sui');
-                    });
-                    if (articles.length === 0) articles = rawArticles.slice(0, 10);
-                } else {
-                    articles = rawArticles.slice(0, 20);
-                }
-                
-                newsCache[category] = articles.map(art => ({
-                    title: art.title,
-                    url: art.url,
-                    published_on: art.published_on,
-                    source: art.source_info?.name || art.source || 'CryptoNews'
-                }));
-
+                rssUrl = 'https://cointelegraph.com/rss';
             } else if (category === 'macro') {
-                const rssUrl = encodeURIComponent('https://finance.yahoo.com/news/rssindex');
-                const resp = await fetch(`https://api.allorigins.win/get?url=${rssUrl}`, { signal: AbortSignal.timeout(8000) });
-                if (!resp.ok) throw new Error('CORS proxy error');
-                const json = await resp.json();
-                
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(json.contents, "text/xml");
-                const items = xmlDoc.getElementsByTagName("item");
-                
-                for (let i = 0; i < Math.min(items.length, 20); i++) {
-                    const title = items[i].getElementsByTagName("title")[0]?.textContent;
-                    const link = items[i].getElementsByTagName("link")[0]?.textContent;
-                    const pubDate = items[i].getElementsByTagName("pubDate")[0]?.textContent;
-                    articles.push({
-                        title,
-                        url: link,
-                        published_on: Math.floor(new Date(pubDate).getTime() / 1000),
-                        source: 'Yahoo Finance'
-                    });
-                }
-                newsCache[category] = articles;
-
+                rssUrl = 'https://finance.yahoo.com/news/rssindex';
             } else if (category === 'good') {
-                const rssUrl = encodeURIComponent('https://www.goodnewsnetwork.org/feed/');
-                const resp = await fetch(`https://api.allorigins.win/get?url=${rssUrl}`, { signal: AbortSignal.timeout(8000) });
-                if (!resp.ok) throw new Error('CORS proxy error');
-                const json = await resp.json();
-                
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(json.contents, "text/xml");
-                const items = xmlDoc.getElementsByTagName("item");
-                
-                for (let i = 0; i < Math.min(items.length, 20); i++) {
-                    const title = items[i].getElementsByTagName("title")[0]?.textContent;
-                    const link = items[i].getElementsByTagName("link")[0]?.textContent;
-                    const pubDate = items[i].getElementsByTagName("pubDate")[0]?.textContent;
-                    articles.push({
-                        title,
-                        url: link,
-                        published_on: Math.floor(new Date(pubDate).getTime() / 1000),
-                        source: 'Good News Network'
-                    });
-                }
-                newsCache[category] = articles;
+                rssUrl = 'https://www.goodnewsnetwork.org/feed/';
             }
+
+            const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+            const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+            if (!resp.ok) throw new Error('Failed to fetch news feed');
+            const data = await resp.json();
+            if (data.status !== 'ok') throw new Error(data.message || 'Error parsing news feed');
+
+            let rawArticles = data.items || [];
+            let articles = [];
+
+            if (category === 'sui') {
+                articles = rawArticles.filter(art => {
+                    const title = (art.title || '').toLowerCase();
+                    const desc = (art.description || '').toLowerCase();
+                    return title.includes('sui') || desc.includes('sui');
+                });
+                if (articles.length === 0) articles = rawArticles.slice(0, 10);
+            } else {
+                articles = rawArticles;
+            }
+
+            newsCache[category] = articles.map(art => {
+                let ts = Date.now() / 1000;
+                if (art.pubDate) {
+                    try {
+                        ts = Math.floor(new Date(art.pubDate.replace(' ', 'T')).getTime() / 1000);
+                    } catch (_) {}
+                }
+                
+                return {
+                    title: art.title,
+                    url: art.link,
+                    published_on: ts,
+                    source: data.feed?.title || (category === 'macro' ? 'Yahoo Finance' : category === 'good' ? 'Good News' : 'CryptoNews')
+                };
+            });
 
             renderNews(newsCache[category]);
             statusEl.textContent = 'Updated';
@@ -2567,12 +2525,7 @@ Return ONLY a valid JSON object with two string keys:
             const raw = localStorage.getItem(HABITS_STORAGE);
             if (raw) return JSON.parse(raw);
         } catch (_) {}
-        return [
-            { id: '1', name: 'Exercise', history: {} },
-            { id: '2', name: 'Hydration', history: {} },
-            { id: '3', name: 'Remodeling', history: {} },
-            { id: '4', name: 'Project Development', history: {} }
-        ];
+        return [];
     }
 
     function saveHabits(habits) {
@@ -2634,10 +2587,10 @@ Return ONLY a valid JSON object with two string keys:
             row.className = 'grid grid-cols-12 gap-1 text-xs text-white items-center py-1.5 border-b border-gray-800/40 last:border-0';
             
             const nameCol = document.createElement('div');
-            nameCol.className = 'col-span-5 text-left font-medium truncate flex items-center gap-1.5 group';
+            nameCol.className = 'col-span-5 text-left font-medium truncate flex items-center gap-2';
             nameCol.innerHTML = `
-                <button class="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] cursor-pointer" onclick="deleteHabit('${h.id}')" title="Delete habit">✕</button>
-                <span>${escHtml(h.name)}</span>
+                <button class="text-red-400 hover:text-red-300 font-bold text-xs cursor-pointer px-1 flex-shrink-0" onclick="deleteHabit('${h.id}')" title="Delete habit">✕</button>
+                <span class="truncate">${escHtml(h.name)}</span>
             `;
             row.appendChild(nameCol);
 
