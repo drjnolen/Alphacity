@@ -414,34 +414,8 @@
                         </button>
                     </div>
                     
-                    <div class="space-y-4" id="x-feed-container">
-                        <!-- Tweet 1: SuiNetwork -->
-                        <div class="p-3.5 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-sui">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs font-bold text-white">Sui Network</span>
-                                    <span class="text-[10px] text-gray-500">@SuiNetwork</span>
-                                </div>
-                                <span class="text-[9px] text-gray-500 font-mono" id="tweet-sui-time">-</span>
-                            </div>
-                            <div class="text-xs text-dark-text-secondary leading-relaxed break-words ai-response" id="tweet-sui-body">
-                                Loading latest tweet...
-                            </div>
-                        </div>
-
-                        <!-- Tweet 2: DeepBookonSui -->
-                        <div class="p-3.5 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-deepbook">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs font-bold text-white">DeepBook</span>
-                                    <span class="text-[10px] text-gray-500">@DeepBookonSui</span>
-                                </div>
-                                <span class="text-[9px] text-gray-500 font-mono" id="tweet-deep-time">-</span>
-                            </div>
-                            <div class="text-xs text-dark-text-secondary leading-relaxed break-words ai-response" id="tweet-deep-body">
-                                Loading latest tweet...
-                            </div>
-                        </div>
+                    <div class="space-y-3 overflow-y-auto pr-1" style="height: 380px;" id="x-feed-container">
+                        <!-- Generated dynamically -->
                     </div>
                 </div>
 
@@ -1257,7 +1231,8 @@
     async function loadPortfolioData(address) {
         show('balances-spinner');
         document.getElementById('token-list').innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
-        document.getElementById('nft-summary').innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
+        const nftEl = document.getElementById('nft-summary');
+        if (nftEl) nftEl.innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
 
         try {
             const [balances, allObjects, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
@@ -1285,8 +1260,8 @@
         } catch (err) {
             document.getElementById('token-list').innerHTML =
                 `<p class="text-xs text-red-400">Failed to load: ${err?.message || err}</p>`;
-            document.getElementById('nft-summary').innerHTML =
-                `<p class="text-xs text-red-400">Failed to load</p>`;
+            const nftEl = document.getElementById('nft-summary');
+            if (nftEl) nftEl.innerHTML = `<p class="text-xs text-red-400">Failed to load</p>`;
         } finally {
             hide('balances-spinner');
             refreshAnalyzeBtn();
@@ -2750,6 +2725,17 @@ Return ONLY a valid JSON object with two string keys:
         'https://nitter.privacydev.net'
     ];
 
+    const X_ACCOUNTS = [
+        { name: 'Sui Network', handle: 'SuiNetwork' },
+        { name: 'DeepBook', handle: 'DeepBookonSui' },
+        { name: 'SuiNS', handle: 'SuiNSdapp' },
+        { name: 'Walrus Protocol', handle: 'WalrusProtocol' },
+        { name: 'Eman Abio', handle: 'EmanAbio' },
+        { name: 'Kostas Crypto', handle: 'kostascrypto' },
+        { name: 'Deep Trade', handle: '_deeptrade' },
+        { name: 'Evan Web3', handle: 'EvanWeb3' }
+    ];
+
     async function fetchNitterFeed(username) {
         for (const instance of NITTER_INSTANCES) {
             try {
@@ -2768,50 +2754,59 @@ Return ONLY a valid JSON object with two string keys:
 
     function cleanNitterHtml(html) {
         if (!html) return '';
-        let clean = html.replace(/https:\/\/nitter\.net/g, 'https://x.com');
-        clean = clean.replace(/<blockquote>/g, '<blockquote class="border-l-2 border-gray-700 pl-3 my-2 text-dark-text-secondary italic">');
+        let clean = html.replace(/<img[^>]*>/gi, '');
+        clean = clean.replace(/<video[^>]*>[\s\S]*?<\/video>/gi, '');
+        clean = clean.replace(/<a[^>]*>(?:Video|Image|GIF)<\/a>/gi, '');
+        clean = clean.replace(/https:\/\/nitter\.net/g, 'https://x.com');
+        clean = clean.replace(/https:\/\/nitter\.cz/g, 'https://x.com');
+        clean = clean.replace(/https:\/\/nitter\.privacydev\.net/g, 'https://x.com');
+        clean = clean.replace(/<blockquote>/g, '<blockquote class="border-l-2 border-gray-700 pl-2 my-1 text-dark-text-secondary italic text-[11px]">');
+        clean = clean.replace(/<\/blockquote>/g, '</blockquote>');
         clean = clean.replace(/<hr>/g, '');
-        return clean;
+        clean = clean.replace(/(?:<br\s*\/?>\s*){2,}/gi, '<br>');
+        return clean.trim();
     }
 
     async function loadXFeed() {
-        const suiBody = document.getElementById('tweet-sui-body');
-        const suiTime = document.getElementById('tweet-sui-time');
-        const deepBody = document.getElementById('tweet-deep-body');
-        const deepTime = document.getElementById('tweet-deep-time');
+        const container = document.getElementById('x-feed-container');
+        if (!container) return;
 
-        if (suiBody) suiBody.innerHTML = '<p class="text-gray-500 animate-pulse">Loading latest tweet...</p>';
-        if (deepBody) deepBody.innerHTML = '<p class="text-gray-500 animate-pulse">Loading latest tweet...</p>';
+        container.innerHTML = X_ACCOUNTS.map(ac => `
+            <div class="p-3 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-card-${ac.handle}">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-white">${ac.name}</span>
+                        <span class="text-[9px] text-gray-500">@${ac.handle}</span>
+                    </div>
+                    <span class="text-[9px] text-gray-500 font-mono" id="tweet-time-${ac.handle}">-</span>
+                </div>
+                <div class="text-[11px] text-dark-text-secondary leading-relaxed break-words" id="tweet-body-${ac.handle}">
+                    <span class="text-gray-600 animate-pulse">Loading...</span>
+                </div>
+            </div>
+        `).join('');
 
-        try {
-            const tweet = await fetchNitterFeed('SuiNetwork');
-            if (suiBody && suiTime) {
-                suiBody.innerHTML = cleanNitterHtml(tweet.description || tweet.title);
-                let ts = Date.now();
-                if (tweet.pubDate) {
-                    try { ts = new Date(tweet.pubDate.replace(' ', 'T')).getTime(); } catch(_) {}
+        X_ACCOUNTS.forEach(ac => {
+            fetchNitterFeed(ac.handle).then(tweet => {
+                const bodyEl = document.getElementById(`tweet-body-${ac.handle}`);
+                const timeEl = document.getElementById(`tweet-time-${ac.handle}`);
+                if (bodyEl && timeEl) {
+                    bodyEl.innerHTML = cleanNitterHtml(tweet.description || tweet.title);
+                    let ts = Date.now();
+                    if (tweet.pubDate) {
+                        try { ts = new Date(tweet.pubDate.replace(' ', 'T')).getTime(); } catch(_) {}
+                    }
+                    const tweetLink = tweet.link ? tweet.link.replace(/https:\/\/nitter\.(net|cz|privacydev\.net)/g, 'https://x.com') : `https://x.com/${ac.handle}`;
+                    timeEl.innerHTML = `<a href="${escHtml(tweetLink)}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
                 }
-                suiTime.innerHTML = `<a href="${escHtml(tweet.link.replace(/https:\/\/nitter\.net/g, 'https://x.com'))}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
-            }
-        } catch (err) {
-            console.error(err);
-            if (suiBody) suiBody.innerHTML = '<span class="text-red-400">Failed to load tweet.</span>';
-        }
-
-        try {
-            const tweet = await fetchNitterFeed('DeepBookonSui');
-            if (deepBody && deepTime) {
-                deepBody.innerHTML = cleanNitterHtml(tweet.description || tweet.title);
-                let ts = Date.now();
-                if (tweet.pubDate) {
-                    try { ts = new Date(tweet.pubDate.replace(' ', 'T')).getTime(); } catch(_) {}
+            }).catch(err => {
+                console.error(`Failed to load tweet for @${ac.handle}:`, err);
+                const bodyEl = document.getElementById(`tweet-body-${ac.handle}`);
+                if (bodyEl) {
+                    bodyEl.innerHTML = '<span class="text-red-400/80 text-[10px]">Failed to load tweet.</span>';
                 }
-                deepTime.innerHTML = `<a href="${escHtml(tweet.link.replace(/https:\/\/nitter\.net/g, 'https://x.com'))}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
-            }
-        } catch (err) {
-            console.error(err);
-            if (deepBody) deepBody.innerHTML = '<span class="text-red-400">Failed to load tweet.</span>';
-        }
+            });
+        });
     }
 
     function initXFeed() {
