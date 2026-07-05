@@ -2273,21 +2273,21 @@
         ownedNfts.forEach(nft => {
             const isSelected = selectedNftIds.has(nft.objectId);
             const card = document.createElement('div');
-            card.className = `relative p-2 rounded-xl bg-dark-bg border transition-all cursor-pointer select-none group flex flex-col items-center text-center \${isSelected ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-800 hover:border-gray-700'}`;
+            card.className = `relative p-2 rounded-xl bg-dark-bg border transition-all cursor-pointer select-none group flex flex-col items-center text-center ${isSelected ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-800 hover:border-gray-700'}`;
             
             const truncId = nft.objectId.slice(0, 6) + '…' + nft.objectId.slice(-4);
             
             card.innerHTML = `
                 <div class="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-900 border border-gray-800/80 mb-2">
-                    <img src="\${nft.imageUrl}" alt="\${nft.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/1F2937/4B5563?text=NFT'">
-                    <div class="absolute top-1 right-1 w-4 h-4 rounded border flex items-center justify-center transition-all \${isSelected ? 'bg-brand-primary border-brand-primary text-white' : 'bg-dark-bg/85 border-gray-700 text-transparent'}">
+                    <img src="${nft.imageUrl}" alt="${nft.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/1F2937/4B5563?text=NFT'">
+                    <div class="absolute top-1 right-1 w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-brand-primary border-brand-primary text-white' : 'bg-dark-bg/85 border-gray-700 text-transparent'}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                         </svg>
                     </div>
                 </div>
-                <div class="w-full truncate text-[11px] font-bold text-white mb-0.5 leading-tight">\${nft.name}</div>
-                <div class="text-[9px] text-dark-text-secondary font-mono">\${truncId}</div>
+                <div class="w-full truncate text-[11px] font-bold text-white mb-0.5 leading-tight">${nft.name}</div>
+                <div class="text-[9px] text-dark-text-secondary font-mono">${truncId}</div>
             `;
             
             card.addEventListener('click', () => {
