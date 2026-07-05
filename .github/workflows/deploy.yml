@@ -69,15 +69,13 @@ jobs:
 
           echo -n "${OPENAI_API_KEY}" | wrangler secret put OPENAI_API_KEY --config api/openai-proxy/wrangler.toml
 
-          DEPLOY_RESPONSE_FILE="$(mktemp)"
-          wrangler deploy --config api/openai-proxy/wrangler.toml --json > "${DEPLOY_RESPONSE_FILE}"
-          if ! DEPLOYED_URL="$(jq -r '.url // empty' "${DEPLOY_RESPONSE_FILE}")"; then
-            echo "::error::Failed to parse wrangler deploy output as JSON."
-            exit 1
-          fi
+          DEPLOY_OUTPUT="$(wrangler deploy --config api/openai-proxy/wrangler.toml)"
+          DEPLOYED_URL="$(echo "${DEPLOY_OUTPUT}" | grep -oE "https://[a-zA-Z0-9.-]+\.workers\.dev" | head -n 1)"
 
           if [ -z "${DEPLOYED_URL}" ]; then
             echo "::error::Unable to determine deployed OpenAI proxy URL from wrangler output."
+            echo "Wrangler deploy output was:"
+            echo "${DEPLOY_OUTPUT}"
             exit 1
           fi
 
