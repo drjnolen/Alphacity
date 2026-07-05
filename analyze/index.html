@@ -357,6 +357,18 @@
             <!-- ===== MIDDLE COLUMN: Clock/Weather & News ===== -->
             <div class="lg:col-span-5 space-y-6">
 
+                <!-- TradingView Chart -->
+                <div class="glass-panel p-4 rounded-xl flex flex-col space-y-2 h-[350px]">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>📈</span> SUI / USDT (Binance)
+                        </h3>
+                    </div>
+                    <div class="w-full flex-1 rounded-lg overflow-hidden" id="tradingview-chart-container">
+                        <!-- Injected dynamically by TV script -->
+                    </div>
+                </div>
+
                 <!-- Time & Weather Widget -->
                 <div class="glass-panel p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
@@ -571,6 +583,35 @@
                         <button id="habit-add-btn" class="px-3 py-1 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-xs font-semibold transition-colors whitespace-nowrap">
                             Add
                         </button>
+                    </div>
+                </div>
+
+                <!-- Whale Wallet Tracker -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>🐋</span> Whale Tracker
+                        </h3>
+                        <button id="whale-refresh-btn" class="text-[10px] text-dark-text-secondary hover:text-white transition-colors cursor-pointer">
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    <!-- Add custom whale form -->
+                    <div class="flex gap-1.5">
+                        <input type="text" id="whale-address-input" class="watchlist-input text-[11px] flex-1 font-mono" placeholder="Sui address..." autocomplete="off">
+                        <input type="text" id="whale-name-input" class="watchlist-input text-[11px] w-20" placeholder="Name..." maxlength="12" autocomplete="off">
+                        <button id="whale-add-btn" class="px-2.5 py-1 bg-brand-primary text-xs font-bold text-white rounded hover:bg-brand-primary-hover transition-colors cursor-pointer">+</button>
+                    </div>
+
+                    <!-- Tracked whales list -->
+                    <div id="whale-badges" class="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto pb-1 border-b border-gray-800/60">
+                        <!-- Whales loaded dynamically -->
+                    </div>
+
+                    <!-- Transaction Feed -->
+                    <div id="whale-tx-feed" class="space-y-2.5 overflow-y-auto pr-1" style="height: 250px;">
+                        <p class="text-xs text-gray-600 py-8 text-center animate-pulse">Loading transactions...</p>
                     </div>
                 </div>
 
@@ -2877,6 +2918,250 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
+    // TRADINGVIEW CHART INTEGRATION
+    // =========================================================
+    function initTradingView() {
+        const tvScript = document.createElement('script');
+        tvScript.src = 'https://s3.tradingview.com/tv.js';
+        tvScript.type = 'text/javascript';
+        tvScript.onload = () => {
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": "BINANCE:SUIUSDT",
+                "interval": "60",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": true,
+                "container_id": "tradingview-chart-container"
+            });
+        };
+        document.head.appendChild(tvScript);
+    }
+
+    // =========================================================
+    // WHALE WALLET TRACKER
+    // =========================================================
+    const WHALES_STORAGE = 'ac_trader_whales';
+    const DEFAULT_WHALES = [
+        { name: 'Sui Foundation', address: '0xd411516e8b2b73dbb8e19c017d84b2e882583856ffbb495e26b8e3ea90eb0a62' },
+        { name: 'Cetus Staking', address: '0xc88b2f90a6e3e4a9d73fbab5df15a5125500f907a573066dd0a62c88b2f90a62' }
+    ];
+
+    function loadTrackedWhales() {
+        try {
+            const raw = localStorage.getItem(WHALES_STORAGE);
+            if (raw) return JSON.parse(raw);
+        } catch (_) {}
+        return DEFAULT_WHALES;
+    }
+
+    function saveTrackedWhales(list) {
+        try {
+            localStorage.setItem(WHALES_STORAGE, JSON.stringify(list));
+        } catch (_) {}
+    }
+
+    function renderWhaleBadges() {
+        const badgesEl = document.getElementById('whale-badges');
+        if (!badgesEl) return;
+        
+        const list = loadTrackedWhales();
+        if (list.length === 0) {
+            badgesEl.innerHTML = '<span class="text-[10px] text-gray-500 italic">No address tracked</span>';
+            return;
+        }
+
+        badgesEl.innerHTML = list.map(w => `
+            <span class="inline-flex items-center gap-1 bg-dark-card border border-gray-800/80 px-2 py-0.5 rounded text-[10px] text-white">
+                <span class="font-bold">${escHtml(w.name)}</span>
+                <span class="text-gray-500 font-mono text-[9px]">(${shortAddr(w.address)})</span>
+                <button class="text-red-400 hover:text-red-300 font-bold ml-1 cursor-pointer" onclick="deleteWhaleAddress('${escHtml(w.address)}')">✕</button>
+            </span>
+        `).join('');
+    }
+
+    function addWhaleAddress() {
+        const addrInput = document.getElementById('whale-address-input');
+        const nameInput = document.getElementById('whale-name-input');
+        const address = (addrInput?.value || '').trim();
+        const name = (nameInput?.value || '').trim() || 'Whale';
+
+        if (!isValidSuiAddress(address)) {
+            alert('Please enter a valid Sui address.');
+            return;
+        }
+
+        const list = loadTrackedWhales();
+        if (list.some(w => w.address.toLowerCase() === address.toLowerCase())) {
+            alert('This address is already being tracked.');
+            return;
+        }
+
+        list.push({ name, address });
+        saveTrackedWhales(list);
+        renderWhaleBadges();
+        
+        if (addrInput) addrInput.value = '';
+        if (nameInput) nameInput.value = '';
+
+        loadWhaleFeed();
+    }
+
+    window.deleteWhaleAddress = function(address) {
+        const list = loadTrackedWhales().filter(w => w.address.toLowerCase() !== address.toLowerCase());
+        saveTrackedWhales(list);
+        renderWhaleBadges();
+        loadWhaleFeed();
+    };
+
+    function formatCoinAmount(val, decimals = 9) {
+        const isNeg = val < 0n;
+        const absVal = isNeg ? -val : val;
+        const div = 10n ** BigInt(decimals);
+        const integer = absVal / div;
+        const fractional = absVal % div;
+        let fracStr = fractional.toString().padStart(decimals, '0');
+        fracStr = fracStr.replace(/0+$/, '');
+        if (fracStr.length === 0) return (isNeg ? '-' : '') + integer.toString();
+        return (isNeg ? '-' : '') + integer.toString() + '.' + fracStr.slice(0, 4);
+    }
+
+    function parseWhaleBalanceChanges(txBlock, whaleAddress) {
+        const changes = txBlock.balanceChanges || [];
+        const summaries = [];
+        changes.forEach(ch => {
+            const ownerAddr = ch.owner?.AddressOwner || '';
+            if (ownerAddr.toLowerCase() === whaleAddress.toLowerCase()) {
+                const amountStr = ch.amount || '0';
+                const amount = BigInt(amountStr);
+                if (amount === 0n) return;
+                
+                const sym = coinSymbol(ch.coinType);
+                const dec = coinDecimals(ch.coinType);
+                const formatted = formatCoinAmount(amount, dec);
+                
+                summaries.push({
+                    amount,
+                    coinSymbol: sym,
+                    formatted: (amount > 0n ? '+' : '') + formatted
+                });
+            }
+        });
+        return summaries;
+    }
+
+    async function loadWhaleFeed() {
+        const feedEl = document.getElementById('whale-tx-feed');
+        if (!feedEl) return;
+
+        const whales = loadTrackedWhales();
+        if (whales.length === 0) {
+            feedEl.innerHTML = '<p class="text-xs text-gray-500 py-8 text-center">No whales tracked. Add one above!</p>';
+            return;
+        }
+
+        feedEl.innerHTML = '<p class="text-xs text-gray-600 py-8 text-center animate-pulse">Loading transaction feed...</p>';
+
+        try {
+            const fetchPromises = whales.map(async (w) => {
+                try {
+                    const resp = await rpc('suix_queryTransactionBlocks', [
+                        {
+                            filter: { FromAddress: w.address },
+                            options: {
+                                showInput: true,
+                                showEffects: true,
+                                showBalanceChanges: true
+                            },
+                            limit: 5
+                        }
+                    ]);
+                    const blocks = resp?.data || [];
+                    return blocks.map(b => ({
+                        whaleName: w.name,
+                        whaleAddress: w.address,
+                        digest: b.digest,
+                        timestamp: b.timestampMs ? parseInt(b.timestampMs) : Date.now(),
+                        status: b.effects?.status?.status || 'success',
+                        balanceChanges: parseWhaleBalanceChanges(b, w.address)
+                    }));
+                } catch (err) {
+                    console.error(`Failed to fetch txs for ${w.name}:`, err);
+                    return [];
+                }
+            });
+
+            const results = await Promise.all(fetchPromises);
+            const allTxs = results.flat().sort((a, b) => b.timestamp - a.timestamp).slice(0, 15);
+
+            if (allTxs.length === 0) {
+                feedEl.innerHTML = '<p class="text-xs text-gray-500 py-8 text-center">No transactions found.</p>';
+                return;
+            }
+
+            feedEl.innerHTML = allTxs.map(tx => {
+                const timeStr = timeAgo(tx.timestamp);
+                const statusColor = tx.status === 'success' ? 'text-green-400' : 'text-red-400';
+                
+                let balanceHtml = '';
+                if (tx.balanceChanges.length > 0) {
+                    balanceHtml = tx.balanceChanges.map(c => {
+                        const isNeg = c.amount < 0n;
+                        const badgeColor = isNeg ? 'text-red-400' : 'text-green-400';
+                        return `<span class="font-mono ${badgeColor} text-[10px] font-bold bg-dark-bg/85 px-1.5 py-0.5 rounded border border-gray-800">${c.formatted} ${c.coinSymbol}</span>`;
+                    }).join(' ');
+                } else {
+                    balanceHtml = `<span class="text-gray-500 text-[10px] italic">Contract Call / No Asset Change</span>`;
+                }
+
+                return `
+                    <div class="p-3 rounded-lg bg-dark-bg/40 border border-gray-800/60 space-y-1.5">
+                        <div class="flex items-center justify-between text-[10px]">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-white">${escHtml(tx.whaleName)}</span>
+                                <span class="text-gray-500 text-[9px] font-mono">${shortAddr(tx.whaleAddress)}</span>
+                            </div>
+                            <span class="text-gray-500 font-mono">${timeStr}</span>
+                        </div>
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-800/40">
+                            <div class="flex flex-wrap gap-1">${balanceHtml}</div>
+                            <a href="https://suiscan.xyz/mainnet/tx/${tx.digest}" target="_blank" rel="noopener noreferrer" class="text-[9px] text-brand-secondary hover:underline font-mono">
+                                ${tx.digest.slice(0, 8)}... ↗
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (err) {
+            console.error('Failed to load whale feed:', err);
+            feedEl.innerHTML = '<p class="text-xs text-red-400 py-8 text-center">Failed to load transaction feed</p>';
+        }
+    }
+
+    function initWhaleTracker() {
+        renderWhaleBadges();
+        loadWhaleFeed();
+
+        const addBtn = document.getElementById('whale-add-btn');
+        if (addBtn) addBtn.addEventListener('click', addWhaleAddress);
+
+        const refreshBtn = document.getElementById('whale-refresh-btn');
+        if (refreshBtn) refreshBtn.addEventListener('click', loadWhaleFeed);
+
+        const addrInput = document.getElementById('whale-address-input');
+        if (addrInput) {
+            addrInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') addWhaleAddress();
+            });
+        }
+    }
+
+    // =========================================================
     // INIT
     // =========================================================
     initWalletStandard();
@@ -2886,6 +3171,8 @@ Return ONLY a valid JSON object with two string keys:
     initNewsTerminal();
     initHabitTracker();
     initXFeed();
+    initTradingView();
+    initWhaleTracker();
 
     // Launch the intelligence dashboard (non-blocking — doesn't delay wallet reconnect)
     initIntelDashboard();
