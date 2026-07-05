@@ -206,6 +206,33 @@ module sluice::sluice {
         });
     }
 
+    /// Allows the current beneficiary (e.g. an ephemeral key) to transfer the vesting schedule
+    /// ownership to a new recipient address (e.g. their permanent zkLogin address).
+    public entry fun reassign_beneficiary<T>(
+        schedule: &mut VestingSchedule<T>,
+        pubkey: vector<u8>,
+        signature: vector<u8>,
+        new_beneficiary: address,
+        _ctx: &mut TxContext
+    ) {
+        // Derive address from public key: Blake2b256(0x00 || pubkey)
+        let mut addr_bytes = vector[0x00];
+        std::vector::append(&mut addr_bytes, pubkey);
+        let hashed = sui::hash::blake2b256(&addr_bytes);
+        let derived_addr = sui::address::from_bytes(hashed);
+        assert!(derived_addr == schedule.beneficiary, ENotAuthorized);
+
+        // Reconstruct signed message: schedule ID + new beneficiary address
+        let mut msg = object::uid_to_bytes(&schedule.id);
+        std::vector::append(&mut msg, sui::address::to_bytes(new_beneficiary));
+
+        // Verify ED25519 signature
+        assert!(sui::ed25519::ed25519_verify(&signature, &pubkey, &msg), EInvalidSignature);
+
+        // Update the beneficiary address
+        schedule.beneficiary = new_beneficiary;
+    }
+
     // =========================================================================
     // Public Getters & Helpers
     // =========================================================================
