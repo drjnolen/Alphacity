@@ -2184,7 +2184,7 @@
         
         try {
             let cursor = null;
-            let fetchedObjects = [];
+            let directObjects = [];
             let pageCount = 0;
             
             // 1. Fetch direct owned objects
@@ -2192,58 +2192,36 @@
                 const r = await rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
-                        options: { showType: true, showDisplay: true, showContent: true }
+                        options: { showType: true, showContent: true }
                     },
                     cursor,
                     50
                 ]);
-                fetchedObjects.push(...(r.data || []));
+                directObjects.push(...(r.data || []));
                 pageCount++;
                 if (!r.hasNextPage || pageCount >= 8) break; // Fetch up to 400 objects max for speed
                 cursor = r.nextCursor;
             }
 
-            // 2. Identify Kiosk Owner Caps and load objects inside those Kiosks
-            const kioskCaps = fetchedObjects.filter(obj => {
-                const type = obj.data?.type || '';
-                return type.includes('::kiosk::KioskOwnerCap');
-            });
-            const kioskIds = kioskCaps.map(cap => {
-                const fields = cap.data?.content?.fields || {};
-                return fields.kiosk || fields.for;
-            }).filter(Boolean);
+            // 2. Identify candidate NFT object IDs and KioskOwnerCaps
+            const candidateIds = [];
+            const kioskIds = [];
 
-            for (const kioskId of kioskIds) {
-                let kCursor = null;
-                let kPageCount = 0;
-                for (;;) {
-                    const r = await rpc('suix_getOwnedObjects', [
-                        kioskId,
-                        {
-                            options: { showType: true, showDisplay: true, showContent: true }
-                        },
-                        kCursor,
-                        50
-                    ]);
-                    fetchedObjects.push(...(r.data || []));
-                    kPageCount++;
-                    if (!r.hasNextPage || kPageCount >= 4) break;
-                    kCursor = r.nextCursor;
-                }
-            }
-            
-            // 3. Extract NFT metadata
-            fetchedObjects.forEach(obj => {
+            directObjects.forEach(obj => {
                 const objectId = obj.data?.objectId;
                 const type = obj.data?.type || '';
-                const display = obj.data?.display?.data || {};
                 
-                // Skip coins
-                if (type.includes('::coin::Coin') || type.includes('::coin::')) {
+                // Check if it's a KioskOwnerCap
+                if (type.includes('::kiosk::KioskOwnerCap')) {
+                    const fields = obj.data?.content?.fields || {};
+                    const kId = fields.kiosk || fields.for;
+                    if (kId) kioskIds.push(kId);
                     return;
                 }
+
+                // Filter out coins and system/utility caps
+                if (type.includes('::coin::Coin') || type.includes('::coin::')) return;
                 
-                // Skip system capabilities and states
                 const lowercaseType = type.toLowerCase();
                 if (
                     lowercaseType.includes('::upgradecap') ||
@@ -2254,33 +2232,88 @@
                     return;
                 }
 
-                // Extract name & image
-                let name = display.name || display.title;
-                let imageUrl = display.image_url || display.img_url || display.image || display.url;
-                
-                const fields = obj.data?.content?.fields || {};
-                if (!name) {
-                    name = fields.name || fields.title || type.split('::').pop();
-                }
-                if (!imageUrl) {
-                    imageUrl = fields.image_url || fields.img_url || fields.url || fields.image;
-                }
-
-                // Default fallbacks
-                if (!name) {
-                    name = 'Sui Object';
-                }
-                if (!imageUrl) {
-                    imageUrl = 'https://placehold.co/100x100/1F2937/4B5563?text=NFT';
-                }
-
-                ownedNfts.push({
-                    objectId,
-                    type,
-                    name: String(name),
-                    imageUrl: String(imageUrl)
-                });
+                candidateIds.push(objectId);
             });
+
+            // 3. Scan Kiosks for nested item IDs (dynamic fields representing Kiosk items)
+            for (const kioskId of kioskIds) {
+                let kCursor = null;
+                let kPageCount = 0;
+                let kioskFields = [];
+                for (;;) {
+                    const r = await rpc('suix_getOwnedObjects', [
+                        kioskId,
+                        {
+                            options: { showType: true, showContent: true }
+                        },
+                        kCursor,
+                        50
+                    ]);
+                    kioskFields.push(...(r.data || []));
+                    kPageCount++;
+                    if (!r.hasNextPage || kPageCount >= 4) break;
+                    kCursor = r.nextCursor;
+                }
+
+                kioskFields.forEach(fieldObj => {
+                    const type = fieldObj.data?.type || '';
+                    if (type.includes('::kiosk::Item') || type.includes('Field<0x2::kiosk::Item')) {
+                        const fields = fieldObj.data?.content?.fields || {};
+                        // Kiosk item ID is stored inside fields.name
+                        if (fields.name) {
+                            candidateIds.push(fields.name);
+                        }
+                    }
+                });
+            }
+
+            // 4. Fetch full display and details for all candidate IDs in batches
+            if (candidateIds.length > 0) {
+                const batchSize = 50;
+                const batches = [];
+                for (let i = 0; i < candidateIds.length; i += batchSize) {
+                    batches.push(candidateIds.slice(i, i + batchSize));
+                }
+
+                const detailPromises = batches.map(batchIds => {
+                    return rpc('sui_multiGetObjects', [
+                        batchIds,
+                        { showType: true, showDisplay: true, showContent: true }
+                    ]);
+                });
+
+                const detailResults = await Promise.all(detailPromises);
+                const fetchedDetails = detailResults.flat();
+
+                fetchedDetails.forEach(obj => {
+                    const objectId = obj.data?.objectId;
+                    const type = obj.data?.type || '';
+                    const display = obj.data?.display?.data || {};
+
+                    // Extract name & image with robust fallbacks
+                    let name = display.name || display.title;
+                    let imageUrl = display.image_url || display.img_url || display.image || display.url;
+                    
+                    const fields = obj.data?.content?.fields || {};
+                    if (!name) {
+                        name = fields.name || fields.title || type.split('::').pop();
+                    }
+                    if (!imageUrl) {
+                        imageUrl = fields.image_url || fields.img_url || fields.url || fields.image;
+                    }
+
+                    // Default fallbacks
+                    if (!name) name = 'Sui Object';
+                    if (!imageUrl) imageUrl = 'https://placehold.co/100x100/1F2937/4B5563?text=NFT';
+
+                    ownedNfts.push({
+                        objectId,
+                        type,
+                        name: String(name),
+                        imageUrl: String(imageUrl)
+                    });
+                });
+            }
             
             if (ownedNfts.length === 0) {
                 empty.classList.remove('hidden');
