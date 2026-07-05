@@ -439,44 +439,79 @@
                 <!-- Token Config Card -->
                 <div class="bg-dark-card rounded-2xl border border-gray-800 p-6">
                     <h2 class="text-white font-bold text-lg mb-5">Airdrop Configuration</h2>
-
-                    <!-- Token Type -->
-                    <div class="mb-5">
-                        <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Token</label>
-                        <div class="grid grid-cols-3 gap-2 mb-3">
-                            <button class="token-preset-btn px-3 py-2 text-sm rounded-lg border border-brand-primary bg-brand-primary/10 text-white font-medium transition-all" data-type="city">$CITY</button>
-                            <button class="token-preset-btn px-3 py-2 text-sm rounded-lg border border-gray-700 text-dark-text-secondary hover:border-gray-500 transition-all" data-type="sui">SUI</button>
-                            <button class="token-preset-btn px-3 py-2 text-sm rounded-lg border border-gray-700 text-dark-text-secondary hover:border-gray-500 transition-all" data-type="custom">Custom</button>
+                    <!-- Airdrop Mode Selector -->
+                    <div class="mb-5 border-b border-gray-800 pb-4">
+                        <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Airdrop Mode</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="mode-tokens-btn" class="px-3 py-2 text-sm rounded-lg border border-brand-primary bg-brand-primary/10 text-white font-medium transition-all" type="button">Tokens / Coins</button>
+                            <button id="mode-nfts-btn" class="px-3 py-2 text-sm rounded-lg border border-gray-700 text-dark-text-secondary hover:border-gray-500 transition-all" type="button">Owned NFTs</button>
                         </div>
-                        <div id="custom-token-fields" class="hidden space-y-3">
-                            <div>
-                                <label class="block text-xs text-dark-text-secondary mb-1">Coin Type</label>
-                                <div class="relative">
-                                    <input id="custom-coin-type" type="text" placeholder="Search by symbol or paste coin type…"
-                                        autocomplete="off"
-                                        class="w-full bg-dark-bg border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-primary transition-colors font-mono">
-                                    <div id="coin-type-dropdown" class="hidden absolute z-20 w-full mt-1 bg-dark-card border border-gray-700 rounded-lg shadow-xl overflow-y-auto" style="max-height:200px"></div>
+                    </div>
+
+                    <div id="token-fields-container" class="space-y-5">
+                        <!-- Token Type -->
+                        <div>
+                            <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Token</label>
+                            <div class="grid grid-cols-3 gap-2 mb-3">
+                                <button class="token-preset-btn px-3 py-2 text-sm rounded-lg border border-brand-primary bg-brand-primary/10 text-white font-medium transition-all" data-type="city">$CITY</button>
+                                <button class="token-preset-btn px-3 py-2 text-sm rounded-lg border border-gray-700 text-dark-text-secondary hover:border-gray-500 transition-all" data-type="sui">SUI</button>
+                                <button class="token-preset-btn px-3 py-2 text-sm rounded-lg border border-gray-700 text-dark-text-secondary hover:border-gray-500 transition-all" data-type="custom">Custom</button>
+                            </div>
+                            <div id="custom-token-fields" class="hidden space-y-3">
+                                <div>
+                                    <label class="block text-xs text-dark-text-secondary mb-1">Coin Type</label>
+                                    <div class="relative">
+                                        <input id="custom-coin-type" type="text" placeholder="Search by symbol or paste coin type…"
+                                            autocomplete="off"
+                                            class="w-full bg-dark-bg border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-primary transition-colors font-mono">
+                                        <div id="coin-type-dropdown" class="hidden absolute z-20 w-full mt-1 bg-dark-card border border-gray-700 rounded-lg shadow-xl overflow-y-auto" style="max-height:200px"></div>
+                                    </div>
+                                    <p id="custom-coin-decimals-hint" class="mt-1 text-xs text-dark-text-secondary hidden">Decimals detected: <span id="custom-coin-decimals-val" class="text-white font-mono"></span></p>
                                 </div>
-                                <p id="custom-coin-decimals-hint" class="mt-1 text-xs text-dark-text-secondary hidden">Decimals detected: <span id="custom-coin-decimals-val" class="text-white font-mono"></span></p>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Amount Per Recipient -->
-                    <div class="mb-5">
-                        <label id="amount-label" class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Amount Per Recipient</label>
-                        <div id="amount-input-wrap" class="bg-dark-bg border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 focus-within:border-brand-primary transition-colors">
-                            <input id="amount-input" type="number" placeholder="0" min="0"
-                                class="bg-transparent text-white text-lg font-bold w-full outline-none placeholder-gray-700">
-                            <span id="token-symbol" class="text-dark-text-secondary text-sm font-medium shrink-0">$CITY</span>
+                        <!-- Amount Per Recipient -->
+                        <div>
+                            <label id="amount-label" class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider mb-2">Amount Per Recipient</label>
+                            <div id="amount-input-wrap" class="bg-dark-bg border border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 focus-within:border-brand-primary transition-colors">
+                                <input id="amount-input" type="number" placeholder="0" min="0"
+                                    class="bg-transparent text-white text-lg font-bold w-full outline-none placeholder-gray-700">
+                                <span id="token-symbol" class="text-dark-text-secondary text-sm font-medium shrink-0">$CITY</span>
+                            </div>
+                            <p id="amount-mode-hint" class="hidden mt-2 text-xs text-dark-text-secondary">When a CSV is loaded, per-wallet amounts are used from the file. Clear the CSV to enable this field.</p>
                         </div>
-                        <p id="amount-mode-hint" class="hidden mt-2 text-xs text-dark-text-secondary">When a CSV is loaded, per-wallet amounts are used from the file. Clear the CSV to enable this field.</p>
+
+                        <!-- Sender Balance -->
+                        <div id="sender-balance-row" class="hidden p-3 bg-dark-bg rounded-lg border border-gray-700 flex justify-between items-center text-sm">
+                            <span class="text-dark-text-secondary">Your Balance</span>
+                            <span id="sender-balance-display" class="text-white font-mono">—</span>
+                        </div>
                     </div>
 
-                    <!-- Sender Balance -->
-                    <div id="sender-balance-row" class="hidden mb-5 p-3 bg-dark-bg rounded-lg border border-gray-700 flex justify-between items-center text-sm">
-                        <span class="text-dark-text-secondary">Your Balance</span>
-                        <span id="sender-balance-display" class="text-white font-mono">—</span>
+                    <!-- NFT Fields Container -->
+                    <div id="nft-fields-container" class="hidden space-y-5">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Select NFTs from Wallet</label>
+                                <button id="load-nfts-btn" class="text-xs text-brand-primary hover:text-brand-primary-hover font-semibold transition-colors" type="button">Load NFTs</button>
+                            </div>
+                            <div id="nft-loading-status" class="hidden text-xs text-dark-text-secondary py-4 text-center">Scanning wallet for NFTs…</div>
+                            <div id="nft-empty-status" class="hidden text-xs text-dark-text-secondary py-8 text-center bg-dark-bg rounded-xl border border-gray-800">No NFTs found in your connected wallet.</div>
+                            <!-- Scrollable NFT Selection Grid -->
+                            <div id="nft-grid-container" class="hidden max-h-60 overflow-y-auto border border-gray-800 rounded-xl p-3 bg-dark-bg/60">
+                                <div id="nft-selection-grid" class="grid grid-cols-2 gap-2">
+                                    <!-- Dynamic NFT items -->
+                                </div>
+                            </div>
+                        </div>
+                        <div id="nft-selection-summary" class="hidden p-3 bg-dark-bg rounded-lg border border-gray-800 flex justify-between items-center text-sm">
+                            <span class="text-dark-text-secondary">Selected NFTs</span>
+                            <span id="nft-selected-count" class="text-white font-mono font-bold">0</span>
+                        </div>
+                        <div id="nft-mismatch-warning" class="hidden text-xs text-yellow-500 font-semibold bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 leading-relaxed">
+                            ⚠️ Recipient count does not match selected NFTs. Please select exactly 0 NFTs.
+                        </div>
                     </div>
 
                     <!-- Summary Box -->
@@ -485,7 +520,7 @@
                             <span class="text-dark-text-secondary">Recipients</span>
                             <span id="summary-count" class="text-white font-mono">0</span>
                         </div>
-                        <div class="flex justify-between text-sm">
+                        <div id="summary-each-row" class="flex justify-between text-sm">
                             <span class="text-dark-text-secondary">Amount each</span>
                             <span id="summary-each" class="text-white font-mono">0</span>
                         </div>
@@ -601,8 +636,10 @@
     let customAddresses      = [];      // up to 20 manually-entered SUI addresses
     let customCsvRecipients  = [];      // [{address, amountText}]
     let customCsvFileName    = '';
-    let customCsvSkippedRows = 0;
     let customTokenDecimals  = 9;       // auto-fetched from coin metadata
+    let airdropMode          = 'tokens'; // 'tokens' | 'nfts'
+    let ownedNfts            = [];       // [{objectId, type, name, imageUrl}]
+    let selectedNftIds       = new Set();
 
     // ================================================================
     // TAB HELPERS
@@ -1987,6 +2024,28 @@
 
     function updateSummary() {
         const count = getRecipientCount();
+        const warningEl = document.getElementById('balance-warning');
+        const mismatchEl = document.getElementById('nft-mismatch-warning');
+
+        if (airdropMode === 'nfts') {
+            document.getElementById('summary-count').textContent = count;
+            document.getElementById('summary-total').textContent = `${selectedNftIds.size} NFTs`;
+            
+            if (warningEl) warningEl.classList.add('hidden');
+            
+            if (mismatchEl) {
+                if (count !== selectedNftIds.size) {
+                    mismatchEl.textContent = `⚠️ Recipient count (${count}) does not match selected NFTs (${selectedNftIds.size}). Please select exactly ${count} NFTs to proceed.`;
+                    mismatchEl.classList.remove('hidden');
+                } else {
+                    mismatchEl.classList.add('hidden');
+                }
+            }
+            return;
+        }
+
+        if (mismatchEl) mismatchEl.classList.add('hidden');
+
         const decimals = getSelectedDecimals();
         const sym    = getTokenSymbol();
         const entries = getRecipientEntries();
@@ -2000,7 +2059,6 @@
         document.getElementById('summary-total').textContent = `${formatAtomicAmount(totalAtomic, decimals)} ${sym}`;
 
         // Check for sufficient funds
-        const warningEl = document.getElementById('balance-warning');
         if (warningEl) {
             if (senderBalanceAtomic !== null && senderBalanceAtomic < totalAtomic) {
                 const shortAmt = totalAtomic - senderBalanceAtomic;
@@ -2039,9 +2097,6 @@
     function updateExecuteBtn() {
         const btn     = document.getElementById('execute-btn');
         const count   = getRecipientCount();
-        const hasAmount = isUsingCsvAmounts()
-            ? customCsvRecipients.length > 0
-            : amountStringToAtomic(document.getElementById('amount-input').value || '0', getSelectedDecimals()) > 0n;
         const coinType = getSelectedCoinType();
 
         if (!connectedAddress) {
@@ -2062,6 +2117,31 @@
             btn.className   = 'w-full py-4 bg-gray-700 text-gray-400 font-bold rounded-xl cursor-not-allowed transition-all text-base';
             return;
         }
+
+        if (airdropMode === 'nfts') {
+            if (selectedNftIds.size === 0) {
+                btn.textContent = 'Select NFTs to Airdrop';
+                btn.disabled    = true;
+                btn.className   = 'w-full py-4 bg-gray-700 text-gray-400 font-bold rounded-xl cursor-not-allowed transition-all text-base';
+                return;
+            }
+            if (selectedNftIds.size !== count) {
+                btn.textContent = `Select Exactly ${count} NFTs`;
+                btn.disabled    = true;
+                btn.className   = 'w-full py-4 bg-gray-700 text-gray-400 font-bold rounded-xl cursor-not-allowed transition-all text-base';
+                return;
+            }
+
+            btn.textContent = `🚀 Execute NFT Airdrop (${count} NFTs)`;
+            btn.disabled    = false;
+            btn.className   = 'w-full py-4 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary-hover transition-all text-base shadow-lg shadow-blue-500/20 cursor-pointer';
+            return;
+        }
+
+        const hasAmount = isUsingCsvAmounts()
+            ? customCsvRecipients.length > 0
+            : amountStringToAtomic(document.getElementById('amount-input').value || '0', getSelectedDecimals()) > 0n;
+
         if (!hasAmount) {
             btn.textContent = isUsingCsvAmounts() ? 'Review CSV Amounts' : 'Enter Amount';
             btn.disabled    = true;
@@ -2078,6 +2158,155 @@
         btn.textContent = `🚀 Execute Airdrop (${count} addresses)`;
         btn.disabled    = false;
         btn.className   = 'w-full py-4 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary-hover transition-all text-base shadow-lg shadow-blue-500/20 cursor-pointer';
+    }
+
+    async function loadNftsFromWallet() {
+        if (!connectedAddress) return;
+        const btn = document.getElementById('load-nfts-btn');
+        const loading = document.getElementById('nft-loading-status');
+        const empty = document.getElementById('nft-empty-status');
+        const gridContainer = document.getElementById('nft-grid-container');
+        const grid = document.getElementById('nft-selection-grid');
+        
+        btn.disabled = true;
+        loading.classList.remove('hidden');
+        empty.classList.add('hidden');
+        gridContainer.classList.add('hidden');
+        grid.innerHTML = '';
+        
+        ownedNfts = [];
+        selectedNftIds.clear();
+        
+        try {
+            let cursor = null;
+            let fetchedObjects = [];
+            for (;;) {
+                const r = await rpc('suix_getOwnedObjects', [
+                    connectedAddress,
+                    {
+                        filter: { MatchNone: [{ StructType: '0x2::coin::Coin' }] },
+                        options: { showType: true, showDisplay: true, showContent: true }
+                    },
+                    cursor,
+                    50
+                ]);
+                fetchedObjects.push(...(r.data || []));
+                if (!r.hasNextPage) break;
+                cursor = r.nextCursor;
+            }
+            
+            fetchedObjects.forEach(obj => {
+                const objectId = obj.data?.objectId;
+                const type = obj.data?.type || '';
+                const display = obj.data?.display || {};
+                
+                if (display.image_url || display.name) {
+                    ownedNfts.push({
+                        objectId,
+                        type,
+                        name: display.name || type.split('::').pop(),
+                        imageUrl: display.image_url || 'https://placehold.co/100x100/1F2937/4B5563?text=NFT'
+                    });
+                }
+            });
+            
+            if (ownedNfts.length === 0) {
+                empty.classList.remove('hidden');
+            } else {
+                renderNftGrid();
+                gridContainer.classList.remove('hidden');
+                document.getElementById('nft-selection-summary').classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error('[airdrop] loadNftsFromWallet error:', err);
+            showStatus('Failed to load NFTs: ' + err.message, 'error');
+            empty.textContent = 'Failed to load NFTs. Click Load NFTs to try again.';
+            empty.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            loading.classList.add('hidden');
+            updateSummary();
+            updateExecuteBtn();
+        }
+    }
+
+    function renderNftGrid() {
+        const grid = document.getElementById('nft-selection-grid');
+        grid.innerHTML = '';
+        
+        ownedNfts.forEach(nft => {
+            const isSelected = selectedNftIds.has(nft.objectId);
+            const card = document.createElement('div');
+            card.className = `relative p-2 rounded-xl bg-dark-bg border transition-all cursor-pointer select-none group flex flex-col items-center text-center \${isSelected ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-800 hover:border-gray-700'}`;
+            
+            const truncId = nft.objectId.slice(0, 6) + '…' + nft.objectId.slice(-4);
+            
+            card.innerHTML = `
+                <div class="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-900 border border-gray-800/80 mb-2">
+                    <img src="\${nft.imageUrl}" alt="\${nft.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/1F2937/4B5563?text=NFT'">
+                    <div class="absolute top-1 right-1 w-4 h-4 rounded border flex items-center justify-center transition-all \${isSelected ? 'bg-brand-primary border-brand-primary text-white' : 'bg-dark-bg/85 border-gray-700 text-transparent'}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="w-full truncate text-[11px] font-bold text-white mb-0.5 leading-tight">\${nft.name}</div>
+                <div class="text-[9px] text-dark-text-secondary font-mono">\${truncId}</div>
+            `;
+            
+            card.addEventListener('click', () => {
+                if (selectedNftIds.has(nft.objectId)) {
+                    selectedNftIds.delete(nft.objectId);
+                } else {
+                    selectedNftIds.add(nft.objectId);
+                }
+                renderNftGrid();
+                updateSummary();
+                updateExecuteBtn();
+            });
+            
+            grid.appendChild(card);
+        });
+        
+        document.getElementById('nft-selected-count').textContent = selectedNftIds.size;
+    }
+
+    function initAirdropModeToggles() {
+        const tokensBtn = document.getElementById('mode-tokens-btn');
+        const nftsBtn = document.getElementById('mode-nfts-btn');
+        const tokenContainer = document.getElementById('token-fields-container');
+        const nftContainer = document.getElementById('nft-fields-container');
+        const summaryEachRow = document.getElementById('summary-each-row');
+        
+        const activeClass = 'px-3 py-2 text-sm rounded-lg border border-brand-primary bg-brand-primary/10 text-white font-medium transition-all';
+        const inactiveClass = 'px-3 py-2 text-sm rounded-lg border border-gray-700 text-dark-text-secondary hover:border-gray-500 transition-all';
+        
+        tokensBtn.addEventListener('click', () => {
+            airdropMode = 'tokens';
+            tokensBtn.className = activeClass;
+            nftsBtn.className = inactiveClass;
+            tokenContainer.classList.remove('hidden');
+            nftContainer.classList.add('hidden');
+            if (summaryEachRow) summaryEachRow.classList.remove('hidden');
+            updateSummary();
+            updateExecuteBtn();
+        });
+        
+        nftsBtn.addEventListener('click', () => {
+            airdropMode = 'nfts';
+            nftsBtn.className = activeClass;
+            tokensBtn.className = inactiveClass;
+            tokenContainer.classList.add('hidden');
+            nftContainer.classList.remove('hidden');
+            if (summaryEachRow) summaryEachRow.classList.add('hidden');
+            updateSummary();
+            updateExecuteBtn();
+        });
+
+        const loadBtn = document.getElementById('load-nfts-btn');
+        if (loadBtn) {
+            loadBtn.addEventListener('click', loadNftsFromWallet);
+        }
     }
 
     async function refreshSenderBalance() {
@@ -2105,24 +2334,12 @@
         const coinType   = getSelectedCoinType();
         const decimals   = getSelectedDecimals();
 
-        if (!entries.length || !coinType || !connectedAddress) return;
+        if (!entries.length || !connectedAddress) return;
 
         // Validate all recipient addresses
         const invalidAddrs = recipients.filter(a => !isValidSuiAddress(a));
         if (invalidAddrs.length > 0) {
             showStatus(`Invalid recipient addresses found: ${invalidAddrs.slice(0, 3).join(', ')}`, 'error');
-            return;
-        }
-
-        const amountEntries = entries.map(entry => ({
-            address: entry.address,
-            amountText: entry.amountText,
-            amountAtomic: amountStringToAtomic(entry.amountText, decimals),
-        }));
-        const invalidAmountEntries = amountEntries.filter(entry => entry.amountAtomic <= 0n);
-        if (invalidAmountEntries.length) {
-            const examples = invalidAmountEntries.slice(0, 3).map(entry => shortAddr(entry.address)).join(', ');
-            showStatus(`One or more recipient amounts are invalid and must be positive numbers. Review the shared amount or CSV file${examples ? ` (for example: ${examples})` : ''}.`, 'error');
             return;
         }
 
@@ -2139,7 +2356,7 @@
         if (progressDiv) progressDiv.classList.remove('hidden');
         if (progressBar) progressBar.style.width = '0%';
         if (progressText) progressText.textContent = '0%';
-        if (progressSubtext) progressSubtext.textContent = `Processed 0/${amountEntries.length} recipients`;
+        if (progressSubtext) progressSubtext.textContent = `Processed 0/${recipients.length} recipients`;
 
         try {
             // Load @mysten/sui Transaction
@@ -2149,6 +2366,80 @@
                 Transaction = mod?.Transaction;
             }
             if (!Transaction) throw new Error('@mysten/sui SDK not loaded — please refresh and try again.');
+
+            if (airdropMode === 'nfts') {
+                if (selectedNftIds.size !== recipients.length) {
+                    throw new Error(`NFT count mismatch. Selected ${selectedNftIds.size} NFTs but have ${recipients.length} recipients.`);
+                }
+
+                const selectedNfts = Array.from(selectedNftIds);
+                const batches = [];
+                for (let i = 0; i < recipients.length; i += AIRDROP_BATCH_SIZE) {
+                    batches.push(recipients.slice(i, i + AIRDROP_BATCH_SIZE));
+                }
+
+                for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+                    const batch = batches[batchIndex];
+                    btn.textContent = `Building batch ${batchIndex + 1}/${batches.length}…`;
+                    showStatus(`Batch ${batchIndex + 1} of ${batches.length}: preparing ${batch.length} NFT transfers…`, 'info');
+
+                    const tx = new Transaction();
+                    tx.setSender(connectedAddress);
+
+                    batch.forEach((addr, idx) => {
+                        const globalIdx = batchIndex * AIRDROP_BATCH_SIZE + idx;
+                        const nftObjectId = selectedNfts[globalIdx];
+                        tx.transferObjects([tx.object(nftObjectId)], addr);
+                    });
+
+                    btn.textContent = `Confirm batch ${batchIndex + 1}/${batches.length}…`;
+                    showStatus(`Batch ${batchIndex + 1} of ${batches.length}: confirm NFT transfers in wallet…`, 'info');
+
+                    const txResult = await signAndExecuteTx(tx);
+                    const digest = txResult?.digest
+                                ?? txResult?.certificate?.transactionDigest
+                                ?? txResult?.effects?.transactionDigest;
+
+                    completedRecipients += batch.length;
+                    if (digest) appendTxLog(digest);
+
+                    const percent = Math.round((completedRecipients / recipients.length) * 100);
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+                    if (progressText) progressText.textContent = `${percent}%`;
+                    if (progressSubtext) progressSubtext.textContent = `Processed ${completedRecipients}/${recipients.length} recipients`;
+
+                    if (batchIndex < batches.length - 1) {
+                        showStatus(`Batch ${batchIndex + 1} confirmed. Sent ${completedRecipients}/${recipients.length} NFTs.`, 'success');
+                    }
+                }
+
+                showStatus(`✅ NFT Airdrop successful! Sent ${recipients.length} NFTs across ${batches.length} ${batches.length === 1 ? 'transaction' : 'transactions'}.`, 'success');
+                if (progressSubtext) progressSubtext.textContent = `✅ Processed all ${recipients.length} NFT transfers successfully!`;
+                
+                // Clear selection and refresh grid
+                selectedNftIds.clear();
+                ownedNfts = ownedNfts.filter(nft => !selectedNftIds.has(nft.objectId));
+                renderNftGrid();
+
+                setTimeout(() => {
+                    if (progressDiv) progressDiv.classList.add('hidden');
+                }, 5000);
+                return;
+            }
+
+            // Tokens Flow
+            if (!coinType) throw new Error('No coin type selected.');
+
+            const amountEntries = entries.map(entry => ({
+                address: entry.address,
+                amountText: entry.amountText,
+                amountAtomic: amountStringToAtomic(entry.amountText, decimals),
+            }));
+            const invalidAmountEntries = amountEntries.filter(entry => entry.amountAtomic <= 0n);
+            if (invalidAmountEntries.length) {
+                const examples = invalidAmountEntries.slice(0, 3).map(entry => shortAddr(entry.address)).join(', ');
+                throw new Error(`One or more recipient amounts are invalid and must be positive numbers. Review the shared amount or CSV file${examples ? ` (for example: ${examples})` : ''}.`);
+            }
 
             showStatus('Checking wallet balance…', 'info');
 
@@ -2226,6 +2517,7 @@
 
         } catch (err) {
             console.error('[airdrop] executeAirdrop error:', err);
+            const totalRecips = airdropMode === 'nfts' ? recipients.length : (getRecipientCount());
             const partial = completedRecipients > 0
                 ? completedRecipients === 1
                     ? ' 1 recipient was already sent before the failure.'
@@ -2233,7 +2525,7 @@
                 : '';
             showStatus('Airdrop failed: ' + (err?.message || String(err)) + partial, 'error');
             if (progressSubtext) {
-                progressSubtext.textContent = `❌ Failed after processing ${completedRecipients}/${amountEntries.length} recipients.`;
+                progressSubtext.textContent = `❌ Failed after processing ${completedRecipients}/${totalRecips} recipients.`;
             }
         } finally {
             btn.disabled = false;
@@ -2427,6 +2719,21 @@
         connectedAccount     = null;
         connectedWalletEntry = null;
         senderBalanceAtomic  = null;
+        selectedNftIds.clear();
+        ownedNfts = [];
+
+        // Reset NFT UI elements
+        const grid = document.getElementById('nft-selection-grid');
+        if (grid) grid.innerHTML = '';
+        const gridContainer = document.getElementById('nft-grid-container');
+        if (gridContainer) gridContainer.classList.add('hidden');
+        const summary = document.getElementById('nft-selection-summary');
+        if (summary) summary.classList.add('hidden');
+        const empty = document.getElementById('nft-empty-status');
+        if (empty) empty.classList.add('hidden');
+        const warning = document.getElementById('nft-mismatch-warning');
+        if (warning) warning.classList.add('hidden');
+
         try { localStorage.removeItem('alphacity_wallet'); } catch (_) {}
         walletLabel.textContent = 'Connect Wallet';
         connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
@@ -2925,6 +3232,7 @@
     // ================================================================
     renderCustomCsvPreview();
     updateAmountInputState();
+    initAirdropModeToggles();
     updateSummary();
     initWalletStandard();
     tryAutoReconnect();
