@@ -2295,6 +2295,9 @@
                             const decimals = await getCoinDecimals(cType);
                             const scale = Math.pow(10, decimals);
                             
+                            const rawBal = fields.balance?.fields?.value ? Number(fields.balance.fields.value) : 0;
+                            if (rawBal === 0) continue; // Skip finished (fully claimed or revoked) streams
+
                             allStreams.push({
                                 id: obj.data.objectId,
                                 creator: fields.creator,
