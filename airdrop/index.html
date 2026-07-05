@@ -496,6 +496,11 @@
                                 <label class="block text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Select NFTs from Wallet</label>
                                 <button id="load-nfts-btn" class="text-xs text-brand-primary hover:text-brand-primary-hover font-semibold transition-colors" type="button">Load NFTs</button>
                             </div>
+                            <!-- NFT Search Input -->
+                            <div id="nft-search-container" class="hidden mb-3">
+                                <input id="nft-search-input" type="text" placeholder="Filter NFTs by name or ID..."
+                                    class="w-full bg-dark-bg border border-gray-800 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-brand-primary transition-colors">
+                            </div>
                             <div id="nft-loading-status" class="hidden text-xs text-dark-text-secondary py-4 text-center">Scanning wallet for NFTs…</div>
                             <div id="nft-empty-status" class="hidden text-xs text-dark-text-secondary py-8 text-center bg-dark-bg rounded-xl border border-gray-800">No NFTs found in your connected wallet.</div>
                             <!-- Scrollable NFT Selection Grid -->
@@ -2182,6 +2187,7 @@
             let fetchedObjects = [];
             let pageCount = 0;
             
+            // 1. Fetch direct owned objects
             for (;;) {
                 const r = await rpc('suix_getOwnedObjects', [
                     connectedAddress,
@@ -2196,18 +2202,48 @@
                 if (!r.hasNextPage || pageCount >= 8) break; // Fetch up to 400 objects max for speed
                 cursor = r.nextCursor;
             }
+
+            // 2. Identify Kiosk Owner Caps and load objects inside those Kiosks
+            const kioskCaps = fetchedObjects.filter(obj => {
+                const type = obj.data?.type || '';
+                return type.includes('::kiosk::KioskOwnerCap');
+            });
+            const kioskIds = kioskCaps.map(cap => {
+                const fields = cap.data?.content?.fields || {};
+                return fields.kiosk || fields.for;
+            }).filter(Boolean);
+
+            for (const kioskId of kioskIds) {
+                let kCursor = null;
+                let kPageCount = 0;
+                for (;;) {
+                    const r = await rpc('suix_getOwnedObjects', [
+                        kioskId,
+                        {
+                            options: { showType: true, showDisplay: true, showContent: true }
+                        },
+                        kCursor,
+                        50
+                    ]);
+                    fetchedObjects.push(...(r.data || []));
+                    kPageCount++;
+                    if (!r.hasNextPage || kPageCount >= 4) break;
+                    kCursor = r.nextCursor;
+                }
+            }
             
+            // 3. Extract NFT metadata
             fetchedObjects.forEach(obj => {
                 const objectId = obj.data?.objectId;
                 const type = obj.data?.type || '';
                 const display = obj.data?.display?.data || {};
                 
-                // 1. Filter out coins client-side
+                // Skip coins
                 if (type.includes('::coin::Coin') || type.includes('::coin::')) {
                     return;
                 }
                 
-                // 2. Filter out system capabilities and states
+                // Skip system capabilities and states
                 const lowercaseType = type.toLowerCase();
                 if (
                     lowercaseType.includes('::upgradecap') ||
@@ -2218,7 +2254,7 @@
                     return;
                 }
 
-                // 3. Extract name & image from display configuration or fallback properties
+                // Extract name & image
                 let name = display.name || display.title;
                 let imageUrl = display.image_url || display.img_url || display.image || display.url;
                 
@@ -2248,9 +2284,11 @@
             
             if (ownedNfts.length === 0) {
                 empty.classList.remove('hidden');
+                document.getElementById('nft-search-container').classList.add('hidden');
             } else {
                 renderNftGrid();
                 gridContainer.classList.remove('hidden');
+                document.getElementById('nft-search-container').classList.remove('hidden');
                 document.getElementById('nft-selection-summary').classList.remove('hidden');
             }
         } catch (err) {
@@ -2270,7 +2308,20 @@
         const grid = document.getElementById('nft-selection-grid');
         grid.innerHTML = '';
         
-        ownedNfts.forEach(nft => {
+        const searchInput = document.getElementById('nft-search-input');
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        
+        const filteredNfts = query 
+            ? ownedNfts.filter(nft => nft.name.toLowerCase().includes(query) || nft.objectId.toLowerCase().includes(query))
+            : ownedNfts;
+            
+        if (filteredNfts.length === 0) {
+            grid.innerHTML = '<div class="col-span-full text-center py-8 text-xs text-dark-text-secondary">No matching NFTs found.</div>';
+            document.getElementById('nft-selected-count').textContent = selectedNftIds.size;
+            return;
+        }
+        
+        filteredNfts.forEach(nft => {
             const isSelected = selectedNftIds.has(nft.objectId);
             const card = document.createElement('div');
             card.className = `relative p-2 rounded-xl bg-dark-bg border transition-all cursor-pointer select-none group flex flex-col items-center text-center ${isSelected ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-800 hover:border-gray-700'}`;
@@ -2342,6 +2393,13 @@
         const loadBtn = document.getElementById('load-nfts-btn');
         if (loadBtn) {
             loadBtn.addEventListener('click', loadNftsFromWallet);
+        }
+
+        const searchInput = document.getElementById('nft-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                renderNftGrid();
+            });
         }
     }
 
@@ -2769,6 +2827,10 @@
         if (empty) empty.classList.add('hidden');
         const warning = document.getElementById('nft-mismatch-warning');
         if (warning) warning.classList.add('hidden');
+        const searchContainer = document.getElementById('nft-search-container');
+        if (searchContainer) searchContainer.classList.add('hidden');
+        const searchInput = document.getElementById('nft-search-input');
+        if (searchInput) searchInput.value = '';
 
         try { localStorage.removeItem('alphacity_wallet'); } catch (_) {}
         walletLabel.textContent = 'Connect Wallet';
