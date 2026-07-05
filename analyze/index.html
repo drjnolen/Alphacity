@@ -393,10 +393,11 @@
                         <span id="news-status" class="text-[10px] text-gray-500 font-mono">Loading...</span>
                     </div>
                     <div class="flex gap-1.5 overflow-x-auto pb-1 border-b border-gray-800/60">
-                        <button class="news-tab-btn active px-2.5 py-1.5 rounded text-[10px] font-semibold bg-brand-primary/10 border border-brand-primary/20 text-brand-primary cursor-pointer whitespace-nowrap" data-category="sui">SUI Network</button>
+                        <button class="news-tab-btn active px-2.5 py-1.5 rounded text-[10px] font-semibold bg-brand-primary/10 border border-brand-primary/20 text-brand-primary cursor-pointer whitespace-nowrap" data-category="sui">Sui Ecosystem</button>
                         <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="crypto">Crypto News</button>
                         <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="macro">Financial Macro</button>
                         <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="good">Good News</button>
+                        <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="science">Science News</button>
                     </div>
                     <div id="news-content" class="space-y-3 overflow-y-auto pr-1" style="height: 320px;">
                         <p class="text-xs text-gray-600 py-8 text-center font-medium">Loading news feed...</p>
@@ -2387,7 +2388,7 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // DYNAMIC NEWS TERMINAL WIDGET
     // =========================================================
-    let newsCache = { sui: null, crypto: null, macro: null, good: null };
+    let newsCache = { sui: null, crypto: null, macro: null, good: null, science: null };
 
     async function loadNewsCategory(category) {
         const container = document.getElementById('news-content');
@@ -2405,12 +2406,16 @@ Return ONLY a valid JSON object with two string keys:
 
         try {
             let rssUrl = '';
-            if (category === 'crypto' || category === 'sui') {
+            if (category === 'sui') {
+                rssUrl = 'https://news.google.com/rss/search?q=sui+blockchain+OR+sui+cryptocurrency&hl=en-US&gl=US&ceid=US:en';
+            } else if (category === 'crypto') {
                 rssUrl = 'https://cointelegraph.com/rss';
             } else if (category === 'macro') {
                 rssUrl = 'https://finance.yahoo.com/news/rssindex';
             } else if (category === 'good') {
                 rssUrl = 'https://www.goodnewsnetwork.org/feed/';
+            } else if (category === 'science') {
+                rssUrl = 'https://www.sciencedaily.com/rss/all.xml';
             }
 
             const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
@@ -2420,32 +2425,45 @@ Return ONLY a valid JSON object with two string keys:
             if (data.status !== 'ok') throw new Error(data.message || 'Error parsing news feed');
 
             let rawArticles = data.items || [];
-            let articles = [];
-
-            if (category === 'sui') {
-                articles = rawArticles.filter(art => {
-                    const title = (art.title || '').toLowerCase();
-                    const desc = (art.description || '').toLowerCase();
-                    return title.includes('sui') || desc.includes('sui');
-                });
-                if (articles.length === 0) articles = rawArticles.slice(0, 10);
-            } else {
-                articles = rawArticles;
-            }
-
-            newsCache[category] = articles.map(art => {
+            
+            newsCache[category] = rawArticles.map(art => {
                 let ts = Date.now() / 1000;
                 if (art.pubDate) {
                     try {
-                        ts = Math.floor(new Date(art.pubDate.replace(' ', 'T')).getTime() / 1000);
+                        let cleanDate = art.pubDate;
+                        if (/^\d/.test(cleanDate)) {
+                            cleanDate = cleanDate.replace(' ', 'T');
+                        }
+                        ts = Math.floor(new Date(cleanDate).getTime() / 1000);
                     } catch (_) {}
                 }
                 
+                let title = art.title || '';
+                let source = data.feed?.title || 'News Feed';
+                
+                if (category === 'sui') {
+                    const parts = title.split(' - ');
+                    if (parts.length > 1) {
+                        source = parts.pop();
+                        title = parts.join(' - ');
+                    } else {
+                        source = 'Google News';
+                    }
+                } else if (category === 'macro') {
+                    source = 'Yahoo Finance';
+                } else if (category === 'good') {
+                    source = 'Good News Network';
+                } else if (category === 'science') {
+                    source = 'ScienceDaily';
+                } else if (category === 'crypto') {
+                    source = 'Cointelegraph';
+                }
+                
                 return {
-                    title: art.title,
+                    title: title,
                     url: art.link,
                     published_on: ts,
-                    source: data.feed?.title || (category === 'macro' ? 'Yahoo Finance' : category === 'good' ? 'Good News' : 'CryptoNews')
+                    source: source
                 };
             });
 
@@ -2736,7 +2754,36 @@ Return ONLY a valid JSON object with two string keys:
         { name: 'Evan Web3', handle: 'EvanWeb3' }
     ];
 
+    function parseNitterRss(xmlText) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlText, "text/xml");
+        const items = doc.getElementsByTagName("item");
+        if (!items || items.length === 0) {
+            throw new Error("No items in RSS");
+        }
+        const firstItem = items[0];
+        const title = firstItem.getElementsByTagName("title")[0]?.textContent || '';
+        const description = firstItem.getElementsByTagName("description")[0]?.textContent || '';
+        const pubDate = firstItem.getElementsByTagName("pubDate")[0]?.textContent || '';
+        const link = firstItem.getElementsByTagName("link")[0]?.textContent || '';
+        return { title, description, pubDate, link };
+    }
+
     async function fetchNitterFeed(username) {
+        // Try direct browser fetch via corsproxy.io first (bypasses rss2json server-side 429/422 issues)
+        for (const instance of NITTER_INSTANCES) {
+            try {
+                const feedUrl = `${instance}/${username}/rss`;
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`;
+                const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
+                if (resp.ok) {
+                    const xmlText = await resp.text();
+                    return parseNitterRss(xmlText);
+                }
+            } catch (_) {}
+        }
+
+        // Fallback to rss2json if corsproxy.io fails
         for (const instance of NITTER_INSTANCES) {
             try {
                 const feedUrl = `${instance}/${username}/rss`;
@@ -2745,7 +2792,13 @@ Return ONLY a valid JSON object with two string keys:
                 if (!resp.ok) continue;
                 const data = await resp.json();
                 if (data.status === 'ok' && data.items && data.items.length > 0) {
-                    return data.items[0];
+                    const item = data.items[0];
+                    return {
+                        title: item.title,
+                        description: item.description,
+                        pubDate: item.pubDate,
+                        link: item.link
+                    };
                 }
             } catch (_) {}
         }
@@ -2792,10 +2845,18 @@ Return ONLY a valid JSON object with two string keys:
                 const timeEl = document.getElementById(`tweet-time-${ac.handle}`);
                 if (bodyEl && timeEl) {
                     bodyEl.innerHTML = cleanNitterHtml(tweet.description || tweet.title);
+                    
                     let ts = Date.now();
                     if (tweet.pubDate) {
-                        try { ts = new Date(tweet.pubDate.replace(' ', 'T')).getTime(); } catch(_) {}
+                        try {
+                            let cleanDate = tweet.pubDate;
+                            if (/^\d/.test(cleanDate)) {
+                                cleanDate = cleanDate.replace(' ', 'T');
+                            }
+                            ts = new Date(cleanDate).getTime();
+                        } catch(_) {}
                     }
+                    
                     const tweetLink = tweet.link ? tweet.link.replace(/https:\/\/nitter\.(net|cz|privacydev\.net)/g, 'https://x.com') : `https://x.com/${ac.handle}`;
                     timeEl.innerHTML = `<a href="${escHtml(tweetLink)}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
                 }
