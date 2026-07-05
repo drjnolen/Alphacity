@@ -67,11 +67,7 @@ jobs:
             exit 0
           fi
 
-          umask 077
-          OPENAI_KEY_FILE="$(mktemp)"
-          printf '%s' "${OPENAI_API_KEY}" > "${OPENAI_KEY_FILE}"
-          wrangler secret put OPENAI_API_KEY --stdin --config api/openai-proxy/wrangler.toml < "${OPENAI_KEY_FILE}"
-          rm -f "${OPENAI_KEY_FILE}"
+          echo -n "${OPENAI_API_KEY}" | wrangler secret put OPENAI_API_KEY --config api/openai-proxy/wrangler.toml
 
           DEPLOY_RESPONSE_FILE="$(mktemp)"
           wrangler deploy --config api/openai-proxy/wrangler.toml --json > "${DEPLOY_RESPONSE_FILE}"
