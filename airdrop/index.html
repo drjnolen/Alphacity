@@ -2180,34 +2180,70 @@
         try {
             let cursor = null;
             let fetchedObjects = [];
+            let pageCount = 0;
+            
             for (;;) {
                 const r = await rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
-                        filter: { MatchNone: [{ StructType: '0x2::coin::Coin' }] },
                         options: { showType: true, showDisplay: true, showContent: true }
                     },
                     cursor,
                     50
                 ]);
                 fetchedObjects.push(...(r.data || []));
-                if (!r.hasNextPage) break;
+                pageCount++;
+                if (!r.hasNextPage || pageCount >= 8) break; // Fetch up to 400 objects max for speed
                 cursor = r.nextCursor;
             }
             
             fetchedObjects.forEach(obj => {
                 const objectId = obj.data?.objectId;
                 const type = obj.data?.type || '';
-                const display = obj.data?.display || {};
+                const display = obj.data?.display?.data || {};
                 
-                if (display.image_url || display.name) {
-                    ownedNfts.push({
-                        objectId,
-                        type,
-                        name: display.name || type.split('::').pop(),
-                        imageUrl: display.image_url || 'https://placehold.co/100x100/1F2937/4B5563?text=NFT'
-                    });
+                // 1. Filter out coins client-side
+                if (type.includes('::coin::Coin') || type.includes('::coin::')) {
+                    return;
                 }
+                
+                // 2. Filter out system capabilities and states
+                const lowercaseType = type.toLowerCase();
+                if (
+                    lowercaseType.includes('::upgradecap') ||
+                    lowercaseType.includes('::package') ||
+                    lowercaseType.includes('::sui_system_state') ||
+                    lowercaseType.includes('::userstake')
+                ) {
+                    return;
+                }
+
+                // 3. Extract name & image from display configuration or fallback properties
+                let name = display.name || display.title;
+                let imageUrl = display.image_url || display.img_url || display.image || display.url;
+                
+                const fields = obj.data?.content?.fields || {};
+                if (!name) {
+                    name = fields.name || fields.title || type.split('::').pop();
+                }
+                if (!imageUrl) {
+                    imageUrl = fields.image_url || fields.img_url || fields.url || fields.image;
+                }
+
+                // Default fallbacks
+                if (!name) {
+                    name = 'Sui Object';
+                }
+                if (!imageUrl) {
+                    imageUrl = 'https://placehold.co/100x100/1F2937/4B5563?text=NFT';
+                }
+
+                ownedNfts.push({
+                    objectId,
+                    type,
+                    name: String(name),
+                    imageUrl: String(imageUrl)
+                });
             });
             
             if (ownedNfts.length === 0) {
