@@ -419,43 +419,37 @@
                         <span class="text-[8px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded font-mono uppercase tracking-widest font-bold">Locked</span>
                     </div>
 
-                    <!-- Orbit Diagram Area -->
-                    <div class="w-full h-52 flex items-center justify-center relative">
-                        <!-- Orbiting Ring -->
-                        <div class="w-40 h-40 rounded-full border border-dashed border-gray-800/60 absolute animate-[spin_60s_linear_infinite]"></div>
-                        
-                        <!-- Pulse Ring -->
-                        <div class="w-20 h-20 rounded-full border border-brand-primary/20 absolute animate-ping pointer-events-none opacity-40"></div>
-                        
-                        <!-- Central Slot (PFP) -->
-                        <div class="w-20 h-20 rounded-full border-2 border-dashed border-brand-primary/60 bg-dark-bg/80 flex items-center justify-center shadow-[0_0_15px_rgba(251,191,36,0.15)] z-10 group cursor-help transition-all hover:border-brand-primary" title="Central PFP Slot">
-                            <span class="text-xs text-brand-primary opacity-60 group-hover:opacity-100 transition-opacity font-bold uppercase tracking-wider font-mono">PFP</span>
+                    <!-- Grid Diagram Area -->
+                    <div class="w-full flex items-center justify-center gap-4 py-2">
+                        <!-- Left Stack: Slots I, II, III -->
+                        <div class="flex flex-col gap-2">
+                            <div class="w-12 h-12 border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help rounded-lg" title="Upgrade Slot I: Quantum Matrix">
+                                <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono font-bold">I</span>
+                            </div>
+                            <div class="w-12 h-12 border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help rounded-lg" title="Upgrade Slot II: Neural Node">
+                                <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono font-bold">II</span>
+                            </div>
+                            <div class="w-12 h-12 border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help rounded-lg" title="Upgrade Slot III: Chrono Drive">
+                                <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono font-bold">III</span>
+                            </div>
                         </div>
 
-                        <!-- Orbiting Upgrade Slots (6 slots) -->
-                        <!-- Top (0 deg) -->
-                        <div class="w-10 h-10 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(0, -80px);" title="Upgrade Slot I: Quantum Matrix">
-                            <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono">I</span>
+                        <!-- Central Slot (PFP) -->
+                        <div class="w-28 h-28 border-2 border-dashed border-brand-primary/60 bg-dark-bg/80 flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.15)] group cursor-help transition-all hover:border-brand-primary rounded-xl" title="Central PFP Slot">
+                            <span class="text-sm text-brand-primary opacity-60 group-hover:opacity-100 transition-opacity font-bold uppercase tracking-wider font-mono">PFP</span>
                         </div>
-                        <!-- Top Right (60 deg) -->
-                        <div class="w-10 h-10 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(69px, -40px);" title="Upgrade Slot II: Neural Node">
-                            <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono">II</span>
-                        </div>
-                        <!-- Bottom Right (120 deg) -->
-                        <div class="w-10 h-10 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(69px, 40px);" title="Upgrade Slot III: Chrono Drive">
-                            <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono">III</span>
-                        </div>
-                        <!-- Bottom (180 deg) -->
-                        <div class="w-10 h-10 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(0, 80px);" title="Upgrade Slot IV: Flux Capacitor">
-                            <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono">IV</span>
-                        </div>
-                        <!-- Bottom Left (240 deg) -->
-                        <div class="w-10 h-10 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(-69px, 40px);" title="Upgrade Slot V: Plasma Core">
-                            <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono">V</span>
-                        </div>
-                        <!-- Top Left (300 deg) -->
-                        <div class="w-10 h-10 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(-69px, -40px);" title="Upgrade Slot VI: Ether Link">
-                            <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono">VI</span>
+
+                        <!-- Right Stack: Slots IV, V, VI -->
+                        <div class="flex flex-col gap-2">
+                            <div class="w-12 h-12 border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help rounded-lg" title="Upgrade Slot IV: Flux Capacitor">
+                                <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono font-bold">IV</span>
+                            </div>
+                            <div class="w-12 h-12 border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help rounded-lg" title="Upgrade Slot V: Plasma Core">
+                                <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono font-bold">V</span>
+                            </div>
+                            <div class="w-12 h-12 border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help rounded-lg" title="Upgrade Slot VI: Ether Link">
+                                <span class="text-[10px] text-gray-600 group-hover:text-brand-secondary font-mono font-bold">VI</span>
+                            </div>
                         </div>
                     </div>
 
