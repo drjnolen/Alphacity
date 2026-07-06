@@ -1399,13 +1399,31 @@
         document.getElementById('token-list').innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
 
         try {
-            const [balances, allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
+            const [balances, allObjects, cetusV1, cetusV2, turbosV1, turbosV2, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
                 rpc('suix_getAllBalances', [address]).catch(() => []),
                 rpc('suix_getOwnedObjects', [address, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
                 rpc('suix_getOwnedObjects', [
                     address,
                     {
                         filter: { StructType: '0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
+                    },
+                    null,
+                    50
+                ]).catch(() => null),
+                rpc('suix_getOwnedObjects', [
+                    address,
+                    {
+                        filter: { StructType: '0x3492c874c1e3b3e2984e8c41b589e642d4d0a5d6459e5a9cfc2d52fd7c89c267::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
+                    },
+                    null,
+                    50
+                ]).catch(() => null),
+                rpc('suix_getOwnedObjects', [
+                    address,
+                    {
+                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position::Position' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1425,7 +1443,23 @@
                 fetchSuiPriceUsd(),
             ]);
 
-            portfolioData = { address, balances: balances || [], allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui };
+            const mergedPositions = [
+                ...(cetusV1?.data || []),
+                ...(cetusV2?.data || []),
+                ...(turbosV1?.data || []),
+                ...(turbosV2?.data || [])
+            ];
+            const genericObjects = allObjects?.data || [];
+            genericObjects.forEach(obj => {
+                const type = obj.data?.type || '';
+                if (type.includes('::position::Position') || type.includes('::position_nft::PositionNFT')) {
+                    const exists = mergedPositions.some(p => p.data?.objectId === obj.data?.objectId);
+                    if (!exists) mergedPositions.push(obj);
+                }
+            });
+            const lpPositionsWrapper = { data: mergedPositions };
+
+            portfolioData = { address, balances: balances || [], allObjects, lpPositionsWrapper, stakedCity, stakedSui };
 
             // Pre-fetch coin metadata (decimals) and token prices
             const coinTypes = (balances || []).map(b => b.coinType).filter(Boolean);
@@ -1434,11 +1468,11 @@
                 fetchTokenPrices(coinTypes)
             ]);
 
-            portfolioData = { address, balances: balances || [], allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui, tokenPrices };
+            portfolioData = { address, balances: balances || [], allObjects, lpPositionsWrapper, stakedCity, stakedSui, tokenPrices };
 
             renderTokenList(balances || [], suiPriceUsd, tokenPrices);
             renderStakedPositions(stakedSui, stakedCity);
-            await renderLpPositions(balances || [], cetusObjects, turbosObjects);
+            await renderLpPositions(balances || [], lpPositionsWrapper);
 
             // Fetch user transaction feed asynchronously (non-blocking)
             loadUserActivity(address);
@@ -1678,16 +1712,13 @@
         return poolMap;
     }
 
-    async function renderLpPositions(balances, cetusObjects, turbosObjects) {
+    async function renderLpPositions(balances, lpPositionsWrapper) {
         const panel = document.getElementById('lp-panel');
         const summaryEl = document.getElementById('lp-summary');
         if (!panel || !summaryEl) return;
 
         try {
-            const positions = [
-                ...(cetusObjects?.data || []),
-                ...(turbosObjects?.data || [])
-            ];
+            const positions = lpPositionsWrapper?.data || [];
 
             // Fetch pool data for all detected positions
             const poolIds = [];
@@ -1911,13 +1942,31 @@
         try {
             // 1. Refresh on-chain data
             setThinkingStatus('Fetching on-chain data…');
-            const [balances, allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui] = await Promise.all([
+            const [balances, allObjects, cetusV1, cetusV2, turbosV1, turbosV2, stakedCity, stakedSui] = await Promise.all([
                 rpc('suix_getAllBalances', [connectedAddress]).catch(() => []),
                 rpc('suix_getOwnedObjects', [connectedAddress, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
                 rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
                         filter: { StructType: '0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
+                    },
+                    null,
+                    50
+                ]).catch(() => null),
+                rpc('suix_getOwnedObjects', [
+                    connectedAddress,
+                    {
+                        filter: { StructType: '0x3492c874c1e3b3e2984e8c41b589e642d4d0a5d6459e5a9cfc2d52fd7c89c267::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
+                    },
+                    null,
+                    50
+                ]).catch(() => null),
+                rpc('suix_getOwnedObjects', [
+                    connectedAddress,
+                    {
+                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position::Position' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1935,7 +1984,24 @@
                 fetchStakedCity(connectedAddress),
                 fetchStakedSui(connectedAddress),
             ]);
-            const freshData = { address: connectedAddress, balances: balances || [], allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui };
+
+            const mergedPositions = [
+                ...(cetusV1?.data || []),
+                ...(cetusV2?.data || []),
+                ...(turbosV1?.data || []),
+                ...(turbosV2?.data || [])
+            ];
+            const genericObjects = allObjects?.data || [];
+            genericObjects.forEach(obj => {
+                const type = obj.data?.type || '';
+                if (type.includes('::position::Position') || type.includes('::position_nft::PositionNFT')) {
+                    const exists = mergedPositions.some(p => p.data?.objectId === obj.data?.objectId);
+                    if (!exists) mergedPositions.push(obj);
+                }
+            });
+            const lpPositionsWrapper = { data: mergedPositions };
+
+            const freshData = { address: connectedAddress, balances: balances || [], allObjects, lpPositionsWrapper, stakedCity, stakedSui };
 
             // Fetch coin metadata (decimals) and token prices
             const coinTypes = (freshData.balances).map(b => b.coinType).filter(Boolean);
@@ -1951,7 +2017,7 @@
             freshData.tokenPrices = tokenPrices;
             renderTokenList(freshData.balances, suiPriceUsd, tokenPrices);
             renderStakedPositions(freshData.stakedSui, freshData.stakedCity);
-            await renderLpPositions(freshData.balances, freshData.cetusObjects, freshData.turbosObjects);
+            await renderLpPositions(freshData.balances, freshData.lpPositionsWrapper);
             portfolioData = freshData;
 
             // Fetch user transaction feed asynchronously (non-blocking)
@@ -2121,17 +2187,14 @@ Return ONLY a valid JSON object with two string keys:
 
         // Parse LPs for the prompt summary
         const lps = [];
-        const objects = data.allObjects?.data || [];
-        objects.forEach(obj => {
-            const type = obj.data?.type || '';
-            if (type.includes('::position::Position') || type.includes('::position_nft::PositionNFT')) {
-                const fields = obj.data.content?.fields || {};
-                const coinTypeA = fields.coin_type_a?.fields?.name || fields.coin_type_a || '';
-                const coinTypeB = fields.coin_type_b?.fields?.name || fields.coin_type_b || '';
-                const pair = (coinTypeA && coinTypeB) ? `${coinSymbol(coinTypeA)}-${coinSymbol(coinTypeB)}` : 'Unknown';
-                const liq = fields.liquidity || '0';
-                lps.push(`- CLMM LP Position: ${pair} on SUI CLMM (Liquidity: ${liq})`);
-            }
+        const positions = data.lpPositionsWrapper?.data || [];
+        positions.forEach(obj => {
+            const fields = obj.data?.content?.fields || {};
+            const coinTypeA = fields.coin_type_a?.fields?.name || fields.coin_type_a || '';
+            const coinTypeB = fields.coin_type_b?.fields?.name || fields.coin_type_b || '';
+            const pair = (coinTypeA && coinTypeB) ? `${coinSymbol(coinTypeA)}-${coinSymbol(coinTypeB)}` : 'Unknown';
+            const liq = fields.liquidity || '0';
+            lps.push(`- CLMM LP Position: ${pair} on SUI CLMM (Liquidity: ${liq})`);
         });
         (data.balances || []).forEach(b => {
             const coinType = b.coinType || '';
