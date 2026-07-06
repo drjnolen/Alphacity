@@ -31,7 +31,64 @@ export default {
       return handleCors(request, env, new Response(null, { status: 204 }));
     }
 
-    // ── Only POST allowed ───────────────────────────────────────────
+    // ── GET requests (for Nitter proxy) ─────────────────────────────
+    if (request.method === 'GET') {
+      const urlObj = new URL(request.url);
+      if (urlObj.pathname === '/nitter' || urlObj.pathname.startsWith('/nitter')) {
+        const handle = urlObj.searchParams.get('handle');
+        if (!handle) {
+          return handleCors(
+            request,
+            env,
+            new Response(JSON.stringify({ error: 'Missing handle parameter' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          );
+        }
+
+        const instances = [
+          'https://xcancel.com',
+          'https://nitter.net',
+          'https://nitter.privacyredirect.com',
+          'https://nitter.poast.org'
+        ];
+
+        for (const instance of instances) {
+          try {
+            const feedUrl = `${instance}/${handle}/rss`;
+            const resp = await fetch(feedUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+              signal: AbortSignal.timeout(2500)
+            });
+            if (resp.ok) {
+              const xml = await resp.text();
+              if (xml && xml.includes('<rss')) {
+                return handleCors(
+                  request,
+                  env,
+                  new Response(xml, {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+                  })
+                );
+              }
+            }
+          } catch (_) {}
+        }
+
+        return handleCors(
+          request,
+          env,
+          new Response(JSON.stringify({ error: 'Failed to fetch feed from all instances' }), {
+            status: 502,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+    }
+
+    // ── Only POST allowed for OpenAI requests ───────────────────────
     if (request.method !== 'POST') {
       return handleCors(
         request,
@@ -125,10 +182,13 @@ function handleCors(request, env, response) {
   const matched = allowedOrigins(env).find((a) => origin === a);
 
   const headers = new Headers(response.headers);
-  if (matched) {
+  const urlObj = new URL(request.url);
+  if (request.method === 'GET' && (urlObj.pathname === '/nitter' || urlObj.pathname.startsWith('/nitter'))) {
+    headers.set('Access-Control-Allow-Origin', '*');
+  } else if (matched) {
     headers.set('Access-Control-Allow-Origin', matched);
   }
-  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type');
   headers.set('Access-Control-Max-Age', '86400');
 

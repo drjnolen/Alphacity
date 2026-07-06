@@ -2837,10 +2837,11 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // X (TWITTER) ECOSYSTEM TRACKER
     // =========================================================
-    const NITTER_INSTANCES = [
+    const FALLBACK_NITTER_INSTANCES = [
         'https://nitter.net',
-        'https://nitter.cz',
-        'https://nitter.privacydev.net'
+        'https://xcancel.com',
+        'https://nitter.privacyredirect.com',
+        'https://nitter.poast.org'
     ];
 
     const X_ACCOUNTS = [
@@ -2870,25 +2871,29 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     async function fetchNitterFeed(username) {
-        // Try direct browser fetch via corsproxy.io first (bypasses rss2json server-side 429/422 issues)
-        for (const instance of NITTER_INSTANCES) {
+        // 1. Try to fetch from the private Cloudflare Worker proxy if configured
+        const isWorkerConfigured = typeof OPENAI_PROXY_URL !== 'undefined' && 
+                                   OPENAI_PROXY_URL !== '__OPENAI_PROXY_URL__' && 
+                                   OPENAI_PROXY_URL.startsWith('http');
+        if (isWorkerConfigured) {
             try {
-                const feedUrl = `${instance}/${username}/rss`;
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`;
-                const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
+                const workerUrl = `${OPENAI_PROXY_URL}/nitter?handle=${username}`;
+                const resp = await fetch(workerUrl, { signal: AbortSignal.timeout(6000) });
                 if (resp.ok) {
                     const xmlText = await resp.text();
                     return parseNitterRss(xmlText);
                 }
-            } catch (_) {}
+            } catch (err) {
+                console.warn(`Worker proxy failed to fetch feed for @${username}, falling back to rss2json:`, err);
+            }
         }
 
-        // Fallback to rss2json if corsproxy.io fails
-        for (const instance of NITTER_INSTANCES) {
+        // 2. Fallback to client-side parsing via rss2json.com across healthy Nitter instances
+        for (const instance of FALLBACK_NITTER_INSTANCES) {
             try {
                 const feedUrl = `${instance}/${username}/rss`;
                 const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
-                const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+                const resp = await fetch(url, { signal: AbortSignal.timeout(3000) });
                 if (!resp.ok) continue;
                 const data = await resp.json();
                 if (data.status === 'ok' && data.items && data.items.length > 0) {
@@ -2902,7 +2907,7 @@ Return ONLY a valid JSON object with two string keys:
                 }
             } catch (_) {}
         }
-        throw new Error(`Failed to fetch feed for @${username}`);
+        throw new Error(`Failed to fetch feed for @${username} from all sources`);
     }
 
     function cleanNitterHtml(html) {
@@ -2910,14 +2915,26 @@ Return ONLY a valid JSON object with two string keys:
         let clean = html.replace(/<img[^>]*>/gi, '');
         clean = clean.replace(/<video[^>]*>[\s\S]*?<\/video>/gi, '');
         clean = clean.replace(/<a[^>]*>(?:Video|Image|GIF)<\/a>/gi, '');
-        clean = clean.replace(/https:\/\/nitter\.net/g, 'https://x.com');
-        clean = clean.replace(/https:\/\/nitter\.cz/g, 'https://x.com');
-        clean = clean.replace(/https:\/\/nitter\.privacydev\.net/g, 'https://x.com');
+        clean = clean.replace(/https:\/\/(?:[a-zA-Z0-9.-]*nitter[a-zA-Z0-9.-]*|xcancel\.com)/gi, 'https://x.com');
         clean = clean.replace(/<blockquote>/g, '<blockquote class="border-l-2 border-gray-700 pl-2 my-1 text-dark-text-secondary italic text-[11px]">');
         clean = clean.replace(/<\/blockquote>/g, '</blockquote>');
         clean = clean.replace(/<hr>/g, '');
         clean = clean.replace(/(?:<br\s*\/?>\s*){2,}/gi, '<br>');
         return clean.trim();
+    }
+
+    function truncateTweetHtml(html, maxLength, linkUrl) {
+        if (!html) return '';
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const text = tempDiv.textContent || tempDiv.innerText || '';
+        
+        if (text.length <= maxLength) {
+            return html;
+        }
+        
+        const truncatedText = text.substring(0, maxLength).trim() + '...';
+        return `${escHtml(truncatedText)} <a href="${escHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline font-medium ml-1">Read on X ↗</a>`;
     }
 
     async function loadXFeed() {
@@ -2944,8 +2961,6 @@ Return ONLY a valid JSON object with two string keys:
                 const bodyEl = document.getElementById(`tweet-body-${ac.handle}`);
                 const timeEl = document.getElementById(`tweet-time-${ac.handle}`);
                 if (bodyEl && timeEl) {
-                    bodyEl.innerHTML = cleanNitterHtml(tweet.description || tweet.title);
-                    
                     let ts = Date.now();
                     if (tweet.pubDate) {
                         try {
@@ -2957,8 +2972,11 @@ Return ONLY a valid JSON object with two string keys:
                         } catch(_) {}
                     }
                     
-                    const tweetLink = tweet.link ? tweet.link.replace(/https:\/\/nitter\.(net|cz|privacydev\.net)/g, 'https://x.com') : `https://x.com/${ac.handle}`;
+                    const tweetLink = tweet.link ? tweet.link.replace(/https:\/\/(?:[a-zA-Z0-9.-]*nitter[a-zA-Z0-9.-]*|xcancel\.com)/gi, 'https://x.com') : `https://x.com/${ac.handle}`;
                     timeEl.innerHTML = `<a href="${escHtml(tweetLink)}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
+
+                    const cleanedHtml = cleanNitterHtml(tweet.description || tweet.title);
+                    bodyEl.innerHTML = truncateTweetHtml(cleanedHtml, 160, tweetLink);
                 }
             }).catch(err => {
                 console.error(`Failed to load tweet for @${ac.handle}:`, err);
