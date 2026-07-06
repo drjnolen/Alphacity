@@ -1258,6 +1258,7 @@
     }
 
     function coinDecimals(coinType) {
+        if (!coinType || typeof coinType !== 'string') return 9;
         if (isSuiCoinType(coinType)) return 9;
         if (coinType === CITY_TYPE) return 9;
         // Return cached value if available, otherwise default to 9
@@ -1266,6 +1267,7 @@
     }
 
     function coinSymbol(coinType) {
+        if (!coinType || typeof coinType !== 'string') return 'UNKNOWN';
         if (isSuiCoinType(coinType)) return 'SUI';
         if (coinType === CITY_TYPE) return 'CITY';
         return (coinType.split('::').pop() || coinType).slice(0, 10);
@@ -3247,10 +3249,12 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     function parseWhaleBalanceChanges(txBlock, whaleAddress) {
+        if (!txBlock) return [];
         const changes = txBlock.balanceChanges || [];
         const summaries = [];
         changes.forEach(ch => {
-            const ownerAddr = ch.owner?.AddressOwner || '';
+            if (!ch || !ch.owner || !ch.coinType) return;
+            const ownerAddr = ch.owner.AddressOwner || '';
             if (ownerAddr.toLowerCase() === whaleAddress.toLowerCase()) {
                 const amountStr = ch.amount || '0';
                 const amount = BigInt(amountStr);
@@ -3295,7 +3299,7 @@ Return ONLY a valid JSON object with two string keys:
                             }
                         },
                         null,
-                        20,
+                        5,
                         true
                     ]);
                     const blocks = resp?.data || [];
@@ -3318,7 +3322,7 @@ Return ONLY a valid JSON object with two string keys:
             const allTxs = results.flat()
                 .filter(tx => tx.timestamp >= cutoff)
                 .sort((a, b) => b.timestamp - a.timestamp)
-                .slice(0, 15);
+                .slice(0, 5);
 
             if (allTxs.length === 0) {
                 feedEl.innerHTML = '<p class="text-xs text-gray-500 py-8 text-center">No transactions in the past 24 hours.</p>';
