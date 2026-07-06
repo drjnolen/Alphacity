@@ -3077,7 +3077,7 @@ Return ONLY a valid JSON object with two string keys:
                                 showEffects: true,
                                 showBalanceChanges: true
                             },
-                            limit: 5
+                            limit: 20
                         }
                     ]);
                     const blocks = resp?.data || [];
@@ -3096,10 +3096,14 @@ Return ONLY a valid JSON object with two string keys:
             });
 
             const results = await Promise.all(fetchPromises);
-            const allTxs = results.flat().sort((a, b) => b.timestamp - a.timestamp).slice(0, 15);
+            const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+            const allTxs = results.flat()
+                .filter(tx => tx.timestamp >= cutoff)
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, 15);
 
             if (allTxs.length === 0) {
-                feedEl.innerHTML = '<p class="text-xs text-gray-500 py-8 text-center">No transactions found.</p>';
+                feedEl.innerHTML = '<p class="text-xs text-gray-500 py-8 text-center">No transactions in the past 24 hours.</p>';
                 return;
             }
 
