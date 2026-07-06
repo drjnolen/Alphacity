@@ -1399,27 +1399,33 @@
         document.getElementById('token-list').innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
 
         try {
-            const [balances, allObjects, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
+            const [balances, allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
                 rpc('suix_getAllBalances', [address]).catch(() => []),
+                rpc('suix_getOwnedObjects', [address, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
                 rpc('suix_getOwnedObjects', [
                     address,
                     {
-                        filter: null,
-                        options: {
-                            showType: true,
-                            showContent: true,
-                            showDisplay: true
-                        }
+                        filter: { StructType: '0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
-                    MAX_OBJECTS_TO_FETCH
+                    50
+                ]).catch(() => null),
+                rpc('suix_getOwnedObjects', [
+                    address,
+                    {
+                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
+                    },
+                    null,
+                    50
                 ]).catch(() => null),
                 fetchStakedCity(address),
                 fetchStakedSui(address),
                 fetchSuiPriceUsd(),
             ]);
 
-            portfolioData = { address, balances: balances || [], allObjects, stakedCity, stakedSui };
+            portfolioData = { address, balances: balances || [], allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui };
 
             // Pre-fetch coin metadata (decimals) and token prices
             const coinTypes = (balances || []).map(b => b.coinType).filter(Boolean);
@@ -1428,11 +1434,11 @@
                 fetchTokenPrices(coinTypes)
             ]);
 
-            portfolioData = { address, balances: balances || [], allObjects, stakedCity, stakedSui, tokenPrices };
+            portfolioData = { address, balances: balances || [], allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui, tokenPrices };
 
             renderTokenList(balances || [], suiPriceUsd, tokenPrices);
             renderStakedPositions(stakedSui, stakedCity);
-            renderLpPositions(balances || [], allObjects);
+            await renderLpPositions(balances || [], cetusObjects, turbosObjects);
 
             // Fetch user transaction feed asynchronously (non-blocking)
             loadUserActivity(address);
@@ -1612,21 +1618,103 @@
         el.innerHTML = rows.join('');
     }
 
-    function renderLpPositions(balances, allObjects) {
-        const lpList = [];
+    function parseI32(field) {
+        if (!field) return 0;
+        const bits = typeof field === 'object' ? parseInt(field.fields?.bits || 0) : parseInt(field);
+        return (bits & 0x80000000) ? (bits - 0x100000000) : bits;
+    }
 
-        // 1. Process CLMM Positions (Objects of type containing ::position::Position or similar)
-        const objects = allObjects?.data || [];
-        objects.forEach(obj => {
-            const data = obj.data;
-            if (!data) return;
-            const type = data.type || '';
-            
-            if (type.includes('::position::Position') || type.includes('::position_nft::PositionNFT')) {
+    function calculateLpAmounts(positionFields, poolFields) {
+        const liq = parseFloat(positionFields.liquidity || '0');
+        if (liq === 0 || !poolFields) return { amountA: 0, amountB: 0 };
+
+        const tickLowerIndex = parseI32(positionFields.tick_lower_index || positionFields.tick_lower);
+        const tickUpperIndex = parseI32(positionFields.tick_upper_index || positionFields.tick_upper);
+
+        const sa = Math.pow(1.0001, tickLowerIndex / 2);
+        const sb = Math.pow(1.0001, tickUpperIndex / 2);
+
+        const currentSqrtPriceRaw = parseFloat(poolFields.current_sqrt_price || '0');
+        const sp = currentSqrtPriceRaw / 18446744073709551616;
+
+        let amountA = 0;
+        let amountB = 0;
+
+        if (sp <= sa) {
+            amountA = liq * (1 / sa - 1 / sb);
+            amountB = 0;
+        } else if (sp >= sb) {
+            amountA = 0;
+            amountB = liq * (sb - sa);
+        } else {
+            amountA = liq * (1 / sp - 1 / sb);
+            amountB = liq * (sp - sa);
+        }
+
+        return { amountA, amountB };
+    }
+
+    async function fetchPools(poolIds) {
+        if (poolIds.length === 0) return {};
+        const poolMap = {};
+        try {
+            const promises = poolIds.map(async (id) => {
+                try {
+                    const obj = await rpc('sui_getObject', [
+                        id,
+                        { showContent: true }
+                    ]);
+                    if (obj?.data?.content?.fields) {
+                        poolMap[id] = obj.data.content.fields;
+                    }
+                } catch (e) {
+                    console.error(`Failed to fetch pool ${id}:`, e);
+                }
+            });
+            await Promise.all(promises);
+        } catch (e) {
+            console.error('Failed to fetch pools:', e);
+        }
+        return poolMap;
+    }
+
+    async function renderLpPositions(balances, cetusObjects, turbosObjects) {
+        const panel = document.getElementById('lp-panel');
+        const summaryEl = document.getElementById('lp-summary');
+        if (!panel || !summaryEl) return;
+
+        try {
+            const positions = [
+                ...(cetusObjects?.data || []),
+                ...(turbosObjects?.data || [])
+            ];
+
+            // Fetch pool data for all detected positions
+            const poolIds = [];
+            positions.forEach(pos => {
+                const fields = pos.data?.content?.fields || {};
+                const poolId = fields.pool?.fields?.id || fields.pool_id || fields.pool;
+                if (poolId && !poolIds.includes(poolId)) {
+                    poolIds.push(poolId);
+                }
+            });
+
+            const poolMap = await fetchPools(poolIds);
+            const lpList = [];
+
+            // 1. Process Concentrated LP positions
+            positions.forEach(pos => {
+                const data = pos.data;
+                if (!data) return;
+                const type = data.type || '';
                 const fields = data.content?.fields || {};
+                
+                const poolId = fields.pool?.fields?.id || fields.pool_id || fields.pool;
+                const poolFields = poolMap[poolId] || null;
+
                 const coinTypeA = fields.coin_type_a?.fields?.name || fields.coin_type_a || '';
                 const coinTypeB = fields.coin_type_b?.fields?.name || fields.coin_type_b || '';
-                
+
                 let pairName = 'Unknown Pair';
                 if (coinTypeA && coinTypeB) {
                     pairName = `${coinSymbol(coinTypeA)}-${coinSymbol(coinTypeB)}`;
@@ -1638,106 +1726,118 @@
                 let protocol = 'SUI CLMM';
                 if (type.includes('0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c')) {
                     protocol = 'Cetus CLMM';
-                } else if (type.includes('0xe0a0322d')) {
+                } else if (type.includes('0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64')) {
                     protocol = 'Turbos CLMM';
                 }
 
-                const liq = fields.liquidity || '0';
+                // Calculate token amounts in position
+                const { amountA, amountB } = calculateLpAmounts(fields, poolFields);
+
+                // Format amounts using decimals
+                const decA = coinDecimals(coinTypeA);
+                const decB = coinDecimals(coinTypeB);
                 
+                const symA = coinSymbol(coinTypeA);
+                const symB = coinSymbol(coinTypeB);
+
+                const amtA = amountA / Math.pow(10, decA);
+                const amtB = amountB / Math.pow(10, decB);
+
+                // Format to 2 or 4 decimals depending on size
+                const formattedA = amtA > 0.01 ? amtA.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : amtA.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+                const formattedB = amtB > 0.01 ? amtB.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : amtB.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
                 lpList.push({
                     pair: pairName,
                     protocol: protocol,
                     type: 'Concentrated LP',
-                    amount: liq !== '0' ? parseInt(liq).toLocaleString() : '—',
-                    detail: `Liquidity: ${liq !== '0' ? parseInt(liq).toLocaleString() : '—'}`,
+                    amount: `${formattedA} ${symA} / ${formattedB} ${symB}`,
                     id: data.objectId
                 });
-            }
-        });
+            });
 
-        // 2. Process Standard AMM LP Coins from balances
-        (balances || []).forEach(b => {
-            const coinType = b.coinType || '';
-            const isLpToken = coinType.includes('::lp::') || 
-                              coinType.includes('::af_lp::') || 
-                              coinType.includes('::lpt::') || 
-                              coinType.includes('LpToken') || 
-                              coinType.includes('::pool::Pool');
+            // 2. Process Standard AMM LP Coins from balances
+            (balances || []).forEach(b => {
+                const coinType = b.coinType || '';
+                const isLpToken = coinType.includes('::lp::') || 
+                                  coinType.includes('::af_lp::') || 
+                                  coinType.includes('::lpt::') || 
+                                  coinType.includes('LpToken') || 
+                                  coinType.includes('::pool::Pool');
 
-            if (isLpToken && b.totalBalance !== '0') {
-                let pairName = 'LP Token';
-                let protocol = 'SUI AMM';
-                
-                if (coinType.includes('::af_lp::') || coinType.includes('aftermath')) {
-                    protocol = 'Aftermath LP';
-                } else if (coinType.includes('flowx')) {
-                    protocol = 'FlowX LP';
-                } else if (coinType.includes('cetus')) {
-                    protocol = 'Cetus AMM';
-                }
+                if (isLpToken && b.totalBalance !== '0') {
+                    let pairName = 'LP Token';
+                    let protocol = 'SUI AMM';
+                    
+                    if (coinType.includes('::af_lp::') || coinType.includes('aftermath')) {
+                        protocol = 'Aftermath LP';
+                    } else if (coinType.includes('flowx')) {
+                        protocol = 'FlowX LP';
+                    } else if (coinType.includes('cetus')) {
+                        protocol = 'Cetus AMM';
+                    }
 
-                const match = coinType.match(/<(.+)>/);
-                if (match) {
-                    const inner = match[1];
-                    const parts = inner.split(',').map(p => p.trim());
-                    if (parts.length >= 2) {
-                        const validParts = parts.filter(p => p.includes('::'));
-                        if (validParts.length >= 2) {
-                            pairName = `${coinSymbol(validParts[0])}-${coinSymbol(validParts[1])}`;
+                    const match = coinType.match(/<(.+)>/);
+                    if (match) {
+                        const inner = match[1];
+                        const parts = inner.split(',').map(p => p.trim());
+                        if (parts.length >= 2) {
+                            const validParts = parts.filter(p => p.includes('::'));
+                            if (validParts.length >= 2) {
+                                pairName = `${coinSymbol(validParts[0])}-${coinSymbol(validParts[1])}`;
+                            } else {
+                                pairName = parts.slice(0, 2).map(p => coinSymbol(p)).join('-');
+                            }
                         } else {
-                            pairName = parts.slice(0, 2).map(p => coinSymbol(p)).join('-');
+                            pairName = coinSymbol(parts[0]);
                         }
                     } else {
-                        pairName = coinSymbol(parts[0]);
+                        pairName = coinSymbol(coinType);
                     }
-                } else {
-                    pairName = coinSymbol(coinType);
+
+                    const dec = coinDecimals(coinType);
+                    const amt = fmtBalance(b.totalBalance, dec);
+
+                    lpList.push({
+                        pair: pairName + ' LP',
+                        protocol: protocol,
+                        type: 'Standard LP',
+                        amount: `${amt}`,
+                        id: null
+                    });
                 }
+            });
 
-                const dec = coinDecimals(coinType);
-                const amt = fmtBalance(b.totalBalance, dec);
-
-                lpList.push({
-                    pair: pairName + ' LP',
-                    protocol: protocol,
-                    type: 'Standard LP',
-                    amount: amt,
-                    detail: `Balance: ${amt}`,
-                    id: null
-                });
+            if (lpList.length === 0) {
+                panel.classList.add('hidden');
+                summaryEl.innerHTML = '';
+                return;
             }
-        });
 
-        // 3. Render list to DOM
-        const panel = document.getElementById('lp-panel');
-        const summaryEl = document.getElementById('lp-summary');
-        if (!panel || !summaryEl) return;
+            panel.classList.remove('hidden');
+            summaryEl.innerHTML = lpList.map(lp => {
+                const explorerLink = lp.id ? `https://suiscan.xyz/mainnet/object/${lp.id}` : null;
+                const linkHtml = explorerLink ? 
+                    `<a href="${explorerLink}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline font-mono text-[9px] block">${shortAddr(lp.id)} ↗</a>` : 
+                    `<span class="text-gray-500 text-[9px] italic">Fungible Share</span>`;
 
-        if (lpList.length === 0) {
+                return `
+                    <div class="flex justify-between items-center text-xs py-2 border-b border-gray-800/60 last:border-0">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-white">${escHtml(lp.pair)}</span>
+                            <span class="text-[9px] text-gray-400 font-medium">${escHtml(lp.protocol)} (${lp.type})</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-white font-mono font-medium block">${lp.amount}</span>
+                            ${linkHtml}
+                        </div>
+                    </div>`;
+            }).join('');
+
+        } catch (e) {
+            console.error('Error rendering LP positions:', e);
             panel.classList.add('hidden');
-            summaryEl.innerHTML = '';
-            return;
         }
-
-        panel.classList.remove('hidden');
-        summaryEl.innerHTML = lpList.map(lp => {
-            const explorerLink = lp.id ? `https://suiscan.xyz/mainnet/object/${lp.id}` : null;
-            const linkHtml = explorerLink ? 
-                `<a href="${explorerLink}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline font-mono text-[9px] block">${shortAddr(lp.id)} ↗</a>` : 
-                `<span class="text-gray-500 text-[9px] italic">Fungible Share</span>`;
-
-            return `
-                <div class="flex justify-between items-center text-xs py-2 border-b border-gray-800/60 last:border-0">
-                    <div class="flex flex-col">
-                        <span class="font-bold text-white">${escHtml(lp.pair)}</span>
-                        <span class="text-[9px] text-gray-400 font-medium">${escHtml(lp.protocol)} (${lp.type})</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-white font-mono font-medium">${lp.amount}</span>
-                        ${linkHtml}
-                    </div>
-                </div>`;
-        }).join('');
     }
 
     // =========================================================
@@ -1811,25 +1911,31 @@
         try {
             // 1. Refresh on-chain data
             setThinkingStatus('Fetching on-chain data…');
-            const [balances, allObjects, stakedCity, stakedSui] = await Promise.all([
+            const [balances, allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui] = await Promise.all([
                 rpc('suix_getAllBalances', [connectedAddress]).catch(() => []),
+                rpc('suix_getOwnedObjects', [connectedAddress, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
                 rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
-                        filter: null,
-                        options: {
-                            showType: true,
-                            showContent: true,
-                            showDisplay: true
-                        }
+                        filter: { StructType: '0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
-                    MAX_OBJECTS_TO_FETCH
+                    50
+                ]).catch(() => null),
+                rpc('suix_getOwnedObjects', [
+                    connectedAddress,
+                    {
+                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position::Position' },
+                        options: { showType: true, showContent: true, showDisplay: true }
+                    },
+                    null,
+                    50
                 ]).catch(() => null),
                 fetchStakedCity(connectedAddress),
                 fetchStakedSui(connectedAddress),
             ]);
-            const freshData = { address: connectedAddress, balances: balances || [], allObjects, stakedCity, stakedSui };
+            const freshData = { address: connectedAddress, balances: balances || [], allObjects, cetusObjects, turbosObjects, stakedCity, stakedSui };
 
             // Fetch coin metadata (decimals) and token prices
             const coinTypes = (freshData.balances).map(b => b.coinType).filter(Boolean);
@@ -1845,7 +1951,7 @@
             freshData.tokenPrices = tokenPrices;
             renderTokenList(freshData.balances, suiPriceUsd, tokenPrices);
             renderStakedPositions(freshData.stakedSui, freshData.stakedCity);
-            renderLpPositions(freshData.balances, freshData.allObjects);
+            await renderLpPositions(freshData.balances, freshData.cetusObjects, freshData.turbosObjects);
             portfolioData = freshData;
 
             // Fetch user transaction feed asynchronously (non-blocking)
