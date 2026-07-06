@@ -1828,6 +1828,7 @@ Return ONLY a valid JSON object with two string keys:
     function timeAgo(ts) {
         if (!ts) return '—';
         const diff = Date.now() - ts;
+        if (diff < 60000) return 'Just now';
         const mins = Math.floor(diff / 60000);
         if (mins < 60) return mins + 'm ago';
         const hrs = Math.floor(mins / 60);
@@ -2530,8 +2531,10 @@ Return ONLY a valid JSON object with two string keys:
                 let ts = Date.now() / 1000;
                 if (art.pubDate) {
                     try {
-                        let cleanDate = art.pubDate;
-                        if (/^\d/.test(cleanDate)) {
+                        let cleanDate = art.pubDate.trim();
+                        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(cleanDate)) {
+                            cleanDate += ' UTC';
+                        } else if (/^\d/.test(cleanDate)) {
                             cleanDate = cleanDate.replace(' ', 'T');
                         }
                         ts = Math.floor(new Date(cleanDate).getTime() / 1000);
@@ -2566,6 +2569,9 @@ Return ONLY a valid JSON object with two string keys:
                     source: source
                 };
             });
+
+            // Sort by published_on descending (most recent first)
+            newsCache[category].sort((a, b) => b.published_on - a.published_on);
 
             renderNews(newsCache[category]);
             statusEl.textContent = 'Updated';
