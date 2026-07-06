@@ -333,10 +333,20 @@
                         </div>
                     </div>
 
-                    <!-- Object Summary -->
-                    <div class="glass-panel p-5 rounded-xl">
-                        <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider mb-3">On-Chain Assets</h3>
-                        <div id="nft-summary" class="space-y-1"></div>
+                    <!-- User Recent Activity -->
+                    <div class="glass-panel p-5 rounded-xl hidden" id="user-activity-panel">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider">Recent Activity</h3>
+                            <span id="user-activity-spinner" class="hidden">
+                                <svg class="w-4 h-4 text-brand-primary animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 22 6.477 22 12h-4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
+                        </div>
+                        <div id="user-activity-feed" class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                            <p class="text-xs text-gray-500 italic py-4 text-center">No recent transactions.</p>
+                        </div>
                     </div>
 
                     <!-- Staked Positions (shown only when positions exist) -->
@@ -356,6 +366,47 @@
                         <span id="notes-save-status" class="text-[9px] text-gray-600 uppercase tracking-wider">Saved</span>
                     </div>
                     <textarea id="notes-textarea" class="watchlist-input text-xs font-sans h-36 resize-none" placeholder="Type notes here... State is saved automatically."></textarea>
+                </div>
+
+                <!-- Ecosystem Launchpad -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                        <span>🚀</span> Ecosystem Launchpad
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2 text-[11px]">
+                        <a href="https://app.cetus.zone/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>🐳 Cetus DEX</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                        <a href="https://aftermath.finance/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>🌋 Aftermath</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                        <a href="https://app.navi.network/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>🔵 Navi Protocol</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                        <a href="https://app.scallop.io/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>🐚 Scallop</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                        <a href="https://app.turbos.finance/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>🛸 Turbos DEX</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                        <a href="https://bluefin.io/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>🐟 Bluefin</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                        <a href="https://suiscan.xyz/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>🔍 Suiscan</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                        <a href="https://suivision.xyz/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 bg-dark-bg/60 border border-gray-800 rounded-lg hover:border-brand-primary hover:text-white transition-all">
+                            <span>👁️ SuiVision</span>
+                            <span class="text-gray-500">↗</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Cryptic NFT Core Widget -->
@@ -1000,6 +1051,9 @@
         connectBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
         connectBtn.classList.add('bg-brand-primary', 'hover:bg-brand-primary-hover');
         hide('portfolio-panel');
+        hide('user-activity-panel');
+        const feed = document.getElementById('user-activity-feed');
+        if (feed) feed.innerHTML = '<p class="text-xs text-gray-500 italic py-4 text-center">No recent transactions.</p>';
         show('connect-prompt');
         show('ai-idle');
         hide('ai-locked');
@@ -1338,8 +1392,6 @@
     async function loadPortfolioData(address) {
         show('balances-spinner');
         document.getElementById('token-list').innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
-        const nftEl = document.getElementById('nft-summary');
-        if (nftEl) nftEl.innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
 
         try {
             const [balances, allObjects, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
@@ -1362,13 +1414,13 @@
             portfolioData = { address, balances: balances || [], allObjects, stakedCity, stakedSui, tokenPrices };
 
             renderTokenList(balances || [], suiPriceUsd, tokenPrices);
-            renderObjectSummary(allObjects, balances || []);
             renderStakedPositions(stakedSui, stakedCity);
+
+            // Fetch user transaction feed asynchronously (non-blocking)
+            loadUserActivity(address);
         } catch (err) {
             document.getElementById('token-list').innerHTML =
                 `<p class="text-xs text-red-400">Failed to load: ${err?.message || err}</p>`;
-            const nftEl = document.getElementById('nft-summary');
-            if (nftEl) nftEl.innerHTML = `<p class="text-xs text-red-400">Failed to load</p>`;
         } finally {
             hide('balances-spinner');
             refreshAnalyzeBtn();
@@ -1427,20 +1479,79 @@
         }).join('');
     }
 
-    function renderObjectSummary(allObjects, balances) {
-        const el = document.getElementById('nft-summary');
-        if (!el) return;
-        const total = allObjects?.data?.length || 0;
-        const coinTypes = balances.length;
-        el.innerHTML = `
-            <div class="flex justify-between text-xs py-1.5 border-b border-gray-800/60">
-                <span class="text-dark-text-secondary">Total objects</span>
-                <span class="text-white font-mono">${total}</span>
-            </div>
-            <div class="flex justify-between text-xs py-1.5">
-                <span class="text-dark-text-secondary">Coin types held</span>
-                <span class="text-white font-mono">${coinTypes}</span>
-            </div>`;
+    async function loadUserActivity(address) {
+        const panel = document.getElementById('user-activity-panel');
+        const feedEl = document.getElementById('user-activity-feed');
+        const spinner = document.getElementById('user-activity-spinner');
+        if (!feedEl || !panel) return;
+
+        panel.classList.remove('hidden');
+        if (spinner) spinner.classList.remove('hidden');
+        feedEl.innerHTML = '<p class="text-xs text-gray-600 py-4 text-center animate-pulse">Loading activity...</p>';
+
+        try {
+            const resp = await rpc('suix_queryTransactionBlocks', [
+                {
+                    filter: { FromAddress: address },
+                    options: {
+                        showInput: true,
+                        showEffects: true,
+                        showBalanceChanges: true
+                    }
+                },
+                null,
+                5,
+                true
+            ]);
+            const blocks = resp?.data || [];
+            const userTxs = blocks.map(b => ({
+                whaleName: 'You',
+                whaleAddress: address,
+                digest: b.digest,
+                timestamp: b.timestampMs ? parseInt(b.timestampMs) : Date.now(),
+                status: b.effects?.status?.status || 'success',
+                balanceChanges: parseWhaleBalanceChanges(b, address)
+            }));
+
+            if (userTxs.length === 0) {
+                feedEl.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No recent transactions.</p>';
+                return;
+            }
+
+            feedEl.innerHTML = userTxs.map(tx => {
+                const timeStr = timeAgo(tx.timestamp);
+                
+                let balanceHtml = '';
+                if (tx.balanceChanges.length > 0) {
+                    balanceHtml = tx.balanceChanges.map(c => {
+                        const isNeg = c.amount < 0n;
+                        const badgeColor = isNeg ? 'text-red-400' : 'text-green-400';
+                        return `<span class="font-mono ${badgeColor} text-[10px] font-bold bg-dark-bg/85 px-1.5 py-0.5 rounded border border-gray-800">${c.formatted} ${c.coinSymbol}</span>`;
+                    }).join(' ');
+                } else {
+                    balanceHtml = `<span class="text-gray-500 text-[10px] italic">Contract Call / No Asset Change</span>`;
+                }
+
+                return `
+                    <div class="p-2 rounded-lg bg-dark-bg/40 border border-gray-800/60 space-y-1">
+                        <div class="flex items-center justify-between text-[10px]">
+                            <span class="font-bold font-mono text-gray-500">${timeStr}</span>
+                            <a href="https://suiscan.xyz/mainnet/tx/${tx.digest}" target="_blank" rel="noopener noreferrer" class="text-[9px] text-brand-secondary hover:underline font-mono">
+                                ${tx.digest.slice(0, 8)}... ↗
+                            </a>
+                        </div>
+                        <div class="flex flex-wrap gap-1 pt-0.5 border-t border-gray-800/40">
+                            ${balanceHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('Failed to load user activity:', err);
+            feedEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load activity</p>';
+        } finally {
+            if (spinner) spinner.classList.add('hidden');
+        }
     }
 
     function renderStakedPositions(stakedSui, stakedCity) {
@@ -1575,9 +1686,11 @@
 
             freshData.tokenPrices = tokenPrices;
             renderTokenList(freshData.balances, suiPriceUsd, tokenPrices);
-            renderObjectSummary(freshData.allObjects, freshData.balances);
             renderStakedPositions(freshData.stakedSui, freshData.stakedCity);
             portfolioData = freshData;
+
+            // Fetch user transaction feed asynchronously (non-blocking)
+            loadUserActivity(connectedAddress);
 
             // 3. Call OpenAI
             setThinkingStatus('Generating AI analysis…');
