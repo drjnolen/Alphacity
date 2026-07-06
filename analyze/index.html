@@ -333,6 +333,12 @@
                         </div>
                     </div>
 
+                    <!-- Object Summary -->
+                    <div class="glass-panel p-5 rounded-xl">
+                        <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider mb-3">On-Chain Assets</h3>
+                        <div id="nft-summary" class="space-y-1"></div>
+                    </div>
+
                     <!-- Staked Positions (shown only when positions exist) -->
                     <div class="glass-panel p-5 rounded-xl hidden" id="staked-panel">
                         <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider mb-3">Staked Positions</h3>
@@ -2369,17 +2375,28 @@ Return ONLY a valid JSON object with two string keys:
 
     async function initWeather() {
         let location = { ...FALLBACK_WEATHER };
-        try {
-            const ipResp = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(4000) });
-            if (ipResp.ok) {
-                const ipData = await ipResp.json();
-                if (ipData.latitude && ipData.longitude) {
-                    location.name = (ipData.city && ipData.region) ? `${ipData.city}, ${ipData.region}` : ipData.city || "Local Area";
-                    location.lat = ipData.latitude;
-                    location.lon = ipData.longitude;
+        const services = [
+            { url: 'https://ipapi.co/json/', lat: 'latitude', lon: 'longitude', city: 'city', region: 'region' },
+            { url: 'https://ipwho.is/', lat: 'latitude', lon: 'longitude', city: 'city', region: 'region' },
+            { url: 'https://freeipapi.com/api/json', lat: 'latitude', lon: 'longitude', city: 'cityName', region: 'regionName' }
+        ];
+
+        for (const service of services) {
+            try {
+                const ipResp = await fetch(service.url, { signal: AbortSignal.timeout(3000) });
+                if (ipResp.ok) {
+                    const ipData = await ipResp.json();
+                    if (ipData[service.lat] && ipData[service.lon]) {
+                        const cityVal = ipData[service.city];
+                        const regionVal = ipData[service.region];
+                        location.name = (cityVal && regionVal) ? `${cityVal}, ${regionVal}` : cityVal || "Local Area";
+                        location.lat = ipData[service.lat];
+                        location.lon = ipData[service.lon];
+                        break;
+                    }
                 }
-            }
-        } catch (_) {}
+            } catch (_) {}
+        }
 
         document.getElementById('weather-location').textContent = location.name;
 
@@ -2665,6 +2682,15 @@ Return ONLY a valid JSON object with two string keys:
         try {
             const raw = localStorage.getItem(HABITS_STORAGE);
             if (raw) return JSON.parse(raw);
+            if (raw === null) {
+                const defaultHabits = [
+                    { id: 'h-1', name: 'Scan Market Pulse', history: {} },
+                    { id: 'h-2', name: 'Check Whale Activity', history: {} },
+                    { id: 'h-3', name: 'Review Ecosystem News', history: {} }
+                ];
+                saveHabits(defaultHabits);
+                return defaultHabits;
+            }
         } catch (_) {}
         return [];
     }
