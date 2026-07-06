@@ -3076,9 +3076,11 @@ Return ONLY a valid JSON object with two string keys:
                                 showInput: true,
                                 showEffects: true,
                                 showBalanceChanges: true
-                            },
-                            limit: 20
-                        }
+                            }
+                        },
+                        null,
+                        20,
+                        true
                     ]);
                     const blocks = resp?.data || [];
                     return blocks.map(b => ({
