@@ -2184,69 +2184,44 @@
         
         try {
             let cursor = null;
-            let directObjects = [];
-            let pageCount = 0;
+            let lightweightObjects = [];
             
-            // 1. Fetch direct owned objects
+            // 1. Fetch lightweight type-only list of all owned objects
             for (;;) {
                 const r = await rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
-                        options: { showType: true, showContent: true }
+                        options: { showType: true }
                     },
                     cursor,
-                    50
+                    100
                 ]);
-                directObjects.push(...(r.data || []));
-                pageCount++;
-                if (!r.hasNextPage || pageCount >= 8) break; // Fetch up to 400 objects max for speed
+                const data = r.data || [];
+                lightweightObjects.push(...data);
+                if (!r.hasNextPage) break;
                 cursor = r.nextCursor;
             }
 
-            // 2. Identify candidate NFT object IDs, KioskOwnerCaps, and PersonalKioskCaps
             const candidateIds = [];
-            const kioskIds = [];
+            const capIdsToFetch = [];
 
-            directObjects.forEach(obj => {
+            // 2. Classify objects
+            lightweightObjects.forEach(obj => {
                 const objectId = obj.data?.objectId;
                 const type = obj.data?.type || '';
-                const fields = obj.data?.content?.fields || {};
                 
-                // A. Check if it's a standard KioskOwnerCap
-                if (type.includes('::kiosk::KioskOwnerCap')) {
-                    const kId = fields.kiosk || fields.for;
-                    if (kId) kioskIds.push(kId);
+                if (!objectId || !type) return;
+
+                // Check for kiosk caps
+                if (type.includes('::kiosk::KioskOwnerCap') || type.endsWith('::personal_kiosk::PersonalKioskCap') || type.includes('::personal_kiosk::')) {
+                    capIdsToFetch.push(objectId);
                     return;
                 }
 
-                // B. Check if it's a PersonalKioskCap
-                if (type.endsWith('::personal_kiosk::PersonalKioskCap') || type.includes('::personal_kiosk::')) {
-                    const cap = fields.cap || {};
-                    const capFields = cap.fields || {};
-                    let kId = capFields.for;
-                    if (!kId && capFields.vec && Array.isArray(capFields.vec) && capFields.vec.length > 0) {
-                        const inner = capFields.vec[0] || {};
-                        const innerFields = inner.fields || inner;
-                        kId = innerFields.for;
-                    }
-                    if (!kId && typeof capFields === 'object') {
-                        for (const [k, v] of Object.entries(capFields)) {
-                            if (k === 'for' && typeof v === 'string') kId = v;
-                            else if (v && typeof v === 'object') {
-                                const nested = v.fields || v;
-                                if (nested.for && typeof nested.for === 'string') {
-                                    kId = nested.for;
-                                }
-                            }
-                        }
-                    }
-                    if (kId) kioskIds.push(kId);
-                    return;
-                }
-
-                // Filter out coins and system/utility caps
+                // Skip coins
                 if (type.includes('::coin::Coin') || type.includes('::coin::')) return;
                 
+                // Skip system/utility caps
                 const lowercaseType = type.toLowerCase();
                 if (
                     lowercaseType.includes('::upgradecap') ||
@@ -2260,7 +2235,48 @@
                 candidateIds.push(objectId);
             });
 
-            // 3. Scan Kiosks for nested item IDs (using suix_getDynamicFields)
+            // 3. Fetch kiosk capability details to extract kiosk IDs
+            const kioskIds = [];
+            if (capIdsToFetch.length > 0) {
+                const capDetails = await rpc('sui_multiGetObjects', [
+                    capIdsToFetch,
+                    { showType: true, showContent: true }
+                ]);
+                
+                (capDetails || []).forEach(detail => {
+                    const obj = detail.data || {};
+                    const type = obj.type || '';
+                    const fields = obj.content?.fields || {};
+
+                    if (type.includes('::kiosk::KioskOwnerCap')) {
+                        const kId = fields.kiosk || fields.for;
+                        if (kId) kioskIds.push(kId);
+                    } else if (type.endsWith('::personal_kiosk::PersonalKioskCap') || type.includes('::personal_kiosk::')) {
+                        const cap = fields.cap || {};
+                        const capFields = cap.fields || {};
+                        let kId = capFields.for;
+                        if (!kId && capFields.vec && Array.isArray(capFields.vec) && capFields.vec.length > 0) {
+                            const inner = capFields.vec[0] || {};
+                            const innerFields = inner.fields || inner;
+                            kId = innerFields.for;
+                        }
+                        if (!kId && typeof capFields === 'object') {
+                            for (const [k, v] of Object.entries(capFields)) {
+                                if (k === 'for' && typeof v === 'string') kId = v;
+                                else if (v && typeof v === 'object') {
+                                    const nested = v.fields || v;
+                                    if (nested.for && typeof nested.for === 'string') {
+                                        kId = nested.for;
+                                    }
+                                }
+                            }
+                        }
+                        if (kId) kioskIds.push(kId);
+                    }
+                });
+            }
+
+            // 4. Scan kiosks for nested item IDs using suix_getDynamicFields
             for (const kioskId of kioskIds) {
                 let kCursor = null;
                 let kPageCount = 0;
@@ -2288,7 +2304,7 @@
                 }
             }
 
-            // 4. Fetch full display and details for all candidate IDs in batches
+            // 5. Fetch full display and details for all candidate IDs in batches
             if (candidateIds.length > 0) {
                 const batchSize = 50;
                 const batches = [];
