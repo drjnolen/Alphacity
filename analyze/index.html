@@ -352,6 +352,65 @@
                     <textarea id="notes-textarea" class="watchlist-input text-xs font-sans h-36 resize-none" placeholder="Type notes here... State is saved automatically."></textarea>
                 </div>
 
+                <!-- Cryptic NFT Core Widget -->
+                <div class="glass-panel p-5 rounded-xl flex flex-col items-center justify-center space-y-5 text-center relative overflow-hidden">
+                    <!-- Title -->
+                    <div class="w-full flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>🔮</span> Artifact Core
+                        </h3>
+                        <span class="text-[8px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded font-mono uppercase tracking-widest font-bold">Locked</span>
+                    </div>
+
+                    <!-- Orbit Diagram Area -->
+                    <div class="w-full h-44 flex items-center justify-center relative">
+                        <!-- Orbiting Ring -->
+                        <div class="w-32 h-32 rounded-full border border-dashed border-gray-800/60 absolute animate-[spin_60s_linear_infinite]"></div>
+                        
+                        <!-- Pulse Ring -->
+                        <div class="w-16 h-16 rounded-full border border-brand-primary/20 absolute animate-ping pointer-events-none opacity-40"></div>
+                        
+                        <!-- Central Slot (PFP) -->
+                        <div class="w-16 h-16 rounded-full border-2 border-dashed border-brand-primary/60 bg-dark-bg/80 flex items-center justify-center shadow-[0_0_15px_rgba(251,191,36,0.15)] z-10 group cursor-help transition-all hover:border-brand-primary" title="Central PFP Slot">
+                            <span class="text-xs text-brand-primary opacity-60 group-hover:opacity-100 transition-opacity font-bold uppercase tracking-wider font-mono">PFP</span>
+                        </div>
+
+                        <!-- Orbiting Upgrade Slots (6 slots) -->
+                        <!-- Top (0 deg) -->
+                        <div class="w-8 h-8 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(0, -60px);" title="Upgrade Slot I: Quantum Matrix">
+                            <span class="text-[9px] text-gray-600 group-hover:text-brand-secondary font-mono">I</span>
+                        </div>
+                        <!-- Top Right (60 deg) -->
+                        <div class="w-8 h-8 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(52px, -30px);" title="Upgrade Slot II: Neural Node">
+                            <span class="text-[9px] text-gray-600 group-hover:text-brand-secondary font-mono">II</span>
+                        </div>
+                        <!-- Bottom Right (120 deg) -->
+                        <div class="w-8 h-8 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(52px, 30px);" title="Upgrade Slot III: Chrono Drive">
+                            <span class="text-[9px] text-gray-600 group-hover:text-brand-secondary font-mono">III</span>
+                        </div>
+                        <!-- Bottom (180 deg) -->
+                        <div class="w-8 h-8 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(0, 60px);" title="Upgrade Slot IV: Flux Capacitor">
+                            <span class="text-[9px] text-gray-600 group-hover:text-brand-secondary font-mono">IV</span>
+                        </div>
+                        <!-- Bottom Left (240 deg) -->
+                        <div class="w-8 h-8 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(-52px, 30px);" title="Upgrade Slot V: Plasma Core">
+                            <span class="text-[9px] text-gray-600 group-hover:text-brand-secondary font-mono">V</span>
+                        </div>
+                        <!-- Top Left (300 deg) -->
+                        <div class="w-8 h-8 rounded-full border border-dashed border-gray-700 bg-dark-bg/60 flex items-center justify-center absolute z-10 transition-all hover:border-brand-secondary/60 hover:text-brand-secondary group cursor-help" style="transform: translate(-52px, -30px);" title="Upgrade Slot VI: Ether Link">
+                            <span class="text-[9px] text-gray-600 group-hover:text-brand-secondary font-mono">VI</span>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="space-y-1.5">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">Expansion Matrix: Offline</p>
+                        <p class="text-[11px] text-dark-text-secondary leading-relaxed max-w-[240px] mx-auto">
+                            Align a central City Artifact (PFP) to reveal nested upgrade pathways. 0 of 6 modifications synchronized.
+                        </p>
+                    </div>
+                </div>
+
             </div>
 
             <!-- ===== MIDDLE COLUMN: Clock/Weather & News ===== -->
