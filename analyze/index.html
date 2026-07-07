@@ -1399,13 +1399,13 @@
         document.getElementById('token-list').innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
 
         try {
-            const [balances, allObjects, cetusV1, cetusV2, turbosV1, turbosV2, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
+            const [balances, allObjects, cetusPos, turbosV1, turbosV2, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
                 rpc('suix_getAllBalances', [address]).catch(() => []),
                 rpc('suix_getOwnedObjects', [address, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
                 rpc('suix_getOwnedObjects', [
                     address,
                     {
-                        filter: { StructType: '0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c::position::Position' },
+                        filter: { StructType: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb::position::Position' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1414,7 +1414,7 @@
                 rpc('suix_getOwnedObjects', [
                     address,
                     {
-                        filter: { StructType: '0x3492c874c1e3b3e2984e8c41b589e642d4d0a5d6459e5a9cfc2d52fd7c89c267::position::Position' },
+                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position_nft::TurbosPositionNFT' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1423,16 +1423,7 @@
                 rpc('suix_getOwnedObjects', [
                     address,
                     {
-                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position::Position' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    address,
-                    {
-                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position::Position' },
+                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position_nft::TurbosPositionNFT' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1444,15 +1435,16 @@
             ]);
 
             const mergedPositions = [
-                ...(cetusV1?.data || []),
-                ...(cetusV2?.data || []),
+                ...(cetusPos?.data || []),
                 ...(turbosV1?.data || []),
                 ...(turbosV2?.data || [])
             ];
             const genericObjects = allObjects?.data || [];
             genericObjects.forEach(obj => {
                 const type = obj.data?.type || '';
-                if (type.includes('::position::Position') || type.includes('::position_nft::PositionNFT')) {
+                if (type.includes('::position::Position') || 
+                    type.includes('::position_nft::PositionNFT') || 
+                    type.includes('::position_nft::TurbosPositionNFT')) {
                     const exists = mergedPositions.some(p => p.data?.objectId === obj.data?.objectId);
                     if (!exists) mergedPositions.push(obj);
                 }
@@ -1712,6 +1704,30 @@
         return poolMap;
     }
 
+    async function fetchTurbosPositions(positionIds) {
+        if (positionIds.length === 0) return {};
+        const posMap = {};
+        try {
+            const promises = positionIds.map(async (id) => {
+                try {
+                    const obj = await rpc('sui_getObject', [
+                        id,
+                        { showContent: true }
+                    ]);
+                    if (obj?.data?.content?.fields) {
+                        posMap[id] = obj.data.content.fields;
+                    }
+                } catch (e) {
+                    console.error(`Failed to fetch Turbos position ${id}:`, e);
+                }
+            });
+            await Promise.all(promises);
+        } catch (e) {
+            console.error('Failed to fetch Turbos positions:', e);
+        }
+        return posMap;
+    }
+
     async function renderLpPositions(balances, lpPositionsWrapper) {
         const panel = document.getElementById('lp-panel');
         const summaryEl = document.getElementById('lp-summary');
@@ -1720,31 +1736,62 @@
         try {
             const positions = lpPositionsWrapper?.data || [];
 
-            // Fetch pool data for all detected positions
+            // 1. Extract pool IDs and Turbos underlying position IDs
             const poolIds = [];
+            const turbosPositionIds = [];
+
             positions.forEach(pos => {
                 const fields = pos.data?.content?.fields || {};
+                const type = pos.data?.type || '';
+                
                 const poolId = fields.pool?.fields?.id || fields.pool_id || fields.pool;
                 if (poolId && !poolIds.includes(poolId)) {
                     poolIds.push(poolId);
                 }
+
+                if (type.includes('::position_nft::TurbosPositionNFT') && fields.position_id) {
+                    if (!turbosPositionIds.includes(fields.position_id)) {
+                        turbosPositionIds.push(fields.position_id);
+                    }
+                }
             });
 
-            const poolMap = await fetchPools(poolIds);
+            // 2. Fetch pool state and Turbos underlying position objects in parallel
+            const [poolMap, turbosPositionMap] = await Promise.all([
+                fetchPools(poolIds),
+                fetchTurbosPositions(turbosPositionIds)
+            ]);
+
             const lpList = [];
 
-            // 1. Process Concentrated LP positions
+            // 3. Process Concentrated LP positions
             positions.forEach(pos => {
                 const data = pos.data;
                 if (!data) return;
                 const type = data.type || '';
                 const fields = data.content?.fields || {};
                 
-                const poolId = fields.pool?.fields?.id || fields.pool_id || fields.pool;
+                let posFields = fields;
+                if (type.includes('::position_nft::TurbosPositionNFT') && fields.position_id) {
+                    const underlying = turbosPositionMap[fields.position_id];
+                    if (underlying) {
+                        posFields = {
+                            ...fields,
+                            liquidity: underlying.liquidity,
+                            tick_lower_index: underlying.tick_lower_index,
+                            tick_upper_index: underlying.tick_upper_index
+                        };
+                    }
+                }
+
+                // Filter out closed positions (liquidity = 0)
+                if (parseFloat(posFields.liquidity || '0') === 0) return;
+
+                const poolId = posFields.pool?.fields?.id || posFields.pool_id || posFields.pool;
                 const poolFields = poolMap[poolId] || null;
 
-                const coinTypeA = fields.coin_type_a?.fields?.name || fields.coin_type_a || '';
-                const coinTypeB = fields.coin_type_b?.fields?.name || fields.coin_type_b || '';
+                const coinTypeA = posFields.coin_type_a?.fields?.name || posFields.coin_type_a || '';
+                const coinTypeB = posFields.coin_type_b?.fields?.name || posFields.coin_type_b || '';
 
                 let pairName = 'Unknown Pair';
                 if (coinTypeA && coinTypeB) {
@@ -1755,14 +1802,14 @@
                 }
 
                 let protocol = 'SUI CLMM';
-                if (type.includes('0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c')) {
+                if (type.includes('0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb')) {
                     protocol = 'Cetus CLMM';
-                } else if (type.includes('0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64')) {
+                } else if (type.includes('turbos') || type.includes('0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1') || type.includes('0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64')) {
                     protocol = 'Turbos CLMM';
                 }
 
                 // Calculate token amounts in position
-                const { amountA, amountB } = calculateLpAmounts(fields, poolFields);
+                const { amountA, amountB } = calculateLpAmounts(posFields, poolFields);
 
                 // Format amounts using decimals
                 const decA = coinDecimals(coinTypeA);
@@ -1787,7 +1834,7 @@
                 });
             });
 
-            // 2. Process Standard AMM LP Coins from balances
+            // 4. Process Standard AMM LP Coins from balances
             (balances || []).forEach(b => {
                 const coinType = b.coinType || '';
                 const isLpToken = coinType.includes('::lp::') || 
@@ -1948,7 +1995,7 @@
                 rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
-                        filter: { StructType: '0x1eab533d50fc6137cfc0c03dc3d0bb201f9d5001d0a5147558d0cf3c28be558c::position::Position' },
+                        filter: { StructType: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb::position::Position' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1957,7 +2004,7 @@
                 rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
-                        filter: { StructType: '0x3492c874c1e3b3e2984e8c41b589e642d4d0a5d6459e5a9cfc2d52fd7c89c267::position::Position' },
+                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position_nft::TurbosPositionNFT' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1966,16 +2013,7 @@
                 rpc('suix_getOwnedObjects', [
                     connectedAddress,
                     {
-                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position::Position' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    connectedAddress,
-                    {
-                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position::Position' },
+                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position_nft::TurbosPositionNFT' },
                         options: { showType: true, showContent: true, showDisplay: true }
                     },
                     null,
@@ -1994,7 +2032,9 @@
             const genericObjects = allObjects?.data || [];
             genericObjects.forEach(obj => {
                 const type = obj.data?.type || '';
-                if (type.includes('::position::Position') || type.includes('::position_nft::PositionNFT')) {
+                if (type.includes('::position::Position') || 
+                    type.includes('::position_nft::PositionNFT') || 
+                    type.includes('::position_nft::TurbosPositionNFT')) {
                     const exists = mergedPositions.some(p => p.data?.objectId === obj.data?.objectId);
                     if (!exists) mergedPositions.push(obj);
                 }
