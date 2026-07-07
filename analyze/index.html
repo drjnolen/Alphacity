@@ -358,7 +358,7 @@
                     <!-- Liquidity Pools (shown only when LP positions exist) -->
                     <div class="glass-panel p-5 rounded-xl hidden" id="lp-panel">
                         <h3 class="text-dark-text-secondary text-xs font-medium uppercase tracking-wider mb-3">Liquidity Pools</h3>
-                        <div id="lp-summary" class="space-y-2"></div>
+                        <div id="lp-summary" class="space-y-2 overflow-y-auto pr-1" style="max-height: 156px;"></div>
                     </div>
 
                 </div>
@@ -560,7 +560,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                     </div>
-                    <h2 class="text-base font-bold text-white mb-2">Ready for Alpha</h2>
+                    <h2 class="text-base font-bold text-white mb-2">Portfolio Optimizer</h2>
                     <p class="text-dark-text-secondary max-w-sm mx-auto text-xs leading-relaxed">
                         Connect your wallet, then click <strong class="text-white">Analyze Portfolio</strong> for a full AI breakdown.
                     </p>
@@ -1989,7 +1989,7 @@
         try {
             // 1. Refresh on-chain data
             setThinkingStatus('Fetching on-chain data…');
-            const [balances, allObjects, cetusV1, cetusV2, turbosV1, turbosV2, stakedCity, stakedSui] = await Promise.all([
+            const [balances, allObjects, cetusPos, turbosV1, turbosV2, stakedCity, stakedSui] = await Promise.all([
                 rpc('suix_getAllBalances', [connectedAddress]).catch(() => []),
                 rpc('suix_getOwnedObjects', [connectedAddress, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
                 rpc('suix_getOwnedObjects', [
@@ -2024,8 +2024,7 @@
             ]);
 
             const mergedPositions = [
-                ...(cetusV1?.data || []),
-                ...(cetusV2?.data || []),
+                ...(cetusPos?.data || []),
                 ...(turbosV1?.data || []),
                 ...(turbosV2?.data || [])
             ];
