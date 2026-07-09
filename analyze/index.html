@@ -218,6 +218,33 @@
 
         .refresh-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* Token Watchlist & APY Radar Widget Styles */
+        .widget-tab-btn {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding-bottom: 0.25rem;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            outline: none;
+        }
+        .widget-tab-btn.active {
+            color: #FCD34D !important;
+            border-bottom-color: #FCD34D !important;
+        }
+        .widget-tab-btn:not(.active) {
+            color: #6B7280;
+        }
+        .widget-tab-btn:not(.active):hover {
+            color: #E5E7EB;
+        }
     </style>
 </head>
 <body class="bg-dark-bg text-dark-text font-sans antialiased min-h-screen flex flex-col">
@@ -366,6 +393,57 @@
                         <div id="lp-summary" class="space-y-2 overflow-y-auto pr-1" style="max-height: 156px;"></div>
                     </div>
 
+                </div>
+
+                <!-- Trending & Watchlist Widget -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
+                        <div class="flex gap-3">
+                            <button id="widget-token-trending-tab" class="widget-tab-btn active">
+                                🔥 Trending
+                            </button>
+                            <button id="widget-token-watchlist-tab" class="widget-tab-btn">
+                                👀 Watchlist
+                            </button>
+                        </div>
+                        <span id="widget-token-status" class="text-[9px] text-gray-600 uppercase tracking-wider font-mono">Live</span>
+                    </div>
+
+                    <!-- Trending Tab Content -->
+                    <div id="widget-trending-container" class="space-y-2">
+                        <div class="flex flex-col gap-1.5" id="widget-trending-list">
+                            <p class="text-xs text-gray-600 py-4 text-center animate-pulse">Loading trends...</p>
+                        </div>
+                    </div>
+
+                    <!-- Watchlist Tab Content -->
+                    <div id="widget-watchlist-container" class="hidden space-y-3">
+                        <div class="flex gap-1.5">
+                            <input type="text" id="widget-watchlist-input" class="watchlist-input text-[11px] py-1.5 px-2.5 flex-1" placeholder="Token address (0x...)" autocomplete="off" spellcheck="false">
+                            <button id="widget-watchlist-add-btn" class="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
+                                Add
+                            </button>
+                        </div>
+                        <div class="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1" id="widget-watchlist-list">
+                            <p class="text-xs text-gray-550 py-4 text-center">No tokens tracked. Add an address above.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Yields APY Radar Widget -->
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>📡</span> APY Yield Radar
+                        </h3>
+                        <button id="widget-apy-refresh-btn" class="text-[9px] text-gray-500 hover:text-white transition-colors cursor-pointer" title="Refresh yields">
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1" id="widget-apy-list">
+                        <p class="text-xs text-gray-600 py-4 text-center animate-pulse">Scanning SUI pools...</p>
+                    </div>
                 </div>
 
                 <!-- Notes Widget -->
@@ -4009,6 +4087,353 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
+    // WIDGET: TOKEN TRENDS & WATCHLIST
+    // =========================================================
+    const TOKEN_WATCHLIST_STORAGE = 'ac_token_watchlist';
+    const DEFAULT_WATCHLIST_TOKENS = [
+        '0x2::sui::SUI',
+        '0xdeeb7a4665e91f2280181d3d4d3a5ca22340259bb661368abbfc159fb70df224::deep::DEEP',
+        '0x068647783f05c32140a447850658cf03002aa0d657514cfd54e19bdeae986f73::coin::COIN' // CETUS
+    ];
+
+    function loadTokenWatchlist() {
+        try {
+            const raw = localStorage.getItem(TOKEN_WATCHLIST_STORAGE);
+            if (!raw) {
+                localStorage.setItem(TOKEN_WATCHLIST_STORAGE, JSON.stringify(DEFAULT_WATCHLIST_TOKENS));
+                return DEFAULT_WATCHLIST_TOKENS;
+            }
+            return JSON.parse(raw);
+        } catch (_) {
+            return DEFAULT_WATCHLIST_TOKENS;
+        }
+    }
+
+    function saveTokenWatchlist(list) {
+        try {
+            localStorage.setItem(TOKEN_WATCHLIST_STORAGE, JSON.stringify(list));
+        } catch (_) {}
+    }
+
+    async function initWidgetTokenTrendsAndWatchlist() {
+        const trendTab = document.getElementById('widget-token-trending-tab');
+        const watchTab = document.getElementById('widget-token-watchlist-tab');
+        const trendContainer = document.getElementById('widget-trending-container');
+        const watchContainer = document.getElementById('widget-watchlist-container');
+        const wlInput = document.getElementById('widget-watchlist-input');
+        const wlAddBtn = document.getElementById('widget-watchlist-add-btn');
+
+        if (!trendTab || !watchTab || !trendContainer || !watchContainer || !wlInput || !wlAddBtn) return;
+
+        // Switch to Trending tab
+        trendTab.addEventListener('click', () => {
+            trendTab.classList.add('active');
+            watchTab.classList.remove('active');
+            trendContainer.classList.remove('hidden');
+            watchContainer.classList.add('hidden');
+            renderWidgetTrending();
+        });
+
+        // Switch to Watchlist tab
+        watchTab.addEventListener('click', () => {
+            watchTab.classList.add('active');
+            trendTab.classList.remove('active');
+            watchContainer.classList.remove('hidden');
+            trendContainer.classList.add('hidden');
+            renderWidgetWatchlist();
+        });
+
+        // Add custom token
+        wlAddBtn.addEventListener('click', () => {
+            const val = wlInput.value.trim();
+            if (!val) return;
+
+            // Validate format: 0x... coin type or 0x... package address
+            const isValid = /^(0x[0-9a-fA-F]+)(::[a-zA-Z0-9_]+::[a-zA-Z0-9_]+)?$/.test(val);
+            if (!isValid) {
+                alert("Invalid address format! Please enter a valid SUI token type (e.g. 0x2::sui::SUI) or package address.");
+                return;
+            }
+
+            const list = loadTokenWatchlist();
+            if (list.includes(val)) {
+                wlInput.value = '';
+                return;
+            }
+
+            list.push(val);
+            saveTokenWatchlist(list);
+            wlInput.value = '';
+            renderWidgetWatchlist();
+        });
+
+        wlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') wlAddBtn.click();
+        });
+
+        // Initial load
+        renderWidgetTrending();
+        
+        // Interval updates (every 2 minutes)
+        setInterval(() => {
+            if (trendTab.classList.contains('active')) {
+                renderWidgetTrending();
+            } else {
+                renderWidgetWatchlist();
+            }
+        }, 120000);
+    }
+
+    async function renderWidgetTrending() {
+        const listEl = document.getElementById('widget-trending-list');
+        if (!listEl) return;
+
+        try {
+            const pairs = await fetchDexData();
+            const deduped = dedupeByBase(pairs);
+            const sorted = [...deduped]
+                .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+                .slice(0, 5);
+
+            if (!sorted.length) {
+                listEl.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No trending data available.</p>';
+                return;
+            }
+
+            listEl.innerHTML = sorted.map(p => {
+                const baseSymbol = escHtml(p.baseToken?.symbol || '?');
+                const dexName = escHtml(p.dexId || '—');
+                const priceStr = fmtPrice(p.priceUsd);
+                const change = p.priceChange?.h24;
+                const changeClass = pctClass(change);
+                const changeFormatted = fmtPct(change);
+                const viewUrl = p.url ? escHtml(p.url) : '#';
+
+                return `
+                <div class="flex items-center justify-between py-1.5 border-b border-gray-800/40 last:border-0 text-xs">
+                    <div class="flex flex-col min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-white font-semibold truncate">${baseSymbol}</span>
+                            ${p.url ? `<a href="${viewUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 text-[10px]" title="View Chart">↗</a>` : ''}
+                        </div>
+                        <span class="text-[10px] text-gray-500 font-mono">${dexName}</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-white font-mono font-semibold">${priceStr}</div>
+                        <div class="font-mono text-[10px] ${changeClass}">${changeFormatted}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch (_) {
+            listEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load trends.</p>';
+        }
+    }
+
+    async function renderWidgetWatchlist() {
+        const listEl = document.getElementById('widget-watchlist-list');
+        if (!listEl) return;
+
+        const list = loadTokenWatchlist();
+        if (!list.length) {
+            listEl.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No tokens tracked. Add an address above.</p>';
+            return;
+        }
+
+        listEl.innerHTML = '<p class="text-xs text-gray-605 py-4 text-center animate-pulse">Updating watchlist...</p>';
+
+        try {
+            // Batch request to DexScreener tokens endpoint
+            const url = `https://api.dexscreener.com/latest/dex/tokens/${list.map(encodeURIComponent).join(',')}`;
+            const resp = await fetchWithTimeout(url, {}, 6000);
+            if (!resp.ok) throw new Error("Fetch failed");
+            const data = await resp.json();
+            const pairs = data?.pairs || [];
+
+            // Group by baseToken.address or matching standard address in watchlist
+            const tokenToPair = {};
+            pairs.forEach(p => {
+                const tokenAddr = p.baseToken?.address;
+                if (!tokenAddr) return;
+                
+                // Find matching address in our list (could match package or exact type)
+                const matchedAddr = list.find(addr => 
+                    addr.toLowerCase() === tokenAddr.toLowerCase() || 
+                    (addr.includes('::') && addr.toLowerCase().startsWith(tokenAddr.toLowerCase())) ||
+                    tokenAddr.toLowerCase().startsWith(addr.toLowerCase())
+                );
+                
+                if (!matchedAddr) return;
+
+                const liquidity = parseFloat(p.liquidity?.usd || 0);
+                const existing = tokenToPair[matchedAddr];
+                if (!existing || liquidity > parseFloat(existing.liquidity?.usd || 0)) {
+                    tokenToPair[matchedAddr] = p;
+                }
+            });
+
+            listEl.innerHTML = list.map(addr => {
+                const p = tokenToPair[addr];
+                const baseSymbol = p ? escHtml(p.baseToken?.symbol || '?') : coinSymbol(addr);
+                const priceStr = p ? fmtPrice(p.priceUsd) : '—';
+                const change = p?.priceChange?.h24;
+                const changeClass = p ? pctClass(change) : 'text-gray-500';
+                const changeFormatted = p ? fmtPct(change) : '—';
+                const viewLink = p?.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 text-[10px]" title="View Chart">↗</a>` : '';
+
+                return `
+                <div class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs">
+                    <div class="flex flex-col min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-white font-semibold truncate">${baseSymbol}</span>
+                            ${viewLink}
+                        </div>
+                        <span class="text-[9px] text-gray-500 font-mono truncate w-24" title="${escHtml(addr)}">${shortAddr(addr)}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <div class="text-white font-mono font-semibold">${priceStr}</div>
+                            <div class="font-mono text-[10px] ${changeClass}">${changeFormatted}</div>
+                        </div>
+                        <button class="text-gray-500 hover:text-red-400 text-sm transition-colors cursor-pointer widget-wl-remove" data-addr="${escHtml(addr)}" title="Remove">✕</button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Attach remove handlers
+            document.querySelectorAll('.widget-wl-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const addr = btn.getAttribute('data-addr');
+                    if (addr) {
+                        const currentList = loadTokenWatchlist().filter(a => a !== addr);
+                        saveTokenWatchlist(currentList);
+                        renderWidgetWatchlist();
+                    }
+                });
+            });
+
+        } catch (err) {
+            console.error("Watchlist fetch failed:", err);
+            listEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to refresh watchlist.</p>';
+        }
+    }
+
+    // =========================================================
+    // WIDGET: TOP YIELDS APY RADAR
+    // =========================================================
+    async function initWidgetApyRadar() {
+        const refreshBtn = document.getElementById('widget-apy-refresh-btn');
+        if (!refreshBtn) return;
+
+        refreshBtn.addEventListener('click', () => {
+            renderWidgetApyRadar();
+        });
+
+        // Initial render
+        renderWidgetApyRadar();
+
+        // Auto refresh every 5 minutes
+        setInterval(renderWidgetApyRadar, 300000);
+    }
+
+    async function renderWidgetApyRadar() {
+        const listEl = document.getElementById('widget-apy-list');
+        const refreshBtn = document.getElementById('widget-apy-refresh-btn');
+        if (!listEl) return;
+
+        if (refreshBtn) refreshBtn.classList.add('refresh-spin');
+        listEl.innerHTML = '<p class="text-xs text-gray-600 py-6 text-center animate-pulse">Scanning SUI pools...</p>';
+
+        try {
+            const resp = await fetchWithTimeout('https://yields.llama.fi/pools', {}, 8000);
+            if (!resp.ok) throw new Error("Yields fetch failed");
+            const resData = await resp.json();
+            const pools = resData?.data || [];
+
+            // Filter to Sui chain, minimum TVL $20k, sort by APY descending
+            const suiPools = pools
+                .filter(p => p.chain?.toLowerCase() === 'sui' && p.tvlUsd >= 20000 && p.apy > 0)
+                .sort((a, b) => b.apy - a.apy)
+                .slice(0, 5);
+
+            if (!suiPools.length) {
+                listEl.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No yield pools found.</p>';
+                return;
+            }
+
+            listEl.innerHTML = suiPools.map(p => {
+                const symbol = escHtml(p.symbol);
+                const rawProject = p.project || 'unknown';
+                const projectClean = formatApyProjectName(rawProject);
+                const badgeColor = getApyProjectBadgeColor(rawProject);
+                const tvlStr = p.tvlUsd >= 1000000 
+                    ? (p.tvlUsd / 1000000).toFixed(1) + 'M' 
+                    : (p.tvlUsd / 1000).toFixed(0) + 'k';
+                const apyVal = p.apy.toFixed(1);
+
+                return `
+                <div class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs">
+                    <div class="flex flex-col min-w-0">
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-white font-semibold truncate">${symbol}</span>
+                            <span class="text-[9px] font-bold font-mono px-1.5 py-0.2 rounded border uppercase tracking-wider ${badgeColor}">
+                                ${projectClean}
+                            </span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 font-mono">TVL: $${tvlStr}</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-green-400 font-bold font-mono text-sm">${apyVal}%</div>
+                        <span class="text-[9px] text-gray-500 block uppercase font-mono">APY</span>
+                    </div>
+                </div>`;
+            }).join('');
+
+        } catch (err) {
+            console.error("APY Radar fetch failed:", err);
+            listEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load yields.</p>';
+        } finally {
+            if (refreshBtn) {
+                setTimeout(() => { refreshBtn.classList.remove('refresh-spin'); }, 800);
+            }
+        }
+    }
+
+    function formatApyProjectName(proj) {
+        const mapping = {
+            'cetus-clmm': 'Cetus CLMM',
+            'cetus': 'Cetus',
+            'turbos-clmm': 'Turbos',
+            'bluefin-spot': 'Bluefin',
+            'navi-lending': 'Navi',
+            'scallop-lend': 'Scallop',
+            'haedal-protocol': 'Haedal',
+            'volo': 'Volo',
+            'aftermath-finance': 'Aftermath',
+            'kriya-dex': 'Kriya'
+        };
+        if (mapping[proj]) return mapping[proj];
+        // General formatting: uppercase first letters
+        return proj.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function getApyProjectBadgeColor(proj) {
+        if (proj.includes('cetus')) {
+            return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        } else if (proj.includes('turbos')) {
+            return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+        } else if (proj.includes('bluefin')) {
+            return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+        } else if (proj.includes('navi')) {
+            return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+        } else if (proj.includes('scallop')) {
+            return 'bg-pink-500/10 text-pink-400 border-pink-500/20';
+        } else if (proj.includes('aftermath')) {
+            return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+        }
+        return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+    }
+
+    // =========================================================
     // INIT
     // =========================================================
     // 1. Eager Critical Initializations (Instant Load)
@@ -4034,6 +4459,8 @@ Return ONLY a valid JSON object with two string keys:
         runSafe('TradingView', initTradingView);
         runSafe('WhaleTracker', initWhaleTracker);
         runSafe('SideQuest', initSideQuest);
+        runSafe('WidgetTokenTrends', initWidgetTokenTrendsAndWatchlist);
+        runSafe('WidgetApyRadar', initWidgetApyRadar);
     });
 
     // Launch the intelligence dashboard (non-blocking — doesn't delay wallet reconnect)

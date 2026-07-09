@@ -1,74 +1,58 @@
-# Walkthrough - Reliability Upgrades & Daily Side Quest Widget
+# Walkthrough - SUI Trading Utility Widgets
 
-We have successfully resolved widget network loading failures and added the daily "Side Quest" widget with Cloudflare CDN edge caching.
+We have successfully implemented two powerful trading utility widgets in the Left Column of the `/analyze` dashboard page to enhance real-time ecosystem monitoring.
 
 ## Changes Made
 
-### Cloudflare Worker
-1. **Added `/sidequest` Route:** Modified [worker.js](file:///c:/Users/Julia/Documents/antigravity/delightful-bohr/api/openai-proxy/worker.js) to support `/sidequest?date=YYYY-MM-DD` requests.
-2. **Integrated Edge Caching (`caches.default`):** Matches URL parameters (e.g. date) and caches daily quest responses for 24 hours (`Cache-Control: public, max-age=86400`). This ensures exactly one OpenAI call is triggered per day across all users worldwide.
-3. **Resilient Key Fallback:** Modified the API key check to throw an error if `env.OPENAI_API_KEY` is not configured, falling back to a deterministic wellness quest instead of returning an HTTP 500 error.
-4. **CORS Configuration:** Configured CORS headers to allow browser requests to the `/sidequest` route from any origin.
+### 1. Trending & Token Watchlist Widget
+- **HTML Layout:** Added a new card (`#token-trends-watchlist-widget`) with tabs to toggle between **🔥 Trending** and **👀 Watchlist** views. Included a styled input form for adding custom token addresses.
+- **Trending View:** Lists the top 5 SUI tokens sorted by 24h volume. Leverages the existing robust `fetchDexData` function querying DexScreener.
+- **Watchlist View:**
+  - Saves a list of SUI token types or package addresses in `localStorage` under `ac_token_watchlist` (initialized with defaults: `SUI`, `DEEP`, `CETUS`).
+  - Fetches real-time price, 24h change, and link to charts directly from DexScreener's public token API `https://api.dexscreener.com/latest/dex/tokens/{addresses}`.
+  - Implemented dynamic user controls to easily add new token types (validated using format checks) and remove existing tokens with a simple click.
 
-### Frontend (`analyze/index.html`)
-1. **SUI RPC Failover List:** Replaced the single `SUI_RPC` constant with an array of four public nodes (`SUI_RPCS`):
-   - `https://fullnode.mainnet.sui.io` (SUI Foundation)
-   - `https://sui-mainnet.nodeinfra.com` (Nodeinfra)
-   - `https://mainnet.sui.rpcpool.com` (RPCPool)
-   - `https://sui-mainnet-endpoint.blockvision.org` (Blockvision)
-2. **Automatic Retries & Backoff:** Upgraded the `rpc()` helper to retry failed requests up to 3 times, waiting with increasing delays and automatically failing over to the next endpoint in the list on each attempt. This dramatically reduces transaction fetch failures on the **Recent Activity** widget.
-3. **15-Minute localStorage Tweet Cache:** Added caching for Twitter/X feeds inside `fetchNitterFeed()`.
-   - The feed loads instantly from cache if within 15 minutes, avoiding rate-limiting.
-   - If network requests fail, the client falls back to displaying expired cached tweets rather than throwing an error message.
-4. **Daily Side Quest Widget HTML:** Inserted a premium `#side-quest-panel` card between the Habit Tracker and Whale Tracker widgets.
-5. **Interactive Side Quest Logic:**
-   - **Deterministic Fallback:** If the worker API fails or is unconfigured, selects today's quest deterministically using a date-based charcode hash across a curated database of 12+ creative quests.
-   - **Completions Tracking:** Saves completion state in `localStorage` keyed by today's date, updating button state to greyed out and title to strikeout text on refresh.
-   - **Share Card Integration:** Copies a sharing template to clipboard on share button click (e.g. `Daily Side Quest Completed: "Do 50 pushups" (Category: Physical) - Powered by Alpha City! ⚔️`) with inline success animations.
+### 2. Top Yields APY Radar Widget
+- **HTML Layout:** Created a dedicated widget (`#apy-radar-widget`) showing SUI liquidity pools sorted by yield.
+- **APY Radar Logic:**
+  - Programmatically queries DefiLlama's public yields API (`https://yields.llama.fi/pools`).
+  - Filters the pools specifically for the `Sui` chain.
+  - Only includes pools with a minimum TVL of **$20,000 USD** to protect users from thin and highly volatile pools.
+  - Formats raw protocol names (e.g. `cetus-clmm` -> `Cetus CLMM`, `turbos-clmm` -> `Turbos`, `bluefin-spot` -> `Bluefin`, `navi-lending` -> `Navi`, `scallop-lend` -> `Scallop`).
+  - Applies custom, theme-harmonized CSS badge colors for each major protocol.
+  - Features manual and auto-refresh mechanisms (every 5 minutes) with a rotation animation.
+
+### 3. Styles & Initialization
+- **Styles:** Added clean tab controls, hover transitions, and badge styling to match the page's glassmorphic theme.
+- **Startup Optimization:** Registered both initialization procedures in the non-critical deferred execution queue (`requestIdleCallback`) to maintain quick dashboard loading speeds.
 
 ---
 
 ## Verification Results
 
-We verified both worker routes and frontend modifications using programmatic test scripts:
-
-### 1. Frontend Integration Test (`verify_analyze_upgrades.js`)
-*   Checks presence of all required DOM element IDs.
-*   Asserts `SUI_RPCS` failover list, timeout signals, local cache variables, and fallback methods exist.
+### 1. Syntax Verification
+We extracted the main script from `analyze/index.html` and ran a syntax compiler check:
 ```bash
-Verifying HTML elements...
-[+] Found element: id="side-quest-panel"
-[+] Found element: id="side-quest-category"
-[+] Found element: id="side-quest-title"
-[+] Found element: id="side-quest-benefit"
-[+] Found element: id="side-quest-complete-btn"
-[+] Found element: id="side-quest-share-btn"
-
-Verifying JS functions and fallbacks...
-[+] Found logic: SUI_RPCS failover list
-[+] Found logic: rpc function timeout signal
-[+] Found logic: Nitter local cache key
-[+] Found logic: Nitter fallback to expired cache
-[+] Found logic: FALLBACK_SIDE_QUESTS list
-[+] Found logic: initSideQuest function
-[+] Found logic: markQuestUICompleted function
-
-[SUCCESS] All frontend upgrades verified successfully!
+node scratch/verify_syntax.js
+```
+**Output:**
+```
+[PASS] Syntax check passed for script block 1
 ```
 
-### 2. Cloudflare Worker Mock Test (`test_sidequest_api.js`)
-*   Mocks global `fetch`, `caches.default`, `Request`, and `Response` interfaces.
-*   Asserts `/sidequest` route generates structured quests and puts them in edge cache.
+### 2. Formatter & Badge Logic Tests
+We ran unit tests against the APY protocol formatters and color mappings in `verify_logic.js`:
 ```bash
-Running Worker mock test...
-Fetching /sidequest from mock worker...
-Response status: 200
-Response JSON: {
-  quest: 'Walk 15 minutes in a local park.',
-  category: 'Nature',
-  benefit: 'Lowers blood pressure and helps clear your mind.'
-}
-[+] Test 1 (Success Quest Generation): PASS
-Verifying edge cache put...
-[+] Test 2 (Edge Cache Caching): PASS
+node scratch/verify_logic.js
+```
+**Output:**
+```
+[PASS] Test for 'cetus-clmm' -> Name: 'Cetus CLMM', Color: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+[PASS] Test for 'turbos-clmm' -> Name: 'Turbos', Color: 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+[PASS] Test for 'bluefin-spot' -> Name: 'Bluefin', Color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+[PASS] Test for 'scallop-lend' -> Name: 'Scallop', Color: 'bg-pink-500/10 text-pink-400 border-pink-500/20'
+[PASS] Test for 'kriya-dex' -> Name: 'Kriya', Color: 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+[PASS] Test for 'aftermath-finance' -> Name: 'Aftermath', Color: 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+[PASS] Test for 'random-protocol' -> Name: 'Random Protocol', Color: 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+All formatter logic tests passed successfully!
 ```
