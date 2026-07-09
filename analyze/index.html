@@ -704,6 +704,34 @@
                     </div>
                 </div>
 
+                <!-- Daily Side Quest Widget -->
+                <div class="glass-panel p-5 rounded-xl space-y-4 animate-fade-in" id="side-quest-panel">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
+                            <span>⚔️</span> Daily Side Quest
+                        </h3>
+                        <span id="side-quest-category" class="bg-brand-secondary/10 text-brand-secondary text-[9px] px-2 py-0.5 rounded border border-brand-secondary/20 font-bold uppercase font-mono">
+                            Mindfulness
+                        </span>
+                    </div>
+                    <div class="space-y-3">
+                        <p id="side-quest-title" class="text-white text-sm font-semibold leading-relaxed">
+                            Loading daily quest...
+                        </p>
+                        <p id="side-quest-benefit" class="text-dark-text-secondary text-xs leading-relaxed italic">
+                            ...
+                        </p>
+                        <div class="flex items-center gap-3 pt-2 border-t border-gray-850">
+                            <button id="side-quest-complete-btn" class="flex-grow py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md">
+                                <span>✔</span> Mark Completed
+                            </button>
+                            <button id="side-quest-share-btn" class="px-3 py-2 bg-dark-card border border-gray-800 text-white rounded-lg text-xs hover:border-brand-primary transition-all font-semibold flex items-center justify-center" title="Copy to clipboard">
+                                <span>📋</span> Share
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Whale Wallet Tracker -->
                 <div class="glass-panel p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
@@ -1197,7 +1225,13 @@
     // =========================================================
     // SUI RPC HELPERS
     // =========================================================
-    const SUI_RPC   = 'https://fullnode.mainnet.sui.io';
+    const SUI_RPCS = [
+        'https://fullnode.mainnet.sui.io',
+        'https://sui-mainnet.nodeinfra.com',
+        'https://mainnet.sui.rpcpool.com',
+        'https://sui-mainnet-endpoint.blockvision.org'
+    ];
+    let currentRpcIndex = 0;
     const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
     const CITY_STAKING_TYPE = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9::city_staking::UserStake<0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY>';
     const CITY_ACCESS_MIN   = 5_000_000n * 10n ** 9n; // 5M CITY × 10^9 decimals
@@ -1208,16 +1242,31 @@
                coinType === '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI';
     }
 
-    async function rpc(method, params) {
-        const res = await fetch(SUI_RPC, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-        });
-        if (!res.ok) throw new Error(`SUI RPC HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.error) throw new Error(`SUI RPC: ${data.error.message}`);
-        return data.result;
+    async function rpc(method, params, retries = 3, delay = 500) {
+        let lastError = new Error("Unknown error");
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            const endpoint = SUI_RPCS[currentRpcIndex];
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+                    signal: AbortSignal.timeout(5000)
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.error) throw new Error(data.error.message);
+                return data.result;
+            } catch (err) {
+                lastError = err;
+                console.warn(`RPC attempt ${attempt} failed on ${endpoint}: ${err.message}`);
+                currentRpcIndex = (currentRpcIndex + 1) % SUI_RPCS.length;
+                if (attempt < retries) {
+                    await new Promise(resolve => setTimeout(resolve, delay * attempt));
+                }
+            }
+        }
+        throw new Error(`All SUI RPC endpoints failed. Last error: ${lastError.message}`);
     }
 
     const coinUnitCache = {};
@@ -3413,7 +3462,32 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     async function fetchNitterFeed(username) {
-        // 1. Try to fetch from the private Cloudflare Worker proxy if configured
+        const cacheKey = `nitter_cache_${username}`;
+        let cached = null;
+        try {
+            const raw = localStorage.getItem(cacheKey);
+            if (raw) {
+                cached = JSON.parse(raw);
+                if (cached && cached.timestamp && (Date.now() - cached.timestamp < 15 * 60 * 1000)) {
+                    console.log(`Using cached tweet for @${username}`);
+                    return cached.data;
+                }
+            }
+        } catch (e) {
+            console.warn(`Failed to read Nitter cache for @${username}:`, e);
+        }
+
+        const saveCache = (data) => {
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    timestamp: Date.now(),
+                    data
+                }));
+            } catch (e) {
+                console.warn(`Failed to write Nitter cache for @${username}:`, e);
+            }
+        };
+
         const isWorkerConfigured = typeof OPENAI_PROXY_URL !== 'undefined' && 
                                    OPENAI_PROXY_URL !== '__OPENAI_PROXY_URL__' && 
                                    OPENAI_PROXY_URL.startsWith('http');
@@ -3423,31 +3497,38 @@ Return ONLY a valid JSON object with two string keys:
                 const resp = await fetch(workerUrl, { signal: AbortSignal.timeout(6000) });
                 if (resp.ok) {
                     const xmlText = await resp.text();
-                    return parseNitterRss(xmlText);
+                    const parsed = parseNitterRss(xmlText);
+                    saveCache(parsed);
+                    return parsed;
                 }
             } catch (err) {
-                console.warn(`Worker proxy failed to fetch feed for @${username}, falling back to rss2json:`, err);
+                console.warn(`Worker proxy failed to fetch feed for @${username}:`, err);
             }
         }
 
-        // 2. Fallback to client-side parsing via rss2json.com across healthy Nitter instances
         for (const instance of FALLBACK_NITTER_INSTANCES) {
             try {
                 const feedUrl = `${instance}/${username}/rss`;
                 const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
-                const resp = await fetch(url, { signal: AbortSignal.timeout(3000) });
+                const resp = await fetch(url, { signal: AbortSignal.timeout(4000) });
                 if (!resp.ok) continue;
                 const data = await resp.json();
                 if (data.status === 'ok' && data.items && data.items.length > 0) {
                     const item = data.items[0];
-                    return {
+                    const parsed = {
                         title: item.title,
                         description: item.description,
                         pubDate: item.pubDate,
                         link: item.link
                     };
+                    saveCache(parsed);
+                    return parsed;
                 }
             } catch (_) {}
+        }
+        if (cached && cached.data) {
+            console.warn(`All network attempts failed. Using expired cache for @${username}`);
+            return cached.data;
         }
         throw new Error(`Failed to fetch feed for @${username} from all sources`);
     }
@@ -3786,6 +3867,129 @@ Return ONLY a valid JSON object with two string keys:
                 if (e.key === 'Enter') addWhaleAddress();
             });
         }
+    }
+
+    // =========================================================
+    // DAILY SIDE QUESTS
+    // =========================================================
+    const FALLBACK_SIDE_QUESTS = [
+        { quest: "Spend 5 minutes walking silently outdoors.", category: "Nature", benefit: "Boosts mental clarity and lowers cortisol levels." },
+        { quest: "Do 50 pushups (or a comfortable variation).", category: "Physical", benefit: "Improves upper body strength and pumps endorphins." },
+        { quest: "Call or text a loved one to check in.", category: "Connection", benefit: "Strengthens relationships and builds emotional support." },
+        { quest: "Drink a tall glass of water and stretch for 3 minutes.", category: "Physical", benefit: "Rehydrates the body and releases muscle tension." },
+        { quest: "Write down 3 things you are genuinely grateful for today.", category: "Mindfulness", benefit: "Shifts mindset to abundance and positivity." },
+        { quest: "Sit quietly for 5 minutes focusing entirely on your breathing.", category: "Mindfulness", benefit: "Calms the nervous system and improves focus." },
+        { quest: "Tidy up your physical desk space completely.", category: "Mindfulness", benefit: "Clutter-free environment leads to a clutter-free mind." },
+        { quest: "Step outside and identify 3 different types of birds or trees.", category: "Nature", benefit: "Engages observation skills and fosters nature connection." },
+        { quest: "Do 30 deep squats next to your chair.", category: "Physical", benefit: "Activates large lower-body muscles to boost circulation." },
+        { quest: "Send a public or private thank-you message to a team member.", category: "Connection", benefit: "Promotes social bonding and positive work environment." },
+        { quest: "Unplug from all digital screens for 15 minutes before bed.", category: "Mindfulness", benefit: "Prepares the brain for deeper, more restorative sleep." },
+        { quest: "Close your eyes and listen to one favorite song with full focus.", category: "Mindfulness", benefit: "Provides a quick sensory break and emotional uplift." }
+    ];
+
+    let currentDailyQuest = null;
+
+    async function fetchDailyQuest() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        const isWorkerConfigured = typeof OPENAI_PROXY_URL !== 'undefined' && 
+                                   OPENAI_PROXY_URL !== '__OPENAI_PROXY_URL__' && 
+                                   OPENAI_PROXY_URL.startsWith('http');
+        if (isWorkerConfigured) {
+            try {
+                const url = `${OPENAI_PROXY_URL}/sidequest?date=${todayStr}`;
+                const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && data.quest) {
+                        return data;
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to fetch daily quest from worker, using client fallback:", err);
+            }
+        }
+
+        let hash = 0;
+        for (let i = 0; i < todayStr.length; i++) {
+            hash = todayStr.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % FALLBACK_SIDE_QUESTS.length;
+        return FALLBACK_SIDE_QUESTS[index];
+    }
+
+    async function initSideQuest() {
+        const titleEl = document.getElementById('side-quest-title');
+        const benefitEl = document.getElementById('side-quest-benefit');
+        const catEl = document.getElementById('side-quest-category');
+        const completeBtn = document.getElementById('side-quest-complete-btn');
+        const shareBtn = document.getElementById('side-quest-share-btn');
+        
+        if (!titleEl || !benefitEl || !catEl || !completeBtn || !shareBtn) return;
+
+        try {
+            currentDailyQuest = await fetchDailyQuest();
+            
+            titleEl.textContent = currentDailyQuest.quest;
+            benefitEl.textContent = currentDailyQuest.benefit;
+            
+            const category = (currentDailyQuest.category || 'Mindfulness').trim();
+            catEl.textContent = category;
+            
+            catEl.className = 'text-[9px] px-2 py-0.5 rounded border font-bold uppercase font-mono';
+            const catLower = category.toLowerCase();
+            if (catLower.includes('nature')) {
+                catEl.classList.add('bg-green-500/10', 'text-green-400', 'border-green-500/20');
+            } else if (catLower.includes('physical')) {
+                catEl.classList.add('bg-orange-500/10', 'text-orange-400', 'border-orange-500/20');
+            } else if (catLower.includes('connection')) {
+                catEl.classList.add('bg-blue-500/10', 'text-blue-400', 'border-blue-500/20');
+            } else {
+                catEl.classList.add('bg-brand-secondary/10', 'text-brand-secondary', 'border-brand-secondary/20');
+            }
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isCompleted = localStorage.getItem(`side_quest_completed_${todayStr}`) === 'true';
+            
+            if (isCompleted) {
+                markQuestUICompleted();
+            } else {
+                completeBtn.addEventListener('click', () => {
+                    localStorage.setItem(`side_quest_completed_${todayStr}`, 'true');
+                    markQuestUICompleted();
+                });
+            }
+
+            shareBtn.addEventListener('click', async () => {
+                const shareText = `Daily Side Quest Completed: "${currentDailyQuest.quest}" (Category: ${category}) - Powered by Alpha City! ⚔️`;
+                try {
+                    await navigator.clipboard.writeText(shareText);
+                    const originalText = shareBtn.innerHTML;
+                    shareBtn.innerHTML = '<span>✔</span>';
+                    setTimeout(() => { shareBtn.innerHTML = originalText; }, 1500);
+                } catch (e) {
+                    console.error("Clipboard copy failed:", e);
+                }
+            });
+
+        } catch (e) {
+            console.error("Error initializing side quest:", e);
+            titleEl.textContent = "Take a deep breath and stretch.";
+            benefitEl.textContent = "Relieves muscle tension and refocuses energy.";
+            catEl.textContent = "Mindfulness";
+            catEl.className = 'bg-brand-secondary/10 text-brand-secondary border-brand-secondary/20 text-[9px] px-2 py-0.5 rounded border font-bold uppercase font-mono';
+        }
+    }
+
+    function markQuestUICompleted() {
+        const titleEl = document.getElementById('side-quest-title');
+        const completeBtn = document.getElementById('side-quest-complete-btn');
+        if (!completeBtn || !titleEl) return;
+
+        titleEl.classList.add('text-gray-500', 'line-through', 'opacity-60');
+        completeBtn.disabled = true;
+        completeBtn.className = 'flex-grow py-2 bg-green-600/10 text-green-400 border border-green-500/20 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-not-allowed shadow-none';
+        completeBtn.innerHTML = '<span>✔</span> Completed!';
     }
 
     // =========================================================
