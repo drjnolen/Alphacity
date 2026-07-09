@@ -56,6 +56,9 @@
             background: rgba(31, 41, 55, 0.7);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            will-change: transform, filter;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
@@ -1242,17 +1245,30 @@
                coinType === '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI';
     }
 
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+        const controller = new AbortController();
+        const { signal } = controller;
+        const id = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const response = await fetch(url, { ...options, signal });
+            clearTimeout(id);
+            return response;
+        } catch (err) {
+            clearTimeout(id);
+            throw err;
+        }
+    }
+
     async function rpc(method, params, retries = 3, delay = 500) {
         let lastError = new Error("Unknown error");
         for (let attempt = 1; attempt <= retries; attempt++) {
             const endpoint = SUI_RPCS[currentRpcIndex];
             try {
-                const res = await fetch(endpoint, {
+                const res = await fetchWithTimeout(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-                    signal: AbortSignal.timeout(5000)
-                });
+                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+                }, 5000);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (data.error) throw new Error(data.error.message);
@@ -3494,7 +3510,7 @@ Return ONLY a valid JSON object with two string keys:
         if (isWorkerConfigured) {
             try {
                 const workerUrl = `${OPENAI_PROXY_URL}/nitter?handle=${username}`;
-                const resp = await fetch(workerUrl, { signal: AbortSignal.timeout(6000) });
+                const resp = await fetchWithTimeout(workerUrl, {}, 6000);
                 if (resp.ok) {
                     const xmlText = await resp.text();
                     const parsed = parseNitterRss(xmlText);
@@ -3510,7 +3526,7 @@ Return ONLY a valid JSON object with two string keys:
             try {
                 const feedUrl = `${instance}/${username}/rss`;
                 const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
-                const resp = await fetch(url, { signal: AbortSignal.timeout(4000) });
+                const resp = await fetchWithTimeout(url, {}, 4000);
                 if (!resp.ok) continue;
                 const data = await resp.json();
                 if (data.status === 'ok' && data.items && data.items.length > 0) {
@@ -3995,15 +4011,30 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // INIT
     // =========================================================
+    // 1. Eager Critical Initializations (Instant Load)
     initWalletStandard();
     initClock();
-    initWeather();
     initNotes();
-    initNewsTerminal();
     initHabitTracker();
-    initXFeed();
-    initTradingView();
-    initWhaleTracker();
+
+    // 2. Deferred Non-Critical Initializations (Prevents blocking onload thread)
+    const deferInit = window.requestIdleCallback || (cb => setTimeout(cb, 100));
+    deferInit(() => {
+        const runSafe = (name, fn) => {
+            try {
+                fn();
+            } catch (err) {
+                console.error(`Error initializing widget [${name}]:`, err);
+            }
+        };
+
+        runSafe('Weather', initWeather);
+        runSafe('NewsTerminal', initNewsTerminal);
+        runSafe('XFeed', initXFeed);
+        runSafe('TradingView', initTradingView);
+        runSafe('WhaleTracker', initWhaleTracker);
+        runSafe('SideQuest', initSideQuest);
+    });
 
     // Launch the intelligence dashboard (non-blocking — doesn't delay wallet reconnect)
     initIntelDashboard();
