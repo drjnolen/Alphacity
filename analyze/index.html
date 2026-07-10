@@ -3674,6 +3674,10 @@ Return ONLY a valid JSON object with two string keys:
                 if (resp.ok) {
                     const xmlText = await resp.text();
                     const parsed = parseNitterRss(xmlText);
+                    const descLower = (parsed.description || '').toLowerCase();
+                    if (descLower.includes('whitelist') || descLower.includes('plain request') || descLower.includes('xcancel')) {
+                        throw new Error("Worker proxy returned blocked Nitter feed");
+                    }
                     saveCache(parsed);
                     return parsed;
                 }
@@ -3691,6 +3695,12 @@ Return ONLY a valid JSON object with two string keys:
                 const data = await resp.json();
                 if (data.status === 'ok' && data.items && data.items.length > 0) {
                     const item = data.items[0];
+                    const descLower = (item.description || '').toLowerCase();
+                    const titleLower = (item.title || '').toLowerCase();
+                    if (descLower.includes('whitelist') || descLower.includes('plain request') || descLower.includes('xcancel') || titleLower.includes('whitelist')) {
+                        console.warn(`Blocked Nitter response detected for @${username} on instance: ${instance}`);
+                        continue;
+                    }
                     const parsed = {
                         title: item.title,
                         description: item.description,
