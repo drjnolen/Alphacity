@@ -4541,17 +4541,30 @@ Return ONLY a valid JSON object with two string keys:
         if (resultsPanel) resultsPanel.classList.add('hidden');
 
         try {
-            // Normalize input
-            let coinType = inputAddress;
-            let packageAddress = inputAddress;
+            // Normalize input (pad SUI package ID to 32 bytes/64 hex chars)
+            const padSuiAddress = (addr) => {
+                if (!addr.startsWith('0x')) return addr;
+                const hex = addr.slice(2);
+                if (hex.length < 64) {
+                    return '0x' + hex.padStart(64, '0');
+                }
+                return addr;
+            };
 
-            if (inputAddress.includes('::')) {
-                packageAddress = inputAddress.split('::')[0];
-            } else {
-                // If it is just a package address, try to assume a standard type format for DexScreener
-                // SUI custom coins are typically published as package::module::coin, but DexScreener resolves by package too.
-                // Let's query both
-                coinType = inputAddress;
+            const normalizeSuiType = (typeStr) => {
+                typeStr = typeStr.trim();
+                if (!typeStr.includes('::')) {
+                    return padSuiAddress(typeStr);
+                }
+                const parts = typeStr.split('::');
+                parts[0] = padSuiAddress(parts[0]);
+                return parts.join('::');
+            };
+
+            const coinType = normalizeSuiType(inputAddress);
+            let packageAddress = coinType;
+            if (coinType.includes('::')) {
+                packageAddress = coinType.split('::')[0];
             }
 
             // Fetch GoPlus and DexScreener in parallel
@@ -4656,32 +4669,7 @@ Return ONLY a valid JSON object with two string keys:
                 });
             }
 
-            // 4. Contract Upgradeability
-            const isUpgradeable = goPlusData.contract_upgradeable?.value === "1";
-            if (isUpgradeable) {
-                score -= 10;
-                alerts.push({
-                    type: 'orange',
-                    text: 'Contract is upgradeable: Creator can modify the rules or contract logic later.'
-                });
-            } else {
-                alerts.push({
-                    type: 'green',
-                    text: 'Contract is immutable: Code cannot be altered.'
-                });
-            }
-
-            // 5. Metadata Modifiability
-            const isMetaMutable = goPlusData.metadata_modifiable?.value === "1";
-            if (isMetaMutable) {
-                score -= 5;
-                alerts.push({
-                    type: 'orange',
-                    text: 'Metadata is modifiable: Token name, symbol, or logo can be changed.'
-                });
-            }
-
-            // 6. Liquidity Checks
+            // 4. Liquidity Checks
             if (dexData) {
                 const liquidity = parseFloat(dexData.liquidity?.usd || 0);
                 if (liquidity < 10000) {
@@ -4710,7 +4698,7 @@ Return ONLY a valid JSON object with two string keys:
                 });
             }
 
-            // 7. Holder Concentration
+            // 5. Holder Concentration
             const holders = goPlusData.holders || [];
             if (holders.length > 0) {
                 // Sum top 3 non-exchange holders
