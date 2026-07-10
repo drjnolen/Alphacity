@@ -4434,7 +4434,7 @@ Return ONLY a valid JSON object with two string keys:
                 const apyVal = p.apy.toFixed(1);
 
                 return `
-                <div class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs">
+                <a href="${getProjectUrl(rawProject)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs hover:bg-gray-800/20 transition-all rounded px-1.5 -mx-1.5 cursor-pointer block select-none">
                     <div class="flex flex-col min-w-0">
                         <div class="flex items-center gap-1.5 mb-0.5">
                             <span class="text-white font-semibold truncate">${symbol}</span>
@@ -4448,7 +4448,7 @@ Return ONLY a valid JSON object with two string keys:
                         <div class="text-green-400 font-bold font-mono text-sm">${apyVal}%</div>
                         <span class="text-[9px] text-gray-500 block uppercase font-mono">APY</span>
                     </div>
-                </div>`;
+                </a>`;
             }).join('');
 
         } catch (err) {
@@ -4477,6 +4477,22 @@ Return ONLY a valid JSON object with two string keys:
         if (mapping[proj]) return mapping[proj];
         // General formatting: uppercase first letters
         return proj.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function getProjectUrl(proj) {
+        const mapping = {
+            'cetus-clmm': 'https://app.cetus.zone/pool',
+            'cetus': 'https://app.cetus.zone/pool',
+            'turbos-clmm': 'https://app.turbos.finance/#/pools',
+            'bluefin-spot': 'https://spot.bluefin.io/pool',
+            'navi-lending': 'https://app.naviprotocol.io/',
+            'scallop-lend': 'https://app.scallop.io/',
+            'haedal-protocol': 'https://haedal.xyz/',
+            'volo': 'https://volo.fi/',
+            'aftermath-finance': 'https://aftermath.finance/earn',
+            'kriya-dex': 'https://app.kriya.finance/spot/pool'
+        };
+        return mapping[proj] || 'https://defillama.com/yields';
     }
 
     function getApyProjectBadgeColor(proj) {
