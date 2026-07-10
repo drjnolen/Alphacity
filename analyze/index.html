@@ -1095,6 +1095,25 @@
         return (!a || a.length < 11) ? a : a.slice(0, 6) + '...' + a.slice(-4);
     }
 
+    function padSuiAddress(addr) {
+        if (!addr.startsWith('0x')) return addr;
+        const hex = addr.slice(2);
+        if (hex.length < 64) {
+            return '0x' + hex.padStart(64, '0');
+        }
+        return addr;
+    }
+
+    function normalizeSuiType(typeStr) {
+        typeStr = (typeStr || '').trim();
+        if (!typeStr.includes('::')) {
+            return padSuiAddress(typeStr);
+        }
+        const parts = typeStr.split('::');
+        parts[0] = padSuiAddress(parts[0]);
+        return parts.join('::');
+    }
+
     // =========================================================
     // CONSTANTS
     // =========================================================
@@ -4423,7 +4442,17 @@ Return ONLY a valid JSON object with two string keys:
                 return;
             }
 
-            listEl.innerHTML = suiPools.map(p => {
+            // Resolve exact pool addresses in parallel via DexScreener search
+            const resolvedPools = await Promise.all(suiPools.map(async p => {
+                try {
+                    const addr = await resolvePoolAddress(p.project, p.underlyingTokens);
+                    return { ...p, resolvedAddress: addr };
+                } catch (_) {
+                    return { ...p, resolvedAddress: null };
+                }
+            }));
+
+            listEl.innerHTML = resolvedPools.map(p => {
                 const symbol = escHtml(p.symbol);
                 const rawProject = p.project || 'unknown';
                 const projectClean = formatApyProjectName(rawProject);
@@ -4434,7 +4463,7 @@ Return ONLY a valid JSON object with two string keys:
                 const apyVal = p.apy.toFixed(1);
 
                 return `
-                <a href="${getProjectUrl(rawProject)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs hover:bg-gray-800/20 transition-all rounded px-1.5 -mx-1.5 cursor-pointer block select-none">
+                <a href="${getPoolDetailedUrl(rawProject, p.resolvedAddress)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs hover:bg-gray-800/20 transition-all rounded px-1.5 -mx-1.5 cursor-pointer block select-none">
                     <div class="flex flex-col min-w-0">
                         <div class="flex items-center gap-1.5 mb-0.5">
                             <span class="text-white font-semibold truncate">${symbol}</span>
@@ -4479,7 +4508,50 @@ Return ONLY a valid JSON object with two string keys:
         return proj.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
 
-    function getProjectUrl(proj) {
+    async function resolvePoolAddress(project, underlyingTokens) {
+        if (!underlyingTokens || underlyingTokens.length < 2) return null;
+        
+        const token0 = normalizeSuiType(underlyingTokens[0]);
+        const token1 = normalizeSuiType(underlyingTokens[1]);
+
+        const queryStr = `${token0} ${token1}`;
+        const url = `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(queryStr)}`;
+        try {
+            const res = await fetchWithTimeout(url, {}, 5000);
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (!data.pairs) return null;
+
+            let targetDexId = '';
+            if (project.includes('cetus')) targetDexId = 'cetus';
+            else if (project.includes('turbos')) targetDexId = 'turbos';
+            else if (project.includes('bluefin')) targetDexId = 'bluefin';
+            
+            if (!targetDexId) return null;
+
+            const pair = data.pairs.find(p => {
+                if (p.chainId !== 'sui' || p.dexId !== targetDexId) return false;
+                const base = normalizeSuiType(p.baseToken.address);
+                const quote = normalizeSuiType(p.quoteToken.address);
+                return (base === token0 && quote === token1) || (base === token1 && quote === token0);
+            });
+
+            return pair ? pair.pairAddress : null;
+        } catch (err) {
+            console.warn("Error resolving pool address via DexScreener:", err);
+            return null;
+        }
+    }
+
+    function getPoolDetailedUrl(project, resolvedAddress) {
+        if (resolvedAddress) {
+            if (project.includes('cetus')) {
+                return `https://app.cetus.zone/clmm?poolAddress=${resolvedAddress}`;
+            } else if (project.includes('bluefin')) {
+                return `https://trade.bluefin.io/deposit/${resolvedAddress}`;
+            }
+        }
+        
         const mapping = {
             'cetus-clmm': 'https://app.cetus.zone/pool',
             'cetus': 'https://app.cetus.zone/pool',
@@ -4492,7 +4564,7 @@ Return ONLY a valid JSON object with two string keys:
             'aftermath-finance': 'https://aftermath.finance/earn',
             'kriya-dex': 'https://app.kriya.finance/spot/pool'
         };
-        return mapping[proj] || 'https://defillama.com/yields';
+        return mapping[project] || 'https://defillama.com/yields';
     }
 
     function getApyProjectBadgeColor(proj) {
@@ -4557,26 +4629,6 @@ Return ONLY a valid JSON object with two string keys:
         if (resultsPanel) resultsPanel.classList.add('hidden');
 
         try {
-            // Normalize input (pad SUI package ID to 32 bytes/64 hex chars)
-            const padSuiAddress = (addr) => {
-                if (!addr.startsWith('0x')) return addr;
-                const hex = addr.slice(2);
-                if (hex.length < 64) {
-                    return '0x' + hex.padStart(64, '0');
-                }
-                return addr;
-            };
-
-            const normalizeSuiType = (typeStr) => {
-                typeStr = typeStr.trim();
-                if (!typeStr.includes('::')) {
-                    return padSuiAddress(typeStr);
-                }
-                const parts = typeStr.split('::');
-                parts[0] = padSuiAddress(parts[0]);
-                return parts.join('::');
-            };
-
             const coinType = normalizeSuiType(inputAddress);
             let packageAddress = coinType;
             if (coinType.includes('::')) {
