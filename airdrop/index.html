@@ -13,6 +13,7 @@
     <script>window.global = window;</script>
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/sui-client.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -600,7 +601,6 @@
     // ================================================================
     // CONSTANTS
     // ================================================================
-    const SUI_RPC      = 'https://fullnode.mainnet.sui.io:443';
     const CITY_TYPE    = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
     const SUI_TYPE     = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI';
     const STAKING_PKGS = ['0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9'];
@@ -831,15 +831,8 @@
     // SUI RPC
     // ================================================================
     async function rpc(method, params) {
-        const res = await fetch(SUI_RPC, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-        });
-        if (!res.ok) throw new Error(`SUI RPC HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.error) throw new Error(`SUI RPC: ${data.error.message}`);
-        return data.result;
+        if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+        return window.AlphaCitySui.rpc(method, params);
     }
 
     async function queryAllEvents(eventType) {

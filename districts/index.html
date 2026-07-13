@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>District Champions - Alpha City</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/shared/sui-client.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -137,7 +138,6 @@
 
         /* ── Constants ────────────────────────────────────────────── */
 
-        const SUI_RPC = 'https://fullnode.mainnet.sui.io:443';
         const STAKING_PACKAGE_IDS = [
             '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9'
         ];
@@ -186,16 +186,9 @@
 
         /* ── Sui JSON-RPC helper ─────────────────────────────────── */
 
-        let rpcId = 0;
         async function suiRpc(method, params) {
-            const res = await fetch(SUI_RPC, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method: method, params: params }),
-            });
-            const json = await res.json();
-            if (json.error) throw new Error(json.error.message);
-            return json.result;
+            if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+            return window.AlphaCitySui.rpc(method, params);
         }
 
         async function queryAllEvents(eventType) {

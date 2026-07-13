@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const crypto = require('crypto');
 
 // Configuration
-const SUI_RPC = 'https://fullnode.mainnet.sui.io';
+const SUI_GRAPHQL = process.env.SUI_GRAPHQL_URL || 'https://graphql.mainnet.sui.io/graphql';
 const PACKAGE_ADDRESS = process.env.SLUICE_PACKAGE_ADDRESS || '0x7c7ca3da6bad849a02d9f888b2f8cab40d507b2c01bbcab3f2d816334c17aa07';
 
 // Relayer Bot Private Key (32-byte hex string stored in GitHub Secrets)
@@ -16,17 +16,50 @@ if (!fs.existsSync(ATTESTATIONS_DIR)) {
     fs.mkdirSync(ATTESTATIONS_DIR, { recursive: true });
 }
 
-// Helper: Make SUI RPC requests
-async function rpc(method, params) {
-    const res = await fetch(SUI_RPC, {
+// Query live objects by type through the indexed SUI GraphQL API.
+async function queryObjectsByType(structType) {
+    const query = `
+        query VestingSchedules($type: String!, $after: String) {
+            objects(first: 50, after: $after, filter: { type: $type }) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                    address
+                    version
+                    digest
+                    asMoveObject { contents { type { repr } json } }
+                }
+            }
+        }`;
+    const objects = [];
+    let after = null;
+    do {
+        const res = await fetch(SUI_GRAPHQL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-    });
-    if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
-    const data = await res.json();
-    if (data.error) throw new Error(`RPC error: ${data.error.message}`);
-    return data.result;
+            body: JSON.stringify({ query, variables: { type: structType, after } })
+        });
+        if (!res.ok) throw new Error(`SUI GraphQL HTTP ${res.status}`);
+        const payload = await res.json();
+        if (payload.errors?.length) throw new Error(`SUI GraphQL: ${payload.errors.map(error => error.message).join('; ')}`);
+        const connection = payload.data?.objects;
+        for (const node of (connection?.nodes || [])) {
+            const move = node.asMoveObject;
+            objects.push({
+                data: {
+                    objectId: node.address,
+                    version: String(node.version || ''),
+                    digest: node.digest || '',
+                    content: {
+                        dataType: 'moveObject',
+                        type: move?.contents?.type?.repr || '',
+                        fields: move?.contents?.json || {},
+                    },
+                },
+            });
+        }
+        after = connection?.pageInfo?.hasNextPage ? connection.pageInfo.endCursor : null;
+    } while (after);
+    return objects;
 }
 
 // Helper: Import Ed25519 Private Key in Node.js
@@ -86,12 +119,7 @@ async function main() {
     try {
         // Query all Shared Objects created by the Sluice package
         const structType = `${PACKAGE_ADDRESS}::sluice::VestingSchedule`;
-        const objects = await rpc('suix_queryObjects', [{
-            filter: { StructType: structType },
-            options: { showContent: true }
-        }]);
-
-        const schedules = objects.data || [];
+        const schedules = await queryObjectsByType(structType);
         console.log(`Found ${schedules.length} schedules on-chain.`);
 
         let changesMade = false;
@@ -100,7 +128,7 @@ async function main() {
             const fields = obj.data?.content?.fields;
             if (!fields) continue;
 
-            const id = fields.id.id;
+            const id = fields.id?.id || fields.id;
             const coinType = obj.data?.content?.type.split('<')[1].replace('>', '');
             const milestoneStatus = parseInt(fields.milestone_status);
             const targetMcap = fields.target_marketcap ? parseInt(fields.target_marketcap) : null;

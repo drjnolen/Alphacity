@@ -13,6 +13,7 @@
     <script>window.global = window;</script>
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/sui-client.js"></script>
 
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -357,7 +358,6 @@
     // ================================================================
     // CONSTANTS
     // ================================================================
-    const SUI_RPC    = 'https://fullnode.mainnet.sui.io';
     const SUI_TYPE   = '0x2::sui::SUI';
     const CITY_TYPE  = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
 
@@ -465,15 +465,8 @@
     // SUI RPC
     // ================================================================
     async function rpc(method, params) {
-        const res = await fetch(SUI_RPC, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-        });
-        if (!res.ok) throw new Error(`SUI RPC HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.error) throw new Error(`SUI RPC: ${data.error.message}`);
-        return data.result;
+        if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+        return window.AlphaCitySui.rpc(method, params);
     }
 
     async function fetchSuiBalance(address) {

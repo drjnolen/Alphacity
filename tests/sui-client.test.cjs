@@ -1,0 +1,126 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const vm = require('node:vm');
+
+global.window = global;
+const bundle = fs.readFileSync(path.join(__dirname, '..', 'shared', 'sui-client.js'), 'utf8');
+vm.runInThisContext(bundle, { filename: 'shared/sui-client.js' });
+
+const { createSuiDataLayer, legacyMoveJson, legacyObject } = AlphaCitySuiBundle;
+
+function mockLayer(graphqlResponder = () => ({ data: {} })) {
+    const grpcClient = {
+        async getBalance() {
+            return { balance: { coinType: '0x2::sui::SUI', balance: '42', coinBalance: '40', addressBalance: '2' } };
+        },
+        async listBalances() {
+            return { balances: [{ coinType: '0x2::sui::SUI', balance: '42', coinBalance: '40', addressBalance: '2' }], hasNextPage: false, cursor: null };
+        },
+        async listCoins() {
+            return { objects: [{ objectId: '0x1', version: '7', digest: 'digest', type: '0x2::coin::Coin<0x2::sui::SUI>', balance: '42' }], hasNextPage: false, cursor: null };
+        },
+        async listOwnedObjects() {
+            return {
+                objects: [{
+                    objectId: '0xstake', version: '9', digest: 'digest',
+                    type: '0x0000000000000000000000000000000000000000000000000000000000000abc::staking::Stake', owner: { AddressOwner: '0xowner' },
+                    json: { staked_amount: '100', principal: { value: '100' } },
+                    display: { output: { name: 'Stake' }, errors: null },
+                }],
+                hasNextPage: false, cursor: null,
+            };
+        },
+        async getObject({ objectId }) {
+            return { object: { objectId, version: '1', digest: 'd', type: '0xabc::m::T', owner: { AddressOwner: '0xowner' }, json: { value: '1' }, display: null } };
+        },
+        async getObjects({ objectIds }) {
+            return { objects: objectIds.map(objectId => ({ objectId, version: '1', digest: 'd', type: '0xabc::m::T', owner: { AddressOwner: '0xowner' }, json: { value: '1' }, display: null })) };
+        },
+        async getCoinMetadata() {
+            return { coinMetadata: { id: '0xmeta', decimals: 9, name: 'Sui', symbol: 'SUI', description: '', iconUrl: '' } };
+        },
+        stateService: {
+            async getCoinInfo() { return { response: { treasury: { totalSupply: 1000n } } }; },
+        },
+    };
+    return createSuiDataLayer({
+        grpcClient,
+        graphqlUrls: ['mock'],
+        graphqlClients: [{ query: graphqlResponder }],
+    });
+}
+
+test('Move JSON exposes both modern and legacy nested field access', () => {
+    const result = legacyMoveJson({ principal: { value: '100' } });
+    assert.equal(result.principal.value, '100');
+    assert.equal(result.fields.principal.fields.value, '100');
+});
+
+test('gRPC balance and object responses retain JSON-RPC shapes', async () => {
+    const layer = mockLayer();
+    const balance = await layer.rpc('suix_getBalance', ['0xowner', '0x2::sui::SUI']);
+    assert.equal(balance.totalBalance, '42');
+
+    const objects = await layer.rpc('suix_getOwnedObjects', [
+        '0xowner',
+        { filter: { StructType: '0xabc::staking::Stake' }, options: { showContent: true, showDisplay: true } },
+        null,
+        50,
+    ]);
+    assert.equal(objects.data[0].data.content.fields.staked_amount, '100');
+    assert.equal(objects.data[0].data.content.fields.principal.fields.value, '100');
+    assert.equal(objects.data[0].data.display.data.name, 'Stake');
+});
+
+test('GraphQL transaction history retains balanceChanges and status shapes', async () => {
+    const layer = mockLayer(async ({ query, variables }) => {
+        assert.match(query, /QueryTransactions/);
+        assert.equal(variables.limit, 50);
+        return {
+            data: {
+                transactions: {
+                    pageInfo: { hasPreviousPage: false, startCursor: null },
+                    nodes: [{
+                        digest: 'tx', sender: { address: '0xowner' },
+                        effects: {
+                            status: 'SUCCESS', timestamp: '2026-07-11T00:00:00Z',
+                            balanceChanges: { nodes: [{ amount: '-10', coinType: { repr: '0x2::sui::SUI' }, owner: { address: '0xowner' } }] },
+                        },
+                    }],
+                },
+            },
+        };
+    });
+    const page = await layer.rpc('suix_queryTransactionBlocks', [{ filter: { FromAddress: '0xowner' } }, null, 100, true]);
+    assert.equal(page.data[0].effects.status.status, 'success');
+    assert.equal(page.data[0].balanceChanges[0].owner.AddressOwner, '0xowner');
+    assert.equal(page.data[0].balanceChanges[0].amount, '-10');
+});
+
+test('legacy object helper reports missing objects without throwing', () => {
+    assert.equal(legacyObject(new Error('missing')).error.message, 'missing');
+});
+
+test('staking bridge reroutes only legacy JSON-RPC requests', async () => {
+    const originalFetch = global.fetch;
+    const originalLayer = global.AlphaCitySui;
+    const bridge = fs.readFileSync(path.join(__dirname, '..', 'shared', 'sui-jsonrpc-bridge.js'), 'utf8');
+    delete global.__alphaCitySuiJsonRpcBridgeInstalled;
+    global.AlphaCitySui = { rpc: async (method) => ({ method, totalBalance: '42' }) };
+    vm.runInThisContext(bridge, { filename: 'shared/sui-jsonrpc-bridge.js' });
+
+    const response = await global.fetch('https://fullnode.mainnet.sui.io:443', {
+        method: 'POST',
+        body: JSON.stringify({ jsonrpc: '2.0', id: 9, method: 'suix_getBalance', params: ['0xowner'] }),
+    });
+    const payload = await response.json();
+    assert.equal(payload.id, 9);
+    assert.equal(payload.result.method, 'suix_getBalance');
+    assert.equal(payload.result.totalBalance, '42');
+
+    global.fetch = originalFetch;
+    global.AlphaCitySui = originalLayer;
+    delete global.__alphaCitySuiJsonRpcBridgeInstalled;
+});

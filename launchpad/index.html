@@ -10,6 +10,7 @@
     <script>window.global = window;</script>
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/sui-client.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -182,7 +183,6 @@
     </footer>
 
     <script>
-    const DEFAULT_SUI_RPC = 'https://fullnode.mainnet.sui.io';
     const DEFAULT_SUI_TYPE = '0x2::sui::SUI';
     const state = {
         registry: null,
@@ -205,7 +205,6 @@
     function resolveUrl(path, base) { return new URL(path, base).toString(); }
     function readQueryCollection() { return new URLSearchParams(window.location.search).get('collection'); }
     function suiChainId() { return state.activeCollection?.network?.chain || 'sui:mainnet'; }
-    function suiRpcUrl() { return state.activeCollection?.network?.rpcUrl || DEFAULT_SUI_RPC; }
     function suiCoinType() { return state.activeCollection?.network?.coinType || DEFAULT_SUI_TYPE; }
     function formatSuiBalance(balance) {
         if (typeof balance !== 'bigint') return '0.0000';
@@ -451,15 +450,8 @@
     });
 
     async function rpc(method, params) {
-        const response = await fetch(suiRpcUrl(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-        });
-        if (!response.ok) throw new Error('SUI RPC HTTP ' + response.status);
-        const payload = await response.json();
-        if (payload.error) throw new Error(payload.error.message || 'SUI RPC error');
-        return payload.result;
+        if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+        return window.AlphaCitySui.rpc(method, params);
     }
 
     async function fetchSuiBalance(address) {
