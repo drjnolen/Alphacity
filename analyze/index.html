@@ -13,6 +13,7 @@
     <!-- SUI gRPC/GraphQL compatibility client -->
     <script src="/shared/sui-client.js"></script>
     <script src="/shared/trade-alerts.js"></script>
+    <script src="/shared/trade-tools.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -300,6 +301,110 @@
             </div>
         </div>
 
+        <!-- Trade Decision Lab: on-demand execution and position planning -->
+        <section id="trade-decision-lab" class="glass-panel p-5 md:p-6 rounded-xl mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-800/80 pb-4 mb-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg" aria-hidden="true">⚖️</span>
+                        <h2 class="text-sm font-semibold uppercase tracking-wider text-white">Trade Decision Lab</h2>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-1">Compare SUI venues before entry, then size the trade from your actual risk budget.</p>
+                </div>
+                <span class="self-start sm:self-auto text-[9px] font-mono uppercase tracking-wider text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">On demand · 60s cache</span>
+            </div>
+
+            <div class="flex gap-2 mb-5" role="tablist" aria-label="Trade planning tools">
+                <button id="trade-lab-execution-tab" type="button" class="widget-tab-btn active" role="tab" aria-selected="true" aria-controls="trade-lab-execution-panel">Execution Planner</button>
+                <button id="trade-lab-position-tab" type="button" class="widget-tab-btn" role="tab" aria-selected="false" aria-controls="trade-lab-position-panel">Position Sizer</button>
+            </div>
+
+            <div id="trade-lab-execution-panel" role="tabpanel" aria-labelledby="trade-lab-execution-tab" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <label class="md:col-span-6 text-[10px] uppercase tracking-wider text-gray-500">
+                        SUI token type or package
+                        <input id="execution-token-input" type="text" value="0x2::sui::SUI" class="watchlist-input mt-1.5 text-xs font-mono" autocomplete="off" spellcheck="false" aria-describedby="execution-token-help">
+                    </label>
+                    <label class="md:col-span-2 text-[10px] uppercase tracking-wider text-gray-500">
+                        Order size
+                        <div class="relative mt-1.5">
+                            <span class="absolute left-3 top-2 text-xs text-gray-500">$</span>
+                            <input id="execution-size-input" type="number" value="1000" min="1" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal">
+                        </div>
+                    </label>
+                    <label class="md:col-span-2 text-[10px] uppercase tracking-wider text-gray-500">
+                        Impact budget
+                        <select id="execution-impact-input" class="watchlist-input mt-1.5 text-xs font-mono">
+                            <option value="0.5">0.5%</option>
+                            <option value="1" selected>1.0%</option>
+                            <option value="2">2.0%</option>
+                            <option value="3">3.0%</option>
+                        </select>
+                    </label>
+                    <button id="execution-analyze-btn" type="button" class="md:col-span-2 h-[38px] px-4 bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-wait text-white text-xs font-bold rounded-lg transition-colors">Analyze</button>
+                </div>
+                <p id="execution-token-help" class="text-[9px] text-gray-600">Uses one cached DexScreener request only when you click Analyze. Impact is a rough liquidity-based estimate; CLMM ticks, fees, routing, and live quotes can differ.</p>
+                <p id="execution-error" class="hidden text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" role="alert"></p>
+
+                <div id="execution-results" class="hidden space-y-4" aria-live="polite">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                        <div class="pulse-stat"><div class="label">Deepest Venue</div><div class="value truncate" id="execution-best-venue">—</div></div>
+                        <div class="pulse-stat"><div class="label">Token Price</div><div class="value" id="execution-token-price">—</div></div>
+                        <div class="pulse-stat"><div class="label">Pool Liquidity</div><div class="value" id="execution-liquidity">—</div></div>
+                        <div class="pulse-stat"><div class="label">Est. Price Impact</div><div class="value" id="execution-impact">—</div></div>
+                        <div class="pulse-stat"><div class="label">Max at Budget</div><div class="value" id="execution-max-order">—</div></div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                        <div id="execution-signals" class="lg:col-span-1 space-y-2"></div>
+                        <div class="lg:col-span-2 bg-dark-bg/45 border border-gray-800/70 rounded-lg overflow-hidden">
+                            <div class="grid grid-cols-4 gap-2 px-3 py-2 text-[9px] uppercase tracking-wider text-gray-600 border-b border-gray-800/70">
+                                <span>Venue / Pair</span><span class="text-right">Price</span><span class="text-right">Liquidity</span><span class="text-right">1h Flow</span>
+                            </div>
+                            <div id="execution-pools-list" class="divide-y divide-gray-800/50 max-h-48 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="trade-lab-position-panel" role="tabpanel" aria-labelledby="trade-lab-position-tab" class="hidden space-y-4">
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
+                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Account size
+                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-account-input" type="number" value="10000" min="1" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
+                    </label>
+                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Risk per trade
+                        <div class="relative mt-1.5"><input id="position-risk-input" type="number" value="1" min="0.01" max="100" step="0.1" class="watchlist-input text-xs font-mono pr-7" inputmode="decimal"><span class="absolute right-3 top-2 text-xs text-gray-500">%</span></div>
+                    </label>
+                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Direction
+                        <select id="position-direction-input" class="watchlist-input mt-1.5 text-xs font-mono"><option value="long">Long</option><option value="short">Short</option></select>
+                    </label>
+                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Entry price
+                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-entry-input" type="number" min="0" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
+                    </label>
+                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Stop price
+                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-stop-input" type="number" min="0" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
+                    </label>
+                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Target price
+                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-target-input" type="number" min="0" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
+                    </label>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <button id="position-calculate-btn" type="button" class="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-bold rounded-lg transition-colors">Calculate Position</button>
+                    <span class="text-[9px] text-gray-600">Calculation stays in your browser and makes no API or RPC request.</span>
+                </div>
+                <p id="position-error" class="hidden text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" role="alert"></p>
+                <div id="position-results" class="hidden space-y-3" aria-live="polite">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                        <div class="pulse-stat"><div class="label">Risk Budget</div><div class="value" id="position-risk-budget">—</div></div>
+                        <div class="pulse-stat"><div class="label">Position Units</div><div class="value" id="position-units">—</div></div>
+                        <div class="pulse-stat"><div class="label">Position Notional</div><div class="value" id="position-notional">—</div></div>
+                        <div class="pulse-stat"><div class="label">Stop Distance</div><div class="value" id="position-stop-distance">—</div></div>
+                        <div class="pulse-stat"><div class="label">Reward / Risk</div><div class="value" id="position-reward-risk">—</div></div>
+                    </div>
+                    <div id="position-guidance" class="text-[10px] rounded-lg border px-3 py-2"></div>
+                </div>
+            </div>
+        </section>
+
         <!-- Three-column layout -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
@@ -429,6 +534,8 @@
                                 <option value="liquidity_below">Liquidity falls below</option>
                                 <option value="change_1h_up">1h gain reaches</option>
                                 <option value="change_1h_down">1h drop reaches</option>
+                                <option value="volume_1h_above">1h volume rises above</option>
+                                <option value="sell_pressure_1h_above">1h sell transaction share reaches</option>
                             </select>
                             <div class="flex items-center gap-1.5">
                                 <input type="number" id="widget-alert-threshold" class="watchlist-input text-[10px] py-1.5 px-2.5 flex-1 font-mono" min="0" step="any" placeholder="Threshold" inputmode="decimal" aria-label="Alert threshold">
@@ -4234,6 +4341,261 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
+    // TRADE DECISION LAB
+    // =========================================================
+    const EXECUTION_CACHE_TTL_MS = 60_000;
+    const executionPairCache = new Map();
+
+    function setTradeLabTab(tabName) {
+        const executionActive = tabName === 'execution';
+        const executionTab = document.getElementById('trade-lab-execution-tab');
+        const positionTab = document.getElementById('trade-lab-position-tab');
+        const executionPanel = document.getElementById('trade-lab-execution-panel');
+        const positionPanel = document.getElementById('trade-lab-position-panel');
+        if (!executionTab || !positionTab || !executionPanel || !positionPanel) return;
+
+        executionTab.classList.toggle('active', executionActive);
+        positionTab.classList.toggle('active', !executionActive);
+        executionTab.setAttribute('aria-selected', String(executionActive));
+        positionTab.setAttribute('aria-selected', String(!executionActive));
+        executionPanel.classList.toggle('hidden', !executionActive);
+        positionPanel.classList.toggle('hidden', executionActive);
+    }
+
+    function matchesExecutionToken(token, pairToken) {
+        return window.AlphaCityTradeAlerts?.tokenMatchesPairAddress(token, pairToken) || false;
+    }
+
+    async function fetchExecutionPairs(token, { force = false } = {}) {
+        const key = String(token || '').trim().toLowerCase();
+        const cached = executionPairCache.get(key);
+        if (!force && cached?.pairs && cached.expiresAt > Date.now()) return cached.pairs;
+        if (cached?.promise) return cached.promise;
+
+        const request = (async () => {
+            const endpoint = token.includes('::')
+                ? `https://api.dexscreener.com/token-pairs/v1/sui/${encodeURIComponent(token)}`
+                : `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(token)}`;
+            const response = await fetchWithTimeout(endpoint, {}, 6500);
+            if (!response.ok) throw new Error(`Market lookup failed (${response.status}). Please try again.`);
+            const payload = await response.json();
+            const seen = new Set();
+            const pairs = (Array.isArray(payload) ? payload : (payload?.pairs || []))
+                .filter(pair => pair?.chainId === 'sui' && matchesExecutionToken(token, pair.baseToken?.address))
+                .filter(pair => {
+                    const pairId = String(pair?.pairAddress || '');
+                    if (!pairId || seen.has(pairId)) return false;
+                    seen.add(pairId);
+                    return true;
+                });
+            executionPairCache.set(key, { pairs, expiresAt: Date.now() + EXECUTION_CACHE_TTL_MS, promise: null });
+            return pairs;
+        })();
+
+        executionPairCache.set(key, { pairs: cached?.pairs || null, expiresAt: cached?.expiresAt || 0, promise: request });
+        try {
+            return await request;
+        } catch (error) {
+            executionPairCache.delete(key);
+            throw error;
+        }
+    }
+
+    function executionSignal(tone, label, value, detail) {
+        const styles = {
+            good: 'text-green-300 bg-green-500/10 border-green-500/20',
+            warning: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/20',
+            danger: 'text-red-300 bg-red-500/10 border-red-500/20',
+            neutral: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
+        };
+        return `
+            <div class="rounded-lg border p-3 ${styles[tone] || styles.neutral}">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[9px] uppercase tracking-wider opacity-75">${escHtml(label)}</span>
+                    <span class="text-xs font-bold font-mono">${escHtml(value)}</span>
+                </div>
+                <p class="text-[9px] mt-1 opacity-70 leading-relaxed">${escHtml(detail)}</p>
+            </div>`;
+    }
+
+    function renderExecutionResults(result) {
+        const best = result.bestPool;
+        const dexName = String(best.dexId || 'Unknown').toUpperCase();
+        const impactTone = result.impactPct <= result.impactBudgetPct ? 'text-green-400' : 'text-red-400';
+        const setText = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = value;
+        };
+        setText('execution-best-venue', dexName);
+        setText('execution-token-price', fmtPrice(best.priceUsd));
+        setText('execution-liquidity', fmtUsd(best.liquidity?.usd));
+        setText('execution-impact', `${result.impactPct.toFixed(2)}%`);
+        setText('execution-max-order', fmtUsd(result.maxTradeUsd));
+        const impactElement = document.getElementById('execution-impact');
+        if (impactElement) impactElement.className = `value ${impactTone}`;
+
+        const entryInput = document.getElementById('position-entry-input');
+        if (entryInput && !entryInput.value) entryInput.value = Number(best.priceUsd).toPrecision(8);
+
+        const impactOk = result.impactPct <= result.impactBudgetPct;
+        const spreadTone = result.priceSpreadPct <= 0.5 ? 'good' : result.priceSpreadPct <= 2 ? 'warning' : 'danger';
+        const hasFlow = result.transactionsH1 >= 10 && result.sellSharePct !== null;
+        const flowTone = !hasFlow ? 'neutral' : result.sellSharePct >= 65 ? 'danger' : result.buySharePct >= 65 ? 'good' : 'neutral';
+        const flowValue = hasFlow ? `${result.buySharePct.toFixed(0)}% buys` : 'Low sample';
+        document.getElementById('execution-signals').innerHTML = [
+            executionSignal(
+                impactOk ? 'good' : 'danger',
+                'Pool impact estimate',
+                impactOk ? 'Within budget' : 'Over budget',
+                impactOk ? `Estimated below your ${result.impactBudgetPct}% budget.` : `Reduce toward ${fmtUsd(result.maxTradeUsd)} or request an aggregator quote.`,
+            ),
+            executionSignal(
+                spreadTone,
+                'Displayed venue spread',
+                `${result.priceSpreadPct.toFixed(2)}%`,
+                result.priceSpreadPct <= 0.5 ? 'Pool prices are closely aligned.' : 'Compare a live quote; prices may be stale or fragmented.',
+            ),
+            executionSignal(
+                flowTone,
+                'Deepest-pool 1h flow',
+                flowValue,
+                hasFlow ? `${result.transactionsH1} swaps sampled; ${result.sellSharePct.toFixed(0)}% sells.` : 'Fewer than 10 swaps; directional flow is inconclusive.',
+            ),
+        ].join('');
+
+        const poolsList = document.getElementById('execution-pools-list');
+        poolsList.innerHTML = result.ranked.slice(0, 6).map((pair, index) => {
+            const buys = Number(pair.txns?.h1?.buys || 0);
+            const sells = Number(pair.txns?.h1?.sells || 0);
+            const total = buys + sells;
+            const buyPct = total ? Math.round((buys / total) * 100) : null;
+            const pairName = `${pair.baseToken?.symbol || '?'} / ${pair.quoteToken?.symbol || '?'}`;
+            const venue = String(pair.dexId || 'Unknown').toUpperCase();
+            const safeUrl = typeof pair.url === 'string' && pair.url.startsWith('https://') ? pair.url : '';
+            const label = `<span class="text-white font-semibold">${escHtml(venue)}</span><span class="text-gray-600 ml-1">${escHtml(pairName)}</span>`;
+            return `
+                <div class="grid grid-cols-4 gap-2 items-center px-3 py-2 text-[10px] ${index === 0 ? 'bg-brand-primary/5' : ''}">
+                    <div class="truncate">${safeUrl ? `<a href="${escHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="hover:text-blue-300" title="Open DexScreener">${label} ↗</a>` : label}</div>
+                    <span class="text-right text-white font-mono">${fmtPrice(pair.priceUsd)}</span>
+                    <span class="text-right text-dark-text-secondary font-mono">${fmtUsd(pair.liquidity?.usd)}</span>
+                    <span class="text-right font-mono ${buyPct === null ? 'text-gray-600' : buyPct >= 60 ? 'text-green-400' : buyPct <= 40 ? 'text-red-400' : 'text-gray-400'}">${buyPct === null ? '—' : `${buyPct}% B`}</span>
+                </div>`;
+        }).join('');
+        document.getElementById('execution-results')?.classList.remove('hidden');
+    }
+
+    async function runExecutionAnalysis() {
+        const button = document.getElementById('execution-analyze-btn');
+        const tokenInput = document.getElementById('execution-token-input');
+        const sizeInput = document.getElementById('execution-size-input');
+        const impactInput = document.getElementById('execution-impact-input');
+        const errorElement = document.getElementById('execution-error');
+        const token = tokenInput?.value.trim() || '';
+        const validToken = /^(0x[0-9a-fA-F]+)(::[a-zA-Z0-9_]+::[a-zA-Z0-9_]+)?$/.test(token);
+        if (!button || !errorElement) return;
+
+        errorElement.classList.add('hidden');
+        document.getElementById('execution-results')?.classList.add('hidden');
+        if (!validToken) {
+            errorElement.textContent = 'Enter a valid SUI coin type or package address.';
+            errorElement.classList.remove('hidden');
+            return;
+        }
+
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = 'Analyzing…';
+        try {
+            const pairs = await fetchExecutionPairs(token);
+            const result = window.AlphaCityTradeTools?.analyzeExecution(pairs, {
+                tradeUsd: sizeInput?.value,
+                impactBudgetPct: impactInput?.value,
+            });
+            if (!result) throw new Error('Trade planning tools are unavailable. Refresh and try again.');
+            renderExecutionResults(result);
+        } catch (error) {
+            errorElement.textContent = error.message || 'Unable to analyze execution right now.';
+            errorElement.classList.remove('hidden');
+        } finally {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    }
+
+    function calculatePositionPlan() {
+        const errorElement = document.getElementById('position-error');
+        const resultsElement = document.getElementById('position-results');
+        if (!errorElement || !resultsElement) return;
+        errorElement.classList.add('hidden');
+        resultsElement.classList.add('hidden');
+        try {
+            const plan = window.AlphaCityTradeTools?.buildPositionPlan({
+                accountUsd: document.getElementById('position-account-input')?.value,
+                riskPct: document.getElementById('position-risk-input')?.value,
+                direction: document.getElementById('position-direction-input')?.value,
+                entry: document.getElementById('position-entry-input')?.value,
+                stop: document.getElementById('position-stop-input')?.value,
+                target: document.getElementById('position-target-input')?.value,
+            });
+            if (!plan) throw new Error('Position sizing tools are unavailable. Refresh and try again.');
+            document.getElementById('position-risk-budget').textContent = fmtUsd(plan.riskBudgetUsd);
+            document.getElementById('position-units').textContent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(plan.units);
+            document.getElementById('position-notional').textContent = fmtUsd(plan.notionalUsd);
+            document.getElementById('position-stop-distance').textContent = `${plan.stopDistancePct.toFixed(2)}%`;
+            document.getElementById('position-reward-risk').textContent = `${plan.rewardRisk.toFixed(2)}R`;
+
+            const guidance = document.getElementById('position-guidance');
+            const strongReward = plan.rewardRisk >= 2;
+            const capitalWarning = plan.capitalMultiple > 1.01;
+            guidance.className = strongReward && !capitalWarning
+                ? 'text-[10px] rounded-lg border px-3 py-2 text-green-300 bg-green-500/10 border-green-500/20'
+                : 'text-[10px] rounded-lg border px-3 py-2 text-yellow-300 bg-yellow-500/10 border-yellow-500/20';
+            const notes = [
+                `A stop fill at ${fmtPrice(plan.stop)} risks approximately ${fmtUsd(plan.riskBudgetUsd)} before fees and slippage.`,
+                plan.rewardRisk >= 2 ? `The target offers ${plan.rewardRisk.toFixed(2)} units of reward per unit risk.` : `The target offers only ${plan.rewardRisk.toFixed(2)} units of reward per unit risk.`,
+            ];
+            if (capitalWarning) notes.push(`The risk-sized notional is ${plan.capitalMultiple.toFixed(2)}× account value, so spot capital or leverage limits may require a smaller position.`);
+            guidance.textContent = notes.join(' ');
+            resultsElement.classList.remove('hidden');
+        } catch (error) {
+            errorElement.textContent = error.message || 'Unable to calculate that position.';
+            errorElement.classList.remove('hidden');
+        }
+    }
+
+    function openExecutionPlannerForToken(token) {
+        const input = document.getElementById('execution-token-input');
+        if (!input || !token) return;
+        input.value = token;
+        setTradeLabTab('execution');
+        document.getElementById('trade-decision-lab')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        runExecutionAnalysis();
+    }
+
+    function attachExecutionLauncherHandlers(root = document) {
+        root.querySelectorAll('.execution-planner-launch').forEach(button => {
+            button.addEventListener('click', () => openExecutionPlannerForToken(button.getAttribute('data-token')));
+        });
+    }
+
+    function initTradeDecisionLab() {
+        document.getElementById('trade-lab-execution-tab')?.addEventListener('click', () => setTradeLabTab('execution'));
+        document.getElementById('trade-lab-position-tab')?.addEventListener('click', () => setTradeLabTab('position'));
+        document.getElementById('execution-analyze-btn')?.addEventListener('click', runExecutionAnalysis);
+        document.getElementById('position-calculate-btn')?.addEventListener('click', calculatePositionPlan);
+        ['execution-token-input', 'execution-size-input'].forEach(id => {
+            document.getElementById(id)?.addEventListener('keydown', event => {
+                if (event.key === 'Enter') runExecutionAnalysis();
+            });
+        });
+        ['position-entry-input', 'position-stop-input', 'position-target-input'].forEach(id => {
+            document.getElementById(id)?.addEventListener('keydown', event => {
+                if (event.key === 'Enter') calculatePositionPlan();
+            });
+        });
+    }
+
+    // =========================================================
     // WIDGET: TOKEN TRENDS & WATCHLIST
     // =========================================================
     const TOKEN_WATCHLIST_STORAGE = 'ac_token_watchlist';
@@ -4361,7 +4723,8 @@ Return ONLY a valid JSON object with two string keys:
     function formatTokenAlertValue(rule, value) {
         if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
         if (rule.type === 'price_above' || rule.type === 'price_below') return fmtPrice(value);
-        if (rule.type === 'liquidity_below') return fmtUsd(value);
+        if (rule.type === 'liquidity_below' || rule.type === 'volume_1h_above') return fmtUsd(value);
+        if (rule.type === 'sell_pressure_1h_above') return `${Number(value).toFixed(1)}%`;
         return `${Number(value) > 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
     }
 
@@ -4369,7 +4732,8 @@ Return ONLY a valid JSON object with two string keys:
         const definition = window.AlphaCityTradeAlerts?.definitionFor(rule.type);
         if (!definition) return 'Unknown condition';
         if (rule.type === 'price_above' || rule.type === 'price_below') return `${definition.label} ${fmtPrice(rule.threshold)}`;
-        if (rule.type === 'liquidity_below') return `${definition.label} ${fmtUsd(rule.threshold)}`;
+        if (rule.type === 'liquidity_below' || rule.type === 'volume_1h_above') return `${definition.label} ${fmtUsd(rule.threshold)}`;
+        if (rule.type === 'sell_pressure_1h_above') return `${definition.label} ${Number(rule.threshold).toFixed(1)}%`;
         return `${definition.label} ${Number(rule.threshold).toFixed(2)}%`;
     }
 
@@ -4463,6 +4827,11 @@ Return ONLY a valid JSON object with two string keys:
         if (type === 'price_below' && price > 0) return Number((price * 0.95).toPrecision(8));
         if (type === 'liquidity_below' && liquidity > 0) return Math.max(1, Math.round(liquidity * 0.7));
         if (type === 'change_1h_up' || type === 'change_1h_down') return 5;
+        if (type === 'volume_1h_above') {
+            const volumeH1 = Number(pair?.volume?.h1 || 0);
+            return volumeH1 > 0 ? Math.max(1, Math.round(volumeH1 * 1.5)) : 1000;
+        }
+        if (type === 'sell_pressure_1h_above') return 65;
         return '';
     }
 
@@ -4538,14 +4907,21 @@ Return ONLY a valid JSON object with two string keys:
             const snapshots = {};
             rules.forEach(rule => {
                 const pair = pairsByToken[rule.token];
+                const buysH1 = Number(pair?.txns?.h1?.buys || 0);
+                const sellsH1 = Number(pair?.txns?.h1?.sells || 0);
+                const flowH1 = buysH1 + sellsH1;
                 snapshots[rule.token] = pair ? {
                     priceUsd: pair.priceUsd,
                     liquidityUsd: pair.liquidity?.usd,
                     changeH1: pair.priceChange?.h1,
+                    volumeH1: pair.volume?.h1,
+                    sellPressureH1: flowH1 ? (sellsH1 / flowH1) * 100 : null,
                 } : {
                     priceUsd: null,
                     liquidityUsd: null,
                     changeH1: null,
+                    volumeH1: null,
+                    sellPressureH1: null,
                 };
             });
             const evaluated = engine.evaluateRules(rules, snapshots, Date.now());
@@ -4703,6 +5079,7 @@ Return ONLY a valid JSON object with two string keys:
                 const changeClass = pctClass(change);
                 const changeFormatted = fmtPct(change);
                 const viewUrl = p.url ? escHtml(p.url) : '#';
+                const tokenAddress = escHtml(p.baseToken?.address || '');
 
                 return `
                 <div class="flex items-center justify-between py-1.5 border-b border-gray-800/40 last:border-0 text-xs">
@@ -4710,6 +5087,7 @@ Return ONLY a valid JSON object with two string keys:
                         <div class="flex items-center gap-1.5">
                             <span class="text-white font-semibold truncate">${baseSymbol}</span>
                             ${p.url ? `<a href="${viewUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 text-[10px]" title="View Chart">↗</a>` : ''}
+                            ${tokenAddress ? `<button type="button" class="execution-planner-launch text-gray-500 hover:text-brand-secondary text-[10px]" data-token="${tokenAddress}" title="Analyze execution" aria-label="Analyze ${baseSymbol} execution">⚖</button>` : ''}
                         </div>
                         <span class="text-[10px] text-gray-500 font-mono">${dexName}</span>
                     </div>
@@ -4719,6 +5097,7 @@ Return ONLY a valid JSON object with two string keys:
                     </div>
                 </div>`;
             }).join('');
+            attachExecutionLauncherHandlers(listEl);
         } catch (_) {
             listEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load trends.</p>';
         }
@@ -4762,12 +5141,14 @@ Return ONLY a valid JSON object with two string keys:
                             <div class="text-white font-mono font-semibold">${priceStr}</div>
                             <div class="font-mono text-[10px] ${changeClass}">${changeFormatted}</div>
                         </div>
+                        <button type="button" class="execution-planner-launch text-gray-500 hover:text-brand-secondary text-xs transition-colors cursor-pointer" data-token="${escHtml(addr)}" title="Analyze execution" aria-label="Analyze ${baseSymbol} execution">⚖</button>
                         <button type="button" class="text-gray-500 hover:text-orange-300 text-xs transition-colors cursor-pointer widget-wl-alert" data-addr="${escHtml(addr)}" title="Create trade alert" aria-label="Create ${baseSymbol} trade alert">🔔</button>
                         <button class="text-gray-500 hover:text-red-400 text-sm transition-colors cursor-pointer widget-wl-remove" data-addr="${escHtml(addr)}" title="Remove">✕</button>
                     </div>
                 </div>`;
             }).join('');
 
+            attachExecutionLauncherHandlers(listEl);
             document.querySelectorAll('.widget-wl-alert').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const addr = btn.getAttribute('data-addr');
@@ -5350,6 +5731,7 @@ Return ONLY a valid JSON object with two string keys:
     initClock();
     initNotes();
     initHabitTracker();
+    initTradeDecisionLab();
 
     runWidgetSafe('MarketPulse', initMarketPulse);
 

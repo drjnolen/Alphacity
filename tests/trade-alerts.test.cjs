@@ -48,6 +48,15 @@ test('liquidity and downward momentum alerts use their dedicated metrics', () =>
     assert.deepEqual(Array.from(result.triggered, rule => rule.id), ['liq', 'move']);
 });
 
+test('volume and sell-pressure alerts reuse the enriched market snapshot', () => {
+    const volume = alerts.createRule({ id: 'volume', token: 'SUI', type: 'volume_1h_above', threshold: 100000, now: 1 });
+    const pressure = alerts.createRule({ id: 'pressure', token: 'SUI', type: 'sell_pressure_1h_above', threshold: 65, now: 1 });
+    const result = alerts.evaluateRules([volume, pressure], {
+        SUI: { volumeH1: 125000, sellPressureH1: 72.5 },
+    }, 2);
+    assert.deepEqual(Array.from(result.triggered, rule => rule.id), ['volume', 'pressure']);
+});
+
 test('missing market snapshots do not rearm an already-triggered rule', () => {
     const rule = { ...alerts.createRule({ id: 'price', token: 'SUI', type: 'price_below', threshold: 1, now: 1 }), isTriggered: true };
     const result = alerts.evaluateRules([rule], {}, 2);
