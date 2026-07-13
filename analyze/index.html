@@ -15,6 +15,7 @@
     <script src="/shared/trade-alerts.js"></script>
     <script src="/shared/trade-tools.js"></script>
     <script src="/shared/alpha-signals.js"></script>
+    <script src="/shared/lp-tools.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -1826,6 +1827,44 @@
         }
     }
 
+    async function fetchOwnedLpPositionsByType(address, structType) {
+        const positions = [];
+        let cursor = null;
+        do {
+            const page = await rpc('suix_getOwnedObjects', [
+                address,
+                {
+                    filter: { StructType: structType },
+                    options: { showType: true, showContent: true, showDisplay: true }
+                },
+                cursor,
+                50
+            ]);
+            positions.push(...(page?.data || []));
+            cursor = page?.hasNextPage && positions.length < 100 ? page.nextCursor : null;
+        } while (cursor);
+        return positions;
+    }
+
+    async function fetchLpPositions(address) {
+        const positionTypes = window.AlphaCityLpTools?.POSITION_TYPES || [];
+        const results = await Promise.all(positionTypes.map(async structType => {
+            try {
+                return await fetchOwnedLpPositionsByType(address, structType);
+            } catch (error) {
+                console.warn(`Unable to scan LP type ${structType}:`, error);
+                return [];
+            }
+        }));
+        const positionsById = new Map();
+        results.flat().forEach(position => {
+            if (!window.AlphaCityLpTools?.isConcentratedPositionObject(position)) return;
+            const objectId = position?.data?.objectId;
+            if (objectId) positionsById.set(objectIdKey(objectId), position);
+        });
+        return { data: [...positionsById.values()] };
+    }
+
     // =========================================================
     // PORTFOLIO DATA LOADING
     // =========================================================
@@ -1834,57 +1873,14 @@
         document.getElementById('token-list').innerHTML = '<p class="text-xs text-gray-600">Loading…</p>';
 
         try {
-            const [balances, allObjects, cetusPos, turbosV1, turbosV2, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
+            const [balances, allObjects, lpPositionsWrapper, stakedCity, stakedSui, suiPriceUsd] = await Promise.all([
                 rpc('suix_getAllBalances', [address]).catch(() => []),
                 rpc('suix_getOwnedObjects', [address, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    address,
-                    {
-                        filter: { StructType: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb::position::Position' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    address,
-                    {
-                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position_nft::TurbosPositionNFT' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    address,
-                    {
-                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position_nft::TurbosPositionNFT' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
+                fetchLpPositions(address),
                 fetchStakedCity(address),
                 fetchStakedSui(address),
                 fetchSuiPriceUsd(),
             ]);
-
-            const mergedPositions = [
-                ...(cetusPos?.data || []),
-                ...(turbosV1?.data || []),
-                ...(turbosV2?.data || [])
-            ];
-            const genericObjects = allObjects?.data || [];
-            genericObjects.forEach(obj => {
-                const type = obj.data?.type || '';
-                if (type.includes('::position::Position') || 
-                    type.includes('::position_nft::PositionNFT') || 
-                    type.includes('::position_nft::TurbosPositionNFT')) {
-                    const exists = mergedPositions.some(p => p.data?.objectId === obj.data?.objectId);
-                    if (!exists) mergedPositions.push(obj);
-                }
-            });
-            const lpPositionsWrapper = { data: mergedPositions };
 
             portfolioData = { address, balances: balances || [], allObjects, lpPositionsWrapper, stakedCity, stakedSui };
 
@@ -2079,40 +2075,9 @@
         el.innerHTML = rows.join('');
     }
 
-    function parseI32(field) {
-        if (!field) return 0;
-        const bits = typeof field === 'object' ? parseInt(field.fields?.bits || 0) : parseInt(field);
-        return (bits & 0x80000000) ? (bits - 0x100000000) : bits;
-    }
-
     function calculateLpAmounts(positionFields, poolFields) {
-        const liq = parseFloat(positionFields.liquidity || '0');
-        if (liq === 0 || !poolFields) return { amountA: 0, amountB: 0 };
-
-        const tickLowerIndex = parseI32(positionFields.tick_lower_index || positionFields.tick_lower);
-        const tickUpperIndex = parseI32(positionFields.tick_upper_index || positionFields.tick_upper);
-
-        const sa = Math.pow(1.0001, tickLowerIndex / 2);
-        const sb = Math.pow(1.0001, tickUpperIndex / 2);
-
-        const currentSqrtPriceRaw = parseFloat(poolFields.current_sqrt_price || poolFields.sqrt_price || '0');
-        const sp = currentSqrtPriceRaw / 18446744073709551616;
-
-        let amountA = 0;
-        let amountB = 0;
-
-        if (sp <= sa) {
-            amountA = liq * (1 / sa - 1 / sb);
-            amountB = 0;
-        } else if (sp >= sb) {
-            amountA = 0;
-            amountB = liq * (sb - sa);
-        } else {
-            amountA = liq * (1 / sp - 1 / sb);
-            amountB = liq * (sp - sa);
-        }
-
-        return { amountA, amountB };
+        return window.AlphaCityLpTools?.calculateClmmAmounts(positionFields, poolFields)
+            || { amountA: 0, amountB: 0 };
     }
 
     function extractObjectId(value) {
@@ -2194,6 +2159,17 @@
             // 2. Fetch every pool and underlying Turbos position in one RPC.
             const objectFields = await fetchObjectFields([...poolIds, ...turbosPositionIds]);
 
+            // LP coin types are not always present in the wallet's fungible balances.
+            // Load their metadata explicitly so six-decimal assets are displayed correctly.
+            const lpCoinTypes = [...new Set(positions.flatMap(position => {
+                const fields = position?.data?.content?.fields || {};
+                return [
+                    normalizeEmbeddedCoinType(fields.coin_type_a?.fields?.name || fields.coin_type_a || ''),
+                    normalizeEmbeddedCoinType(fields.coin_type_b?.fields?.name || fields.coin_type_b || ''),
+                ].filter(Boolean);
+            }))];
+            await Promise.all(lpCoinTypes.map(fetchCoinDecimals));
+
             const lpList = [];
 
             // 3. Process Concentrated LP positions
@@ -2233,12 +2209,10 @@
                     pairName = dispName.replace('Cetus LP | ', '').replace('LP ', '');
                 }
 
-                let protocol = 'SUI CLMM';
-                if (type.includes('0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb')) {
-                    protocol = 'Cetus CLMM';
-                } else if (type.includes('turbos') || type.includes('0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1') || type.includes('0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64')) {
-                    protocol = 'Turbos CLMM';
-                }
+                const protocolKey = window.AlphaCityLpTools?.protocolForType(type) || 'sui';
+                const protocol = protocolKey === 'turbos' ? 'Turbos CLMM'
+                    : protocolKey === 'cetus' ? 'Cetus CLMM'
+                    : 'SUI CLMM';
 
                 const hasHydratedPosition = posFields.liquidity !== undefined;
                 const hasPoolPrice = Boolean(poolFields?.current_sqrt_price || poolFields?.sqrt_price);
@@ -2246,30 +2220,30 @@
                     ? calculateLpAmounts(posFields, poolFields)
                     : { amountA: 0, amountB: 0 };
 
-                // Format amounts using decimals
                 const decA = coinDecimals(coinTypeA);
                 const decB = coinDecimals(coinTypeB);
-                
                 const symA = coinSymbol(coinTypeA);
                 const symB = coinSymbol(coinTypeB);
-
                 const amtA = amountA / Math.pow(10, decA);
                 const amtB = amountB / Math.pow(10, decB);
-
-                // Format to 2 or 4 decimals depending on size
-                const formattedA = amtA > 0.01 ? amtA.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : amtA.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-                const formattedB = amtB > 0.01 ? amtB.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : amtB.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-
-                const amount = hasHydratedPosition && hasPoolPrice
-                    ? `${formattedA} ${symA} / ${formattedB} ${symB}`
-                    : 'Position detected';
+                const holdings = hasHydratedPosition && hasPoolPrice
+                    ? [
+                        { symbol: symA, amount: window.AlphaCityLpTools?.formatTokenAmount(amtA) || String(amtA) },
+                        { symbol: symB, amount: window.AlphaCityLpTools?.formatTokenAmount(amtB) || String(amtB) },
+                    ]
+                    : [{ symbol: '', amount: 'Position detected' }];
+                const positionUrl = window.AlphaCityLpTools?.positionUrl({
+                    protocol: protocolKey,
+                    positionId: data.objectId,
+                    poolId,
+                }) || null;
 
                 lpList.push({
                     pair: pairName,
-                    protocol: protocol,
+                    protocol,
                     type: 'Concentrated LP',
-                    amount,
-                    id: data.objectId
+                    holdings,
+                    url: positionUrl,
                 });
             });
 
@@ -2319,8 +2293,8 @@
                         pair: pairName + ' LP',
                         protocol: protocol,
                         type: 'Standard LP',
-                        amount: `${amt}`,
-                        id: null
+                        holdings: [{ symbol: 'LP', amount: amt }],
+                        url: null,
                     });
                 }
             });
@@ -2333,19 +2307,22 @@
 
             panel.classList.remove('hidden');
             summaryEl.innerHTML = lpList.map(lp => {
-                const explorerLink = lp.id ? `https://suiscan.xyz/mainnet/object/${lp.id}` : null;
-                const linkHtml = explorerLink ? 
-                    `<a href="${explorerLink}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline font-mono text-[9px] block">${shortAddr(lp.id)} ↗</a>` : 
-                    `<span class="text-gray-500 text-[9px] italic">Fungible Share</span>`;
+                const linkHtml = lp.url
+                    ? `<a href="${escHtml(lp.url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 hover:underline text-[9px] block mt-1">Open LP position ↗</a>`
+                    : `<span class="text-gray-500 text-[9px] italic block mt-1">Fungible share</span>`;
 
                 return `
-                    <div class="flex justify-between items-center text-xs py-2 border-b border-gray-800/60 last:border-0">
-                        <div class="flex flex-col">
+                    <div class="flex justify-between items-start gap-3 text-xs py-2 border-b border-gray-800/60 last:border-0">
+                        <div class="flex flex-col min-w-0">
                             <span class="font-bold text-white">${escHtml(lp.pair)}</span>
                             <span class="text-[9px] text-gray-400 font-medium">${escHtml(lp.protocol)} (${lp.type})</span>
                         </div>
-                        <div class="text-right">
-                            <span class="text-white font-mono font-medium block">${lp.amount}</span>
+                        <div class="text-right shrink-0">
+                            ${lp.holdings.map(holding => `
+                                <div class="font-mono leading-4">
+                                    <span class="text-white font-medium">${escHtml(holding.amount)}</span>
+                                    ${holding.symbol ? `<span class="text-gray-400 ml-1">${escHtml(holding.symbol)}</span>` : ''}
+                                </div>`).join('')}
                             ${linkHtml}
                         </div>
                     </div>`;
@@ -2428,56 +2405,13 @@
         try {
             // 1. Refresh on-chain data
             setThinkingStatus('Fetching on-chain data…');
-            const [balances, allObjects, cetusPos, turbosV1, turbosV2, stakedCity, stakedSui] = await Promise.all([
+            const [balances, allObjects, lpPositionsWrapper, stakedCity, stakedSui] = await Promise.all([
                 rpc('suix_getAllBalances', [connectedAddress]).catch(() => []),
                 rpc('suix_getOwnedObjects', [connectedAddress, null, null, MAX_OBJECTS_TO_FETCH]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    connectedAddress,
-                    {
-                        filter: { StructType: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb::position::Position' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    connectedAddress,
-                    {
-                        filter: { StructType: '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1::position_nft::TurbosPositionNFT' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
-                rpc('suix_getOwnedObjects', [
-                    connectedAddress,
-                    {
-                        filter: { StructType: '0xa5a0c25c79e428eba04fb98b3fb2a34db45ab26d4c8faf0d7e39d66a63891e64::position_nft::TurbosPositionNFT' },
-                        options: { showType: true, showContent: true, showDisplay: true }
-                    },
-                    null,
-                    50
-                ]).catch(() => null),
+                fetchLpPositions(connectedAddress),
                 fetchStakedCity(connectedAddress),
                 fetchStakedSui(connectedAddress),
             ]);
-
-            const mergedPositions = [
-                ...(cetusPos?.data || []),
-                ...(turbosV1?.data || []),
-                ...(turbosV2?.data || [])
-            ];
-            const genericObjects = allObjects?.data || [];
-            genericObjects.forEach(obj => {
-                const type = obj.data?.type || '';
-                if (type.includes('::position::Position') || 
-                    type.includes('::position_nft::PositionNFT') || 
-                    type.includes('::position_nft::TurbosPositionNFT')) {
-                    const exists = mergedPositions.some(p => p.data?.objectId === obj.data?.objectId);
-                    if (!exists) mergedPositions.push(obj);
-                }
-            });
-            const lpPositionsWrapper = { data: mergedPositions };
 
             const freshData = { address: connectedAddress, balances: balances || [], allObjects, lpPositionsWrapper, stakedCity, stakedSui };
 

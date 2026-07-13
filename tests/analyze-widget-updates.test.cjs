@@ -6,6 +6,7 @@ const test = require('node:test');
 const root = path.join(__dirname, '..');
 const analyzeHtml = fs.readFileSync(path.join(root, 'analyze', 'index.html'), 'utf8');
 const proxyWorker = fs.readFileSync(path.join(root, 'api', 'openai-proxy', 'worker.js'), 'utf8');
+const lpTools = fs.readFileSync(path.join(root, 'shared', 'lp-tools.js'), 'utf8');
 
 test('signal methodology is compact, tiered, and includes a financial disclaimer', () => {
     assert.match(analyzeHtml, /<details[^>]*>[\s\S]*How signal ratings work/);
@@ -41,12 +42,17 @@ test('compact token widget opens on Watchlist', () => {
 });
 
 test('Liquidity Pools hydrate Turbos positions across gRPC object shapes', () => {
+    assert.match(analyzeHtml, /src="\/shared\/lp-tools\.js"/);
+    assert.match(analyzeHtml, /async function fetchLpPositions\(address\)/);
+    assert.equal((analyzeHtml.match(/fetchLpPositions\(/g) || []).length, 3);
     assert.match(analyzeHtml, /function objectIdKey\(value\)/);
     assert.match(analyzeHtml, /fieldsById\[requestedKey\] = fields/);
     assert.match(analyzeHtml, /fieldsById\[returnedKey\] = fields/);
-    assert.match(analyzeHtml, /current_sqrt_price \|\| poolFields\.sqrt_price/);
+    assert.match(lpTools, /current_sqrt_price \|\| poolFields\?\.sqrt_price/);
     assert.match(analyzeHtml, /posFields\.liquidity !== undefined/);
     assert.match(analyzeHtml, /'Position detected'/);
+    assert.match(analyzeHtml, /await Promise\.all\(lpCoinTypes\.map\(fetchCoinDecimals\)\)/);
+    assert.match(analyzeHtml, /Open LP position ↗/);
 
     const helperSource = analyzeHtml.slice(
         analyzeHtml.indexOf('function extractObjectId'),
