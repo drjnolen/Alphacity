@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Construct Alpha City</title>
+    <script src="/shared/sui-client.js"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -1069,7 +1070,6 @@
     </footer>
 
     <script>
-        const RPC_URL = 'https://fullnode.mainnet.sui.io:443';
         const STAKING_PACKAGE = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9';
         const CREDIT_DECIMALS = 9n;
 
@@ -1278,26 +1278,8 @@
         }
 
         async function rpc(method, params) {
-            const response = await fetch(RPC_URL, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: ++rpcId,
-                    method,
-                    params,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`RPC request failed with status ${response.status}`);
-            }
-
-            const payload = await response.json();
-            if (payload.error) {
-                throw new Error(payload.error.message || 'Unknown RPC error');
-            }
-            return payload.result;
+            if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+            return window.AlphaCitySui.rpc(method, params);
         }
 
         async function queryAllEvents(eventName) {

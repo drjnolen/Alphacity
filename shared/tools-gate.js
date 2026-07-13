@@ -1,7 +1,6 @@
 (function () {
     'use strict';
 
-    const SUI_RPC = 'https://fullnode.mainnet.sui.io';
     const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
     const CITY_STAKING_TYPE = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9::city_staking::UserStake<0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY>';
     const GATE_THRESHOLD = 5000000n * (10n ** 9n); // 5M CITY (9 decimals)
@@ -18,15 +17,8 @@
     }
 
     async function rpc(method, params) {
-        const res = await fetch(SUI_RPC, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-        });
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.result;
+        if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+        return window.AlphaCitySui.rpc(method, params);
     }
 
     async function fetchBalances(address) {
@@ -52,7 +44,7 @@
 
             return { liquid, staked, total: liquid + staked };
         } catch (e) {
-            console.error('Failed to fetch balance from RPC:', e);
+            console.error('Failed to fetch balance from SUI data service:', e);
             throw e;
         }
     }

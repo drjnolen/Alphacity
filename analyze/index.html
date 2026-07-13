@@ -11,6 +11,8 @@
 
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
+    <!-- SUI gRPC/GraphQL compatibility client -->
+    <script src="/shared/sui-client.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -1388,13 +1390,6 @@
     // =========================================================
     // SUI RPC HELPERS
     // =========================================================
-    const SUI_RPCS = [
-        'https://fullnode.mainnet.sui.io',
-        'https://sui-mainnet.nodeinfra.com',
-        'https://mainnet.sui.rpcpool.com',
-        'https://sui-mainnet-endpoint.blockvision.org'
-    ];
-    let currentRpcIndex = 0;
     const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
     const CITY_STAKING_TYPE = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9::city_staking::UserStake<0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY>';
     const CITY_ACCESS_MIN   = 5_000_000n * 10n ** 9n; // 5M CITY × 10^9 decimals
@@ -1420,29 +1415,18 @@
     }
 
     async function rpc(method, params, retries = 3, delay = 500) {
-        let lastError = new Error("Unknown error");
+        if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+        let lastError = new Error('Unknown SUI data error');
         for (let attempt = 1; attempt <= retries; attempt++) {
-            const endpoint = SUI_RPCS[currentRpcIndex];
             try {
-                const res = await fetchWithTimeout(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-                }, 5000);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
-                return data.result;
+                return await window.AlphaCitySui.rpc(method, params);
             } catch (err) {
                 lastError = err;
-                console.warn(`RPC attempt ${attempt} failed on ${endpoint}: ${err.message}`);
-                currentRpcIndex = (currentRpcIndex + 1) % SUI_RPCS.length;
-                if (attempt < retries) {
-                    await new Promise(resolve => setTimeout(resolve, delay * attempt));
-                }
+                console.warn(`SUI ${method} attempt ${attempt} failed: ${err.message}`);
+                if (attempt < retries) await new Promise(resolve => setTimeout(resolve, delay * attempt));
             }
         }
-        throw new Error(`All SUI RPC endpoints failed. Last error: ${lastError.message}`);
+        throw new Error(`SUI ${method} failed after ${retries} attempts: ${lastError.message}`);
     }
 
     const coinUnitCache = {};

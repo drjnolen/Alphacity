@@ -13,6 +13,7 @@
     <script>window.global = window;</script>
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/sui-client.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -424,7 +425,6 @@
          Sluice Script Logic
          ============================================================ -->
     <script>
-        const SUI_RPC = 'https://fullnode.mainnet.sui.io';
         const SUI_TYPE = '0x2::sui::SUI';
         const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
         const PACKAGE_ADDRESS = '0x7c7ca3da6bad849a02d9f888b2f8cab40d507b2c01bbcab3f2d816334c17aa07';
@@ -616,18 +616,7 @@
 
             try {
                 // 1. Fetch metadata from Sui RPC
-                const metadataRes = await fetch(SUI_RPC, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        id: 1,
-                        method: 'suix_getCoinMetadata',
-                        params: [coinType]
-                    })
-                });
-                const metadataData = await metadataRes.json();
-                const metaResult = metadataData.result;
+                const metaResult = await window.AlphaCitySui.rpc('suix_getCoinMetadata', [coinType]);
                 
                 if (!metaResult) {
                     showStatusBanner('Token package metadata not found on Sui RPC (ensure token is deployed).', 'warning');
@@ -639,20 +628,10 @@
                 const decimals = metaResult.decimals;
                 
                 // 2. Fetch supply from Sui RPC
-                const supplyRes = await fetch(SUI_RPC, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        id: 1,
-                        method: 'suix_getTotalSupply',
-                        params: [coinType]
-                    })
-                });
-                const supplyData = await supplyRes.json();
+                const supplyData = await window.AlphaCitySui.rpc('suix_getTotalSupply', [coinType]);
                 let supplyFormatted = 0;
-                if (supplyData.result && supplyData.result.value) {
-                    const rawSupply = BigInt(supplyData.result.value);
+                if (supplyData && supplyData.value) {
+                    const rawSupply = BigInt(supplyData.value);
                     const divisor = 10n ** BigInt(decimals);
                     supplyFormatted = Number(rawSupply / divisor);
                 }
@@ -1938,15 +1917,8 @@
         }
 
         async function rpc(method, params) {
-            const res = await fetch(SUI_RPC, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-            });
-            if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
-            const data = await res.json();
-            if (data.error) throw new Error(`RPC error: ${data.error.message}`);
-            return data.result;
+            if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
+            return window.AlphaCitySui.rpc(method, params);
         }
 
         async function fetchAllCoins(address, coinType) {
