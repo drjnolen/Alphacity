@@ -14,6 +14,7 @@
     <script src="/shared/sui-client.js"></script>
     <script src="/shared/trade-alerts.js"></script>
     <script src="/shared/trade-tools.js"></script>
+    <script src="/shared/alpha-signals.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -1037,29 +1038,72 @@
                 <h2 class="text-2xl font-bold text-white flex items-center gap-3">
                     <span class="text-brand-secondary">⚡</span> Intelligence Dashboard
                 </h2>
-                <button id="intel-refresh-btn" class="text-xs text-dark-text-secondary hover:text-white flex items-center gap-1.5 transition-colors" title="Refresh data">
-                    <svg id="intel-refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    Refresh
-                </button>
+                <div class="flex items-center gap-3">
+                    <span id="intel-universe-status" class="text-[9px] text-gray-600 font-mono whitespace-nowrap">Sampled SUI universe</span>
+                    <button id="intel-refresh-btn" class="text-xs text-dark-text-secondary hover:text-white flex items-center gap-1.5 transition-colors" title="Refresh data">
+                        <svg id="intel-refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             <!-- Tab Navigation -->
-            <div class="flex gap-2 mb-5 overflow-x-auto pb-1">
-                <button class="intel-tab-btn active" data-tab="trending">🔥 Trending</button>
+            <div class="flex gap-2 mb-5 overflow-x-auto pb-1" role="tablist" aria-label="Intelligence views">
+                <button class="intel-tab-btn active" data-tab="signals" role="tab" aria-selected="true">⚡ Signals</button>
+                <button class="intel-tab-btn" data-tab="trending" role="tab" aria-selected="false">🔥 Trending</button>
                 <button class="intel-tab-btn" data-tab="ecosystem">🌐 Ecosystem</button>
                 <button class="intel-tab-btn" data-tab="movers">📈 Top Movers</button>
                 <button class="intel-tab-btn" data-tab="pools">🆕 New Pools</button>
+                <button class="intel-tab-btn" data-tab="dislocations">⚖ Dislocations</button>
                 <button class="intel-tab-btn" data-tab="watchlist">👀 Watchlist</button>
             </div>
 
+            <!-- Tab: Alpha Signal Radar -->
+            <div id="tab-signals" class="intel-tab-content active">
+                <div class="glass-panel p-5 rounded-xl space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Alpha Signal Radar</h3>
+                            <p class="text-[10px] text-gray-500 mt-1">Liquidity, hourly activity acceleration, transaction flow, momentum, age, and anomaly gates.</p>
+                        </div>
+                        <label class="flex items-center gap-2 text-[9px] uppercase tracking-wider text-gray-500 whitespace-nowrap">
+                            Min liquidity
+                            <select id="signal-min-liquidity" class="watchlist-input py-1.5 px-2.5 text-[10px] w-28">
+                                <option value="10000">$10K</option>
+                                <option value="25000" selected>$25K</option>
+                                <option value="100000">$100K</option>
+                                <option value="250000">$250K</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 bg-dark-bg/40 border border-gray-800/60 rounded-lg p-2">
+                        <div class="pulse-stat"><div class="label">Regime</div><div id="signal-regime" class="value">—</div></div>
+                        <div class="pulse-stat"><div class="label">1h Breadth</div><div id="signal-breadth" class="value">—</div></div>
+                        <div class="pulse-stat"><div class="label">Buy Tx Share</div><div id="signal-buy-share" class="value">—</div></div>
+                        <div class="pulse-stat"><div class="label">Median Velocity</div><div id="signal-velocity" class="value">—</div></div>
+                        <div class="pulse-stat"><div class="label">Qualified Pairs</div><div id="signal-sample" class="value">—</div></div>
+                    </div>
+                    <div id="signals-content"><p class="text-xs text-gray-600 py-8 text-center">Loading signal data…</p></div>
+                    <p class="text-[9px] text-gray-600">Signal scores rank the sampled universe; they are research filters, not predictions or executable quotes.</p>
+                </div>
+            </div>
+
             <!-- Tab: Trending Tokens -->
-            <div id="tab-trending" class="intel-tab-content active">
+            <div id="tab-trending" class="intel-tab-content">
                 <div class="glass-panel p-5 rounded-xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-semibold text-white">Trending SUI Tokens</h3>
-                        <span class="text-[10px] text-gray-500">by 24h volume • via DexScreener</span>
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">SUI Market Attention</h3>
+                            <span class="text-[10px] text-gray-500">deepest pool per token • anomaly-gated</span>
+                        </div>
+                        <select id="trending-sort" class="watchlist-input py-1.5 px-2.5 text-[10px] w-40" aria-label="Sort market attention">
+                            <option value="signal">Signal score</option>
+                            <option value="volume">24h volume</option>
+                            <option value="velocity">1h volume velocity</option>
+                            <option value="liquidity">Liquidity</option>
+                        </select>
                     </div>
                     <div id="trending-content">
                         <p class="text-xs text-gray-600 py-8 text-center">Loading trending data…</p>
@@ -1070,9 +1114,17 @@
             <!-- Tab: Ecosystem Tokens -->
             <div id="tab-ecosystem" class="intel-tab-content">
                 <div class="glass-panel p-5 rounded-xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-semibold text-white">SUI Ecosystem Tokens</h3>
-                        <span class="text-[10px] text-gray-500">by market cap • via CoinGecko</span>
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">SUI Ecosystem Tokens</h3>
+                            <span class="text-[10px] text-gray-500">relative strength and attention • via CoinGecko</span>
+                        </div>
+                        <select id="ecosystem-sort" class="watchlist-input py-1.5 px-2.5 text-[10px] w-40" aria-label="Sort ecosystem tokens">
+                            <option value="market_cap">Market cap</option>
+                            <option value="volume">24h volume</option>
+                            <option value="momentum">24h momentum</option>
+                            <option value="attention">Volume / market cap</option>
+                        </select>
                     </div>
                     <div id="ecosystem-content">
                         <p class="text-xs text-gray-600 py-8 text-center">Loading ecosystem data…</p>
@@ -1087,7 +1139,7 @@
                     <div class="glass-panel p-5 rounded-xl">
                         <h3 class="text-sm font-semibold text-green-400 mb-4 flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                            Top Gainers (24h)
+                            Quality-Gated Gainers
                         </h3>
                         <div id="gainers-content">
                             <p class="text-xs text-gray-600 py-4 text-center">Loading…</p>
@@ -1097,7 +1149,7 @@
                     <div class="glass-panel p-5 rounded-xl">
                         <h3 class="text-sm font-semibold text-red-400 mb-4 flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"/></svg>
-                            Top Losers (24h)
+                            Quality-Gated Losers
                         </h3>
                         <div id="losers-content">
                             <p class="text-xs text-gray-600 py-4 text-center">Loading…</p>
@@ -1109,9 +1161,16 @@
             <!-- Tab: New Pools -->
             <div id="tab-pools" class="intel-tab-content">
                 <div class="glass-panel p-5 rounded-xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-semibold text-white">Recently Created Pools</h3>
-                        <span class="text-[10px] text-gray-500">last 7 days • SUI DEXes</span>
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Launch Quality Monitor</h3>
+                            <span class="text-[10px] text-gray-500">last 7 days • ranked by liquidity, activity, distribution proxies, and survival</span>
+                        </div>
+                        <select id="pools-min-liquidity" class="watchlist-input py-1.5 px-2.5 text-[10px] w-32" aria-label="Minimum new-pool liquidity">
+                            <option value="1000">$1K+ liquidity</option>
+                            <option value="10000" selected>$10K+ liquidity</option>
+                            <option value="50000">$50K+ liquidity</option>
+                        </select>
                     </div>
                     <div id="pools-content">
                         <p class="text-xs text-gray-600 py-8 text-center">Loading new pools…</p>
@@ -1119,11 +1178,29 @@
                 </div>
             </div>
 
+            <!-- Tab: Cross-venue dislocations -->
+            <div id="tab-dislocations" class="intel-tab-content">
+                <div class="glass-panel p-5 rounded-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Cross-Venue Price Dislocations</h3>
+                            <p class="text-[10px] text-gray-500 mt-1">Same-token displayed prices across distinct SUI DEXes, gated for liquidity and extreme stale data.</p>
+                        </div>
+                        <span class="text-[9px] text-yellow-300 bg-yellow-500/10 border border-yellow-500/20 px-2 py-1 rounded whitespace-nowrap">Verify live quotes</span>
+                    </div>
+                    <div id="dislocations-content"><p class="text-xs text-gray-600 py-8 text-center">Loading venue comparisons…</p></div>
+                    <p class="text-[9px] text-gray-600 mt-3">Displayed spreads can reflect stale indexing, pool fees, transfer restrictions, or routing differences and are not guaranteed arbitrage.</p>
+                </div>
+            </div>
+
             <!-- Tab: Watchlist -->
             <div id="tab-watchlist" class="intel-tab-content">
                 <div class="glass-panel p-5 rounded-xl">
-                    <h3 class="text-sm font-semibold text-white mb-4">Smart Money Watchlist</h3>
-                    <p class="text-xs text-dark-text-secondary mb-4">Track wallets of interest. Data is stored locally in your browser.</p>
+                    <div class="flex items-center justify-between gap-3 mb-2">
+                        <h3 class="text-sm font-semibold text-white">Smart Money Watchlist</h3>
+                        <span id="watchlist-count" class="text-[9px] text-gray-600 font-mono">0 / 8 wallets</span>
+                    </div>
+                    <p class="text-xs text-dark-text-secondary mb-4">Compare wallet inventory footprints. Up to eight addresses are stored locally and cached for 60 seconds.</p>
                     <div class="flex gap-2 mb-5">
                         <input type="text" id="watchlist-input" class="watchlist-input flex-1" placeholder="Enter SUI address (0x…)" maxlength="66" spellcheck="false" autocomplete="off">
                         <button id="watchlist-add-btn" class="px-4 py-2 bg-brand-primary text-white rounded-lg text-xs font-semibold hover:bg-brand-primary-hover transition-colors whitespace-nowrap">
@@ -2655,11 +2732,14 @@ Return ONLY a valid JSON object with two string keys:
     const DEX_CACHE_TTL_MS   = 60_000;  // 60 seconds — minimum time before re-fetching DexScreener
     const MIN_LIQUIDITY_USD  = 1_000;   // filter spam pairs
     const WATCHLIST_STORAGE  = 'ac_intel_watchlist';
+    const MAX_INTEL_WATCHLIST = 8;
+    const INTEL_WATCHLIST_CACHE_TTL_MS = 60_000;
 
     let dexCache = { pairs: null, ts: 0 };
     let dexInFlight = null;
     let pulseTimer = null;
     let dexTimer   = null;
+    const intelWatchlistCache = new Map();
 
     function fmtUsd(n) {
         if (n == null || !Number.isFinite(n)) return '—';
@@ -2774,6 +2854,7 @@ Return ONLY a valid JSON object with two string keys:
         const change = t.price_change_percentage_24h;
         const vol    = fmtUsd(t.total_volume);
         const mcap   = fmtUsd(t.market_cap);
+        const attention = Number(t.market_cap) > 0 ? (Number(t.total_volume || 0) / Number(t.market_cap)) * 100 : null;
         const imgTag = t.image
             ? `<img src="${escHtml(t.image)}" alt="" class="w-5 h-5 rounded-full flex-shrink-0" loading="lazy" onerror="this.style.display='none'">`
             : '';
@@ -2786,7 +2867,7 @@ Return ONLY a valid JSON object with two string keys:
                 </div>
                 <div class="text-white font-mono text-right">${price}</div>
                 <div class="text-right font-mono ${pctClass(change)}">${fmtPct(change)}</div>
-                <div class="text-right text-dark-text-secondary font-mono hide-mobile">${vol}</div>
+                <div class="text-right text-dark-text-secondary font-mono hide-mobile"><span class="block">${vol}</span><span class="text-[9px] text-gray-600">${attention === null ? '—' : attention.toFixed(1) + '% cap'}</span></div>
                 <div class="text-right text-dark-text-secondary font-mono hide-mobile">${mcap}</div>
             </div>`;
     }
@@ -2796,7 +2877,7 @@ Return ONLY a valid JSON object with two string keys:
             <div>Token</div>
             <div class="text-right">Price</div>
             <div class="text-right">24h</div>
-            <div class="text-right hide-mobile">Volume</div>
+            <div class="text-right hide-mobile">Volume / Cap</div>
             <div class="text-right hide-mobile">Mkt Cap</div>
         </div>`;
     }
@@ -2809,7 +2890,18 @@ Return ONLY a valid JSON object with two string keys:
                 el.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No ecosystem data available.</p>';
                 return;
             }
-            el.innerHTML = renderEcoTableHeader() + tokens.map(renderEcoTokenRow).join('');
+            const sortMode = document.getElementById('ecosystem-sort')?.value || 'market_cap';
+            const sorted = [...tokens].sort((a, b) => {
+                if (sortMode === 'volume') return Number(b.total_volume || 0) - Number(a.total_volume || 0);
+                if (sortMode === 'momentum') return Number(b.price_change_percentage_24h || 0) - Number(a.price_change_percentage_24h || 0);
+                if (sortMode === 'attention') {
+                    const aRatio = Number(a.market_cap) > 0 ? Number(a.total_volume || 0) / Number(a.market_cap) : 0;
+                    const bRatio = Number(b.market_cap) > 0 ? Number(b.total_volume || 0) / Number(b.market_cap) : 0;
+                    return bRatio - aRatio;
+                }
+                return Number(b.market_cap || 0) - Number(a.market_cap || 0);
+            });
+            el.innerHTML = renderEcoTableHeader() + sorted.map(renderEcoTokenRow).join('');
         } catch (_) {
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load ecosystem data.</p>';
         }
@@ -2821,9 +2913,20 @@ Return ONLY a valid JSON object with two string keys:
     // Search terms to broaden DEX pair coverage beyond just "SUI"
     const DEX_SEARCH_TERMS = ['SUI', 'DEEP', 'CETUS', 'NS', 'WALL', 'NAVX', 'SCA', 'BUCK'];
 
+    function updateIntelUniverseStatus(pairs, timestamp = Date.now()) {
+        const status = document.getElementById('intel-universe-status');
+        if (!status) return;
+        const tokenCount = new Set((pairs || []).map(pair => pair.baseToken?.address).filter(Boolean)).size;
+        const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        status.textContent = `${(pairs || []).length} pools · ${tokenCount} tokens · ${time}`;
+    }
+
     async function fetchDexData() {
         const now = Date.now();
-        if (dexCache.pairs && (now - dexCache.ts) < DEX_CACHE_TTL_MS) return dexCache.pairs;
+        if (dexCache.pairs && (now - dexCache.ts) < DEX_CACHE_TTL_MS) {
+            updateIntelUniverseStatus(dexCache.pairs, dexCache.ts);
+            return dexCache.pairs;
+        }
         if (dexInFlight) return dexInFlight;
 
         dexInFlight = (async () => {
@@ -2847,6 +2950,7 @@ Return ONLY a valid JSON object with two string keys:
                     }
                 }
                 dexCache = { pairs, ts: Date.now() };
+                updateIntelUniverseStatus(pairs, dexCache.ts);
                 return pairs;
             } catch (_) {
                 return dexCache.pairs || [];
@@ -2862,6 +2966,9 @@ Return ONLY a valid JSON object with two string keys:
 
     // De-duplicate pairs: keep only the highest-liquidity pair per base token
     function dedupeByBase(pairs) {
+        if (window.AlphaCityAlphaSignals?.dedupeDeepestPairs) {
+            return window.AlphaCityAlphaSignals.dedupeDeepestPairs(pairs);
+        }
         const map = new Map();
         for (const p of pairs) {
             const key = p.baseToken?.address || p.pairAddress;
@@ -2880,24 +2987,46 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     function pairLink(p) {
-        return p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 text-[10px]">↗ View</a>` : '';
+        const safeUrl = typeof p?.url === 'string' && p.url.startsWith('https://') ? p.url : '';
+        return safeUrl ? `<a href="${escHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 text-[10px]">↗ View</a>` : '';
     }
 
-    function renderTokenRow(p) {
+    function signalTierBadge(signal) {
+        const classes = {
+            strong: 'bg-green-500/10 text-green-300 border-green-500/20',
+            watch: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20',
+            neutral: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
+            weak: 'bg-gray-800 text-gray-400 border-gray-700',
+        };
+        return `<span class="mini-badge border ${classes[signal.tier] || classes.weak}" title="Relative setup score">S${signal.score}</span>`;
+    }
+
+    function executionPlannerAction(p, label = '⚖') {
+        const token = p?.baseToken?.address;
+        return token ? `<button type="button" class="execution-planner-launch text-gray-500 hover:text-brand-secondary text-[10px]" data-token="${escHtml(token)}" title="Open in Execution Planner">${label}</button>` : '';
+    }
+
+    function renderTokenRow(signal) {
+        const p = signal.pair;
+        const metrics = signal.metrics;
         const price   = fmtPrice(p.priceUsd);
-        const change  = p.priceChange?.h24;
-        const vol     = fmtUsd(p.volume?.h24);
-        const liq     = fmtUsd(p.liquidity?.usd);
+        const vol     = fmtUsd(metrics.volumeH24);
+        const liq     = fmtUsd(metrics.liquidityUsd);
+        const buyShare = metrics.buySharePct === null ? '—' : `${metrics.buySharePct.toFixed(0)}% buys`;
         return `
             <div class="token-row">
-                <div class="flex items-center gap-2">
-                    ${pairLabel(p)}
-                    <span class="mini-badge bg-gray-800 text-gray-400">${escHtml(p.dexId || '—')}</span>
-                    ${pairLink(p)}
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        ${pairLabel(p)}
+                        ${signalTierBadge(signal)}
+                        <span class="mini-badge bg-gray-800 text-gray-400">${escHtml(p.dexId || '—')}</span>
+                        ${pairLink(p)} ${executionPlannerAction(p)}
+                    </div>
+                    <div class="text-[9px] text-gray-600 mt-0.5 truncate" title="${escHtml([...signal.reasons, ...signal.risks].join(' · '))}">${escHtml(signal.reasons[0] || signal.risks[0] || buyShare)}</div>
                 </div>
                 <div class="text-white font-mono text-right">${price}</div>
-                <div class="text-right font-mono ${pctClass(change)}">${fmtPct(change)}</div>
-                <div class="text-right text-dark-text-secondary font-mono hide-mobile">${vol}</div>
+                <div class="text-right font-mono ${pctClass(metrics.changeH1)}"><span class="block">${fmtPct(metrics.changeH1)}</span><span class="text-[9px] text-gray-600">${fmtPct(metrics.changeH24)} 24h</span></div>
+                <div class="text-right text-dark-text-secondary font-mono hide-mobile"><span class="block">${vol}</span><span class="text-[9px] ${metrics.volumeVelocity >= 1.5 ? 'text-yellow-300' : 'text-gray-600'}">${metrics.volumeVelocity.toFixed(2)}× hourly</span></div>
                 <div class="text-right text-dark-text-secondary font-mono hide-mobile">${liq}</div>
             </div>`;
     }
@@ -2906,40 +3035,110 @@ Return ONLY a valid JSON object with two string keys:
         return `<div class="token-row token-row-header">
             <div>Pair</div>
             <div class="text-right">Price</div>
-            <div class="text-right">24h</div>
-            <div class="text-right hide-mobile">Volume</div>
+            <div class="text-right">1h / 24h</div>
+            <div class="text-right hide-mobile">Volume / Velocity</div>
             <div class="text-right hide-mobile">Liquidity</div>
         </div>`;
     }
 
-    function renderMoverRow(p) {
+    function renderMoverRow(signal) {
+        const p = signal.pair;
+        const metrics = signal.metrics;
         const price  = fmtPrice(p.priceUsd);
-        const change = p.priceChange?.h24;
-        const vol    = fmtUsd(p.volume?.h24);
         return `
             <div class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs">
-                <div class="flex items-center gap-2">
-                    ${pairLabel(p)}
-                    ${pairLink(p)}
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} ${signalTierBadge(signal)} ${pairLink(p)} ${executionPlannerAction(p)}</div>
+                    <div class="text-[9px] text-gray-600 mt-0.5">${fmtUsd(metrics.liquidityUsd)} liquidity · ${metrics.buySharePct === null ? 'no flow' : metrics.buySharePct.toFixed(0) + '% buys'}</div>
                 </div>
                 <div class="flex items-center gap-4">
                     <span class="text-white font-mono">${price}</span>
-                    <span class="font-mono font-semibold ${pctClass(change)} w-16 text-right">${fmtPct(change)}</span>
+                    <div class="font-mono w-16 text-right"><span class="block font-semibold ${pctClass(metrics.changeH24)}">${fmtPct(metrics.changeH24)}</span><span class="text-[9px] ${pctClass(metrics.changeH1)}">${fmtPct(metrics.changeH1)} 1h</span></div>
                 </div>
             </div>`;
+    }
+
+    function updateSignalRegimeCards(regime, qualifiedCount) {
+        const regimeElement = document.getElementById('signal-regime');
+        const labels = { 'risk-on': 'Risk On', 'risk-off': 'Risk Off', rotation: 'Rotation', mixed: 'Mixed' };
+        const classes = { 'risk-on': 'value text-green-400', 'risk-off': 'value text-red-400', rotation: 'value text-yellow-300', mixed: 'value text-blue-300' };
+        if (regimeElement) {
+            regimeElement.textContent = labels[regime.regime] || 'Mixed';
+            regimeElement.className = classes[regime.regime] || classes.mixed;
+        }
+        const setText = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = value;
+        };
+        setText('signal-breadth', regime.breadthPct === null ? '—' : `${regime.breadthPct.toFixed(0)}%`);
+        setText('signal-buy-share', regime.buySharePct === null ? '—' : `${regime.buySharePct.toFixed(0)}%`);
+        setText('signal-velocity', regime.medianVolumeVelocity === null ? '—' : `${regime.medianVolumeVelocity.toFixed(2)}×`);
+        setText('signal-sample', String(qualifiedCount));
+    }
+
+    function renderSignalRow(signal) {
+        const p = signal.pair;
+        const metrics = signal.metrics;
+        const context = signal.reasons.length ? signal.reasons.join(' · ') : signal.risks.join(' · ');
+        return `
+            <div class="token-row">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} <span class="mini-badge bg-gray-800 text-gray-400">${escHtml(p.dexId || '—')}</span> ${pairLink(p)} ${executionPlannerAction(p, '⚖ Plan')}</div>
+                    <div class="text-[9px] text-gray-600 mt-0.5 truncate" title="${escHtml(context)}">${escHtml(context || 'No dominant factor')}</div>
+                </div>
+                <div class="text-right">${signalTierBadge(signal)}<span class="block text-[9px] text-gray-600 mt-0.5 capitalize">${signal.tier}</span></div>
+                <div class="text-right font-mono ${pctClass(metrics.changeH1)}">${fmtPct(metrics.changeH1)}</div>
+                <div class="text-right font-mono hide-mobile"><span class="${metrics.volumeVelocity >= 1.5 ? 'text-yellow-300' : 'text-dark-text-secondary'}">${metrics.volumeVelocity.toFixed(2)}×</span><span class="block text-[9px] text-gray-600">${metrics.buySharePct === null ? '—' : metrics.buySharePct.toFixed(0) + '% buys'}</span></div>
+                <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(metrics.liquidityUsd)}</div>
+            </div>`;
+    }
+
+    async function renderSignals() {
+        const el = document.getElementById('signals-content');
+        try {
+            const pairs = await fetchDexData();
+            const engine = window.AlphaCityAlphaSignals;
+            if (!engine) throw new Error('Signal engine unavailable');
+            const minLiquidityUsd = Number(document.getElementById('signal-min-liquidity')?.value || 25000);
+            const ranked = engine.rankSignals(pairs, { minLiquidityUsd, limit: 20 });
+            const regime = engine.marketRegime(pairs, { minLiquidityUsd: 10000 });
+            updateSignalRegimeCards(regime, ranked.length);
+            if (!ranked.length) {
+                el.innerHTML = '<p class="text-xs text-gray-500 py-6 text-center">No pairs meet that liquidity threshold in the sampled universe.</p>';
+                return;
+            }
+            el.innerHTML = `
+                <div class="token-row token-row-header">
+                    <div>Setup / context</div><div class="text-right">Signal</div><div class="text-right">1h</div><div class="text-right hide-mobile">Velocity / Flow</div><div class="text-right hide-mobile">Liquidity</div>
+                </div>` + ranked.map(renderSignalRow).join('');
+            attachExecutionLauncherHandlers(el);
+        } catch (_) {
+            el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to build the signal radar.</p>';
+        }
     }
 
     async function renderTrending() {
         const el = document.getElementById('trending-content');
         try {
             const pairs = await fetchDexData();
-            const deduped = dedupeByBase(pairs);
-            const sorted = [...deduped].sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0)).slice(0, 20);
+            const engine = window.AlphaCityAlphaSignals;
+            if (!engine) throw new Error('Signal engine unavailable');
+            const sortMode = document.getElementById('trending-sort')?.value || 'signal';
+            const sorted = engine.rankSignals(pairs, { minLiquidityUsd: 10000, limit: 100 })
+                .filter(signal => !signal.risks.includes('anomalous 24h change'))
+                .sort((a, b) => {
+                    if (sortMode === 'volume') return b.metrics.volumeH24 - a.metrics.volumeH24;
+                    if (sortMode === 'velocity') return b.metrics.volumeVelocity - a.metrics.volumeVelocity;
+                    if (sortMode === 'liquidity') return b.metrics.liquidityUsd - a.metrics.liquidityUsd;
+                    return b.score - a.score;
+                })
+                .slice(0, 20);
             if (!sorted.length) {
                 el.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No trending data available.</p>';
                 return;
             }
             el.innerHTML = renderTableHeader() + sorted.map(renderTokenRow).join('');
+            attachExecutionLauncherHandlers(el);
         } catch (_) {
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load trending data.</p>';
         }
@@ -2950,10 +3149,14 @@ Return ONLY a valid JSON object with two string keys:
         const losersEl  = document.getElementById('losers-content');
         try {
             const pairs = await fetchDexData();
-            const deduped = dedupeByBase(pairs).filter(p => p.priceChange?.h24 != null);
-
-            const gainers = [...deduped].sort((a, b) => (b.priceChange?.h24 || 0) - (a.priceChange?.h24 || 0)).slice(0, 10);
-            const losers  = [...deduped].sort((a, b) => (a.priceChange?.h24 || 0) - (b.priceChange?.h24 || 0)).slice(0, 10);
+            const engine = window.AlphaCityAlphaSignals;
+            if (!engine) throw new Error('Signal engine unavailable');
+            const qualified = engine.rankSignals(pairs, { minLiquidityUsd: 25000, limit: 100 })
+                .filter(signal => !signal.risks.includes('anomalous 24h change') && signal.metrics.transactionsH1 >= 5);
+            const gainers = qualified.filter(signal => signal.metrics.changeH24 > 0)
+                .sort((a, b) => b.metrics.changeH24 - a.metrics.changeH24).slice(0, 10);
+            const losers = qualified.filter(signal => signal.metrics.changeH24 < 0)
+                .sort((a, b) => a.metrics.changeH24 - b.metrics.changeH24).slice(0, 10);
 
             gainersEl.innerHTML = gainers.length
                 ? gainers.map(renderMoverRow).join('')
@@ -2961,6 +3164,8 @@ Return ONLY a valid JSON object with two string keys:
             losersEl.innerHTML = losers.length
                 ? losers.map(renderMoverRow).join('')
                 : '<p class="text-xs text-gray-500 py-4 text-center">No data.</p>';
+            attachExecutionLauncherHandlers(gainersEl);
+            attachExecutionLauncherHandlers(losersEl);
         } catch (_) {
             gainersEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load data.</p>';
             losersEl.innerHTML  = '<p class="text-xs text-red-400 py-4 text-center">Failed to load data.</p>';
@@ -2971,42 +3176,78 @@ Return ONLY a valid JSON object with two string keys:
         const el = document.getElementById('pools-content');
         try {
             const pairs = await fetchDexData();
-            const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-            const recent = pairs
-                .filter(p => p.pairCreatedAt && p.pairCreatedAt > weekAgo)
-                .sort((a, b) => (b.pairCreatedAt || 0) - (a.pairCreatedAt || 0))
-                .slice(0, 20);
+            const engine = window.AlphaCityAlphaSignals;
+            if (!engine) throw new Error('Signal engine unavailable');
+            const minLiquidityUsd = Number(document.getElementById('pools-min-liquidity')?.value || 10000);
+            const recent = engine.rankNewPools(pairs, { minLiquidityUsd, limit: 20 });
 
             if (!recent.length) {
-                el.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No new pools found in the last 7 days.</p>';
+                el.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No recent pools meet that liquidity threshold in the sampled universe.</p>';
                 return;
             }
 
             el.innerHTML = `
-                <div class="token-row token-row-header" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
+                <div class="token-row token-row-header">
                     <div>Pair</div>
-                    <div class="text-right">Created</div>
-                    <div class="text-right">Price</div>
-                    <div class="text-right hide-mobile">Volume</div>
+                    <div class="text-right">Quality</div>
+                    <div class="text-right">Age</div>
+                    <div class="text-right hide-mobile">Activity</div>
                     <div class="text-right hide-mobile">Liquidity</div>
                 </div>` +
-                recent.map(p => {
-                    const price = fmtPrice(p.priceUsd);
+                recent.map(item => {
+                    const p = item.pair;
+                    const metrics = item.metrics;
+                    const gradeClass = item.grade === 'A' ? 'text-green-300 bg-green-500/10 border-green-500/20'
+                        : item.grade === 'B' ? 'text-blue-300 bg-blue-500/10 border-blue-500/20'
+                        : item.grade === 'C' ? 'text-yellow-300 bg-yellow-500/10 border-yellow-500/20'
+                        : 'text-red-300 bg-red-500/10 border-red-500/20';
                     return `
-                    <div class="token-row" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
-                        <div class="flex items-center gap-2">
-                            ${pairLabel(p)}
-                            <span class="mini-badge bg-green-900/30 text-green-400 border border-green-800/30">NEW</span>
-                            ${pairLink(p)}
+                    <div class="token-row">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} <span class="mini-badge bg-green-900/30 text-green-400 border border-green-800/30">NEW</span> ${pairLink(p)} ${executionPlannerAction(p, '⚖ Plan')}</div>
+                            <div class="text-[9px] text-gray-600 mt-0.5 truncate" title="${escHtml(item.risks.join(' · '))}">${escHtml(item.risks[0] || `${metrics.buySharePct === null ? 'No' : metrics.buySharePct.toFixed(0) + '% buy'} transaction share`)}</div>
                         </div>
-                        <div class="text-right text-dark-text-secondary">${timeAgo(p.pairCreatedAt)}</div>
-                        <div class="text-right text-white font-mono">${price}</div>
-                        <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(p.volume?.h24)}</div>
-                        <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(p.liquidity?.usd)}</div>
+                        <div class="text-right"><span class="mini-badge border ${gradeClass}">${item.grade} · ${item.score}</span></div>
+                        <div class="text-right text-dark-text-secondary">${metrics.ageHours < 24 ? metrics.ageHours.toFixed(1) + 'h' : (metrics.ageHours / 24).toFixed(1) + 'd'}</div>
+                        <div class="text-right text-dark-text-secondary font-mono hide-mobile"><span class="block">${fmtUsd(metrics.volumeH24)} vol</span><span class="text-[9px] text-gray-600">${metrics.transactionsH1} tx 1h</span></div>
+                        <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(metrics.liquidityUsd)}</div>
                     </div>`;
                 }).join('');
+            attachExecutionLauncherHandlers(el);
         } catch (_) {
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load new pools.</p>';
+        }
+    }
+
+    async function renderDislocations() {
+        const el = document.getElementById('dislocations-content');
+        try {
+            const pairs = await fetchDexData();
+            const engine = window.AlphaCityAlphaSignals;
+            if (!engine) throw new Error('Signal engine unavailable');
+            const dislocations = engine.findDislocations(pairs, { minLiquidityUsd: 25000, minSpreadPct: 0.25, maxSpreadPct: 20, limit: 20 });
+            if (!dislocations.length) {
+                el.innerHTML = '<p class="text-xs text-gray-500 py-6 text-center">No liquid cross-venue price gaps above 0.25% are visible in the sampled universe.</p>';
+                return;
+            }
+            const confidenceClasses = {
+                high: 'text-green-300 bg-green-500/10 border-green-500/20',
+                medium: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/20',
+                low: 'text-gray-400 bg-gray-800 border-gray-700',
+            };
+            el.innerHTML = `
+                <div class="token-row token-row-header"><div>Token</div><div class="text-right">Displayed Gap</div><div class="text-right">Low Venue</div><div class="text-right hide-mobile">High Venue</div><div class="text-right hide-mobile">Min Liquidity</div></div>` +
+                dislocations.map(item => `
+                    <div class="token-row">
+                        <div class="flex items-center gap-2 flex-wrap"><span class="text-white font-medium">${escHtml(item.symbol)}</span><span class="mini-badge border ${confidenceClasses[item.confidence]}">${item.confidence}</span>${executionPlannerAction(item.lowPool, '⚖ Plan')}</div>
+                        <div class="text-right font-mono text-yellow-300"><span class="block font-semibold">${item.spreadPct.toFixed(2)}%</span><span class="text-[9px] text-gray-600">${item.transactionsH1} tx 1h</span></div>
+                        <div class="text-right font-mono"><span class="block text-green-300">${fmtPrice(item.lowPool.priceUsd)}</span><span class="text-[9px] text-gray-600">${escHtml(String(item.lowPool.dexId || '—'))} ${pairLink(item.lowPool)}</span></div>
+                        <div class="text-right font-mono hide-mobile"><span class="block text-red-300">${fmtPrice(item.highPool.priceUsd)}</span><span class="text-[9px] text-gray-600">${escHtml(String(item.highPool.dexId || '—'))} ${pairLink(item.highPool)}</span></div>
+                        <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(item.minimumLiquidityUsd)}</div>
+                    </div>`).join('');
+            attachExecutionLauncherHandlers(el);
+        } catch (_) {
+            el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to compare venue prices.</p>';
         }
     }
 
@@ -3016,29 +3257,51 @@ Return ONLY a valid JSON object with two string keys:
     function loadWatchlist() {
         try {
             const raw = localStorage.getItem(WATCHLIST_STORAGE);
-            return raw ? JSON.parse(raw) : [];
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed)
+                ? [...new Set(parsed.map(address => String(address || '').trim()).filter(isValidSuiAddress))].slice(0, MAX_INTEL_WATCHLIST)
+                : [];
         } catch (_) { return []; }
     }
 
     function saveWatchlist(list) {
-        try { localStorage.setItem(WATCHLIST_STORAGE, JSON.stringify(list)); } catch (_) {}
+        try { localStorage.setItem(WATCHLIST_STORAGE, JSON.stringify(list.slice(0, MAX_INTEL_WATCHLIST))); } catch (_) {}
     }
 
     function addToWatchlist(address) {
         const list = loadWatchlist();
-        if (list.includes(address)) return false;
+        if (list.some(item => item.toLowerCase() === address.toLowerCase()) || list.length >= MAX_INTEL_WATCHLIST) return false;
         list.push(address);
         saveWatchlist(list);
         return true;
     }
 
     function removeFromWatchlist(address) {
-        const list = loadWatchlist().filter(a => a !== address);
+        const list = loadWatchlist().filter(a => a.toLowerCase() !== address.toLowerCase());
         saveWatchlist(list);
+        intelWatchlistCache.delete(address.toLowerCase());
     }
 
-    async function fetchWalletPreview(address) {
-        try {
+    async function mapWithConcurrency(items, limit, mapper) {
+        const results = new Array(items.length);
+        let nextIndex = 0;
+        const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+            while (nextIndex < items.length) {
+                const index = nextIndex++;
+                results[index] = await mapper(items[index], index);
+            }
+        });
+        await Promise.all(workers);
+        return results;
+    }
+
+    async function fetchWalletPreview(address, { force = false } = {}) {
+        const key = address.toLowerCase();
+        const cached = intelWatchlistCache.get(key);
+        if (!force && cached?.data && Date.now() - cached.ts < INTEL_WATCHLIST_CACHE_TTL_MS) return cached.data;
+        if (cached?.promise) return cached.promise;
+
+        const request = (async () => {
             const balances = await rpc('suix_getAllBalances', [address]);
             const suiBal = (balances || []).find(b => isSuiCoinType(b.coinType));
             const suiAmt = suiBal ? fmtBalance(suiBal.totalBalance, 9) : '0';
@@ -3060,14 +3323,24 @@ Return ONLY a valid JSON object with two string keys:
                 }));
 
             return { suiAmt, tokenCount, holdings, error: null };
+        })();
+        intelWatchlistCache.set(key, { data: cached?.data || null, ts: cached?.ts || 0, promise: request });
+        try {
+            const data = await request;
+            intelWatchlistCache.set(key, { data, ts: Date.now(), promise: null });
+            return data;
         } catch (err) {
-            return { suiAmt: '?', tokenCount: '?', holdings: [], error: err?.message || 'RPC error' };
+            const data = { suiAmt: '?', tokenCount: '?', holdings: [], error: err?.message || 'RPC error' };
+            intelWatchlistCache.set(key, { data, ts: Date.now(), promise: null });
+            return data;
         }
     }
 
     async function renderWatchlist() {
         const el = document.getElementById('watchlist-content');
         const list = loadWatchlist();
+        const count = document.getElementById('watchlist-count');
+        if (count) count.textContent = `${list.length} / ${MAX_INTEL_WATCHLIST} wallets`;
         if (!list.length) {
             el.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No addresses saved yet. Add a wallet address above to start tracking.</p>';
             return;
@@ -3086,10 +3359,10 @@ Return ONLY a valid JSON object with two string keys:
         attachWatchlistRemoveHandlers();
 
         // Fetch data for each address in parallel
-        const results = await Promise.all(list.map(async addr => {
+        const results = await mapWithConcurrency(list, 3, async addr => {
             const data = await fetchWalletPreview(addr);
             return { addr, ...data };
-        }));
+        });
 
         el.innerHTML = results.map(r => {
             const holdingsHtml = (r.holdings && r.holdings.length > 0)
@@ -3101,9 +3374,11 @@ Return ONLY a valid JSON object with two string keys:
                     <div class="flex items-center gap-2 mb-1">
                         <span class="text-white font-mono text-xs truncate" title="${escHtml(r.addr)}">${shortAddr(r.addr)}</span>
                         <button class="text-gray-600 hover:text-blue-400 text-[10px] transition-colors wl-copy" data-addr="${escHtml(r.addr)}" title="Copy address">📋</button>
+                        <a href="https://suiscan.xyz/mainnet/account/${escHtml(r.addr)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 text-[9px]" title="Open wallet on Suiscan">↗ Scan</a>
                     </div>
                     <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
                         <span class="text-dark-text-secondary">SUI: <span class="text-white font-mono">${escHtml(String(r.suiAmt))}</span></span>
+                        <span class="text-dark-text-secondary">Assets: <span class="text-white font-mono">${escHtml(String(r.tokenCount))}</span></span>
                         ${holdingsHtml}
                         ${r.error ? `<span class="text-red-400">${escHtml(r.error)}</span>` : ''}
                     </div>
@@ -3142,17 +3417,19 @@ Return ONLY a valid JSON object with two string keys:
     // INTELLIGENCE DASHBOARD — TAB LOGIC
     // =========================================================
     const intelTabRenderers = {
+        signals: renderSignals,
         trending: renderTrending,
         ecosystem: renderEcosystem,
         movers: renderMovers,
         pools: renderNewPools,
+        dislocations: renderDislocations,
         watchlist: renderWatchlist,
     };
     const intelLoadedTabs = new Set();
     const intelInFlight = new Map();
 
     function activeIntelTab() {
-        return document.querySelector('.intel-tab-btn.active')?.getAttribute('data-tab') || 'trending';
+        return document.querySelector('.intel-tab-btn.active')?.getAttribute('data-tab') || 'signals';
     }
 
     async function renderIntelTab(tabId, { force = false } = {}) {
@@ -3169,11 +3446,17 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     document.querySelectorAll('.intel-tab-btn').forEach(btn => {
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', String(btn.classList.contains('active')));
         btn.addEventListener('click', () => {
             const tabId = btn.getAttribute('data-tab');
             // Update button states
-            document.querySelectorAll('.intel-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.intel-tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
             btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
             // Update content visibility
             document.querySelectorAll('.intel-tab-content').forEach(c => c.classList.remove('active'));
             const panel = document.getElementById('tab-' + tabId);
@@ -3181,6 +3464,11 @@ Return ONLY a valid JSON object with two string keys:
             renderIntelTab(tabId);
         });
     });
+
+    document.getElementById('signal-min-liquidity')?.addEventListener('change', renderSignals);
+    document.getElementById('trending-sort')?.addEventListener('change', renderTrending);
+    document.getElementById('ecosystem-sort')?.addEventListener('change', renderEcosystem);
+    document.getElementById('pools-min-liquidity')?.addEventListener('change', renderNewPools);
 
     // Watchlist add button
     document.getElementById('watchlist-add-btn').addEventListener('click', () => {
@@ -3212,9 +3500,13 @@ Return ONLY a valid JSON object with two string keys:
         icon.classList.add('refresh-spin');
         dexCache = { pairs: null, ts: 0 }; // bust cache
         ecosystemCache = { tokens: null, ts: 0 }; // bust ecosystem cache
+        intelWatchlistCache.clear();
         intelLoadedTabs.clear();
-        await Promise.all([fetchMarketPulse(), fetchTvl(), renderIntelTab(activeIntelTab(), { force: true })]);
-        icon.classList.remove('refresh-spin');
+        try {
+            await Promise.all([fetchMarketPulse(), fetchTvl(), renderIntelTab(activeIntelTab(), { force: true })]);
+        } finally {
+            icon.classList.remove('refresh-spin');
+        }
     });
 
     // =========================================================
@@ -3230,6 +3522,7 @@ Return ONLY a valid JSON object with two string keys:
         if (!dexTimer) dexTimer = createVisibleInterval(async () => {
             dexCache = { pairs: null, ts: 0 };
             ecosystemCache = { tokens: null, ts: 0 };
+            intelWatchlistCache.clear();
             intelLoadedTabs.clear();
             await renderIntelTab(activeIntelTab(), { force: true });
         }, DEX_REFRESH_MS);
