@@ -7,6 +7,8 @@
         liquidity_below: Object.freeze({ metric: 'liquidityUsd', operator: 'lte', label: 'Liquidity below', unit: 'USD' }),
         change_1h_up: Object.freeze({ metric: 'changeH1', operator: 'gte', label: '1h gain above', unit: '%' }),
         change_1h_down: Object.freeze({ metric: 'changeH1', operator: 'lte-negative', label: '1h drop below', unit: '%' }),
+        volume_1h_above: Object.freeze({ metric: 'volumeH1', operator: 'gte', label: '1h volume above', unit: 'USD' }),
+        sell_pressure_1h_above: Object.freeze({ metric: 'sellPressureH1', operator: 'gte', label: '1h sell-tx share above', unit: '%' }),
     });
 
     function finiteNumber(value) {
