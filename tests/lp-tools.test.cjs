@@ -71,3 +71,11 @@ test('Turbos positions link directly to their protocol position page', () => {
         `https://app.turbos.finance/#/pools/${positionId}/position`,
     );
 });
+
+test('Cetus positions link directly to position-detail by NFT id', () => {
+    const positionId = '0xdd0dc135a29ba610bbf5d1bded85825d1a8899daaf16e771cbe274fb6f3d7931';
+    assert.equal(
+        tools.positionUrl({ protocol: 'cetus', positionId, poolId: '0xpool' }),
+        `https://app.cetus.zone/position-detail/${positionId}`,
+    );
+});

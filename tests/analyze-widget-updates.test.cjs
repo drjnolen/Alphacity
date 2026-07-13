@@ -46,8 +46,8 @@ test('Liquidity Pools hydrate Turbos positions across gRPC object shapes', () =>
     assert.match(analyzeHtml, /async function fetchLpPositions\(address\)/);
     assert.equal((analyzeHtml.match(/fetchLpPositions\(/g) || []).length, 3);
     assert.match(analyzeHtml, /function objectIdKey\(value\)/);
-    assert.match(analyzeHtml, /fieldsById\[requestedKey\] = fields/);
-    assert.match(analyzeHtml, /fieldsById\[returnedKey\] = fields/);
+    assert.match(analyzeHtml, /if \(returnedKey\) fieldsById\[returnedKey\] = fields/);
+    assert.match(analyzeHtml, /else if \(requestedKey\) fieldsById\[requestedKey\] = fields/);
     assert.match(lpTools, /current_sqrt_price \|\| poolFields\?\.sqrt_price/);
     assert.match(analyzeHtml, /posFields\.liquidity !== undefined/);
     assert.match(analyzeHtml, /'Position detected'/);
@@ -64,4 +64,45 @@ test('Liquidity Pools hydrate Turbos positions across gRPC object shapes', () =>
     assert.equal(extractObjectId({ fields: { id: '0x02' } }), '0x02');
     assert.equal(objectIdKey('0x0002'), objectIdKey('0x2'));
     assert.equal(normalizeEmbeddedCoinType('0002::sui::SUI'), '0x0002::sui::SUI');
+});
+
+test('Liquidity Pools recover partial Turbos object batches without refetching hydrated records', async () => {
+    const helperSource = analyzeHtml.slice(
+        analyzeHtml.indexOf('function extractObjectId'),
+        analyzeHtml.indexOf('async function renderLpPositions'),
+    );
+    const calls = [];
+    let batchAttempt = 0;
+    const objectResponse = objectId => ({
+        data: {
+            objectId,
+            content: { fields: { object_id: objectId } },
+        },
+    });
+    const rpc = async (method, [request]) => {
+        calls.push({ method, request });
+        if (method === 'sui_multiGetObjects') {
+            batchAttempt += 1;
+            if (batchAttempt === 1) return [objectResponse('0x2')];
+            if (batchAttempt === 2) return [objectResponse('0x1')];
+        }
+        if (method === 'sui_getObject') return objectResponse(request);
+        return [];
+    };
+    const fetchObjectFields = new Function(
+        'rpc',
+        'console',
+        `${helperSource}; return fetchObjectFields;`,
+    )(rpc, { warn() {} });
+
+    const fields = await fetchObjectFields(['0x1', '0x2', '0x3']);
+
+    assert.deepEqual(Object.keys(fields).sort(), ['0x1', '0x2', '0x3']);
+    assert.equal(fields['0x1'].object_id, '0x1');
+    assert.equal(fields['0x2'].object_id, '0x2');
+    assert.deepEqual(calls, [
+        { method: 'sui_multiGetObjects', request: ['0x1', '0x2', '0x3'] },
+        { method: 'sui_multiGetObjects', request: ['0x1', '0x3'] },
+        { method: 'sui_getObject', request: '0x3' },
+    ]);
 });
