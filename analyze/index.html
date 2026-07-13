@@ -6,8 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CITY Intelligence Terminal - Alpha City</title>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/analyze/tailwind.css">
 
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
@@ -22,32 +21,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <script>
-        // Configure Tailwind CSS — same tokens as staking/index.html
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        'brand-primary': tailwind.colors.blue[500],
-                        'brand-primary-hover': tailwind.colors.blue[400],
-                        'brand-secondary': tailwind.colors.yellow[400],
-                        'brand-secondary-hover': tailwind.colors.yellow[300],
-                        'dark-bg': '#111827',
-                        'dark-card': '#1F2937',
-                        'dark-text': '#E5E7EB',
-                        'dark-text-secondary': '#9CA3AF',
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                },
-            },
-        }
-    </script>
-
     <style>
         /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; }
@@ -56,13 +29,13 @@
         ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
 
         .glass-panel {
-            background: rgba(31, 41, 55, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            transform: translate3d(0, 0, 0);
-            backface-visibility: hidden;
-            will-change: transform, filter;
+            background: rgba(31, 41, 55, 0.94);
             border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .deferred-widget {
+            content-visibility: auto;
+            contain-intrinsic-size: auto 420px;
         }
 
         /* AI response markdown styling */
@@ -253,7 +226,7 @@
 <body class="bg-dark-bg text-dark-text font-sans antialiased min-h-screen flex flex-col">
 
     <!-- ===================== NAVIGATION ===================== -->
-    <header class="bg-dark-bg/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800">
+    <header class="bg-dark-bg/95 sticky top-0 z-50 border-b border-gray-800">
         <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <!-- Logo -->
@@ -399,7 +372,7 @@
                 </div>
 
                 <!-- Trending & Watchlist Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-4">
+                <div id="token-trends-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
                         <div class="flex gap-3">
                             <button id="widget-token-trending-tab" class="widget-tab-btn active">
@@ -474,7 +447,7 @@
                 </div>
 
                 <!-- Top Yields APY Radar Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-4">
+                <div id="apy-radar-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📡</span> APY Yield Radar
@@ -490,7 +463,7 @@
                 </div>
 
                 <!-- Token Safety Sniffer Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-4" id="token-safety-sniffer-widget">
+                <div class="glass-panel deferred-widget p-5 rounded-xl space-y-4" id="token-safety-sniffer-widget">
                     <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>🛡️</span> Token Safety Sniffer
@@ -663,7 +636,7 @@
             <div class="lg:col-span-5 space-y-6">
 
                 <!-- TradingView Chart -->
-                <div class="glass-panel p-4 rounded-xl flex flex-col space-y-2 h-[350px]">
+                <div id="tradingview-widget" class="glass-panel deferred-widget p-4 rounded-xl flex flex-col space-y-2 h-[350px]">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📈</span> SUI / USDT (Binance)
@@ -675,7 +648,7 @@
                 </div>
 
                 <!-- Time & Weather Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-4">
+                <div id="weather-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
                         <div class="flex flex-col">
                             <span id="weather-location" class="text-white font-bold text-sm">Detecting location...</span>
@@ -702,7 +675,7 @@
                 </div>
 
                 <!-- News Terminal -->
-                <div class="glass-panel p-5 rounded-xl flex flex-col space-y-4">
+                <div id="news-widget" class="glass-panel deferred-widget p-5 rounded-xl flex flex-col space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📰</span> News Terminal
@@ -722,7 +695,7 @@
                 </div>
 
                 <!-- X Ecosystem Tracker -->
-                <div class="glass-panel p-5 rounded-xl space-y-4">
+                <div id="x-feed-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span class="text-brand-primary">⚡</span> X Ecosystem Tracker
@@ -892,7 +865,7 @@
                 </div>
 
                 <!-- Daily Side Quest Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-4 animate-fade-in" id="side-quest-panel">
+                <div class="glass-panel deferred-widget p-5 rounded-xl space-y-4 animate-fade-in" id="side-quest-panel">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>⚔️</span> Daily Side Quest
@@ -920,7 +893,7 @@
                 </div>
 
                 <!-- Whale Wallet Tracker -->
-                <div class="glass-panel p-5 rounded-xl space-y-4">
+                <div id="whale-tracker-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>🐋</span> Whale Tracker
@@ -952,7 +925,7 @@
         </div>
 
         <!-- ===================== INTELLIGENCE DASHBOARD ===================== -->
-        <div class="mt-12">
+        <div id="intel-dashboard" class="deferred-widget mt-12">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
                 <h2 class="text-2xl font-bold text-white flex items-center gap-3">
                     <span class="text-brand-secondary">⚡</span> Intelligence Dashboard
@@ -1455,6 +1428,53 @@
         }
     }
 
+    function createVisibleInterval(callback, delay) {
+        let running = false;
+        return setInterval(async () => {
+            if (document.hidden || running) return;
+            running = true;
+            try {
+                await callback();
+            } catch (error) {
+                console.warn('Scheduled Analyze refresh skipped:', error?.message || error);
+            } finally {
+                running = false;
+            }
+        }, delay);
+    }
+
+    function runWidgetSafe(name, initializer) {
+        try {
+            return Promise.resolve(initializer()).catch(error => {
+                console.error(`Error initializing widget [${name}]:`, error);
+            });
+        } catch (error) {
+            console.error(`Error initializing widget [${name}]:`, error);
+            return Promise.resolve();
+        }
+    }
+
+    function initWhenVisible(elementId, name, initializer, rootMargin = '200px') {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        let started = false;
+        const start = () => {
+            if (started) return;
+            started = true;
+            runWidgetSafe(name, initializer);
+        };
+        if (!('IntersectionObserver' in window)) {
+            start();
+            return;
+        }
+        const observer = new IntersectionObserver(entries => {
+            if (!entries.some(entry => entry.isIntersecting)) return;
+            observer.disconnect();
+            start();
+        }, { rootMargin });
+        observer.observe(element);
+    }
+
     async function rpc(method, params, retries = 3, delay = 500) {
         if (!window.AlphaCitySui?.rpc) throw new Error('SUI data client failed to load');
         let lastError = new Error('Unknown SUI data error');
@@ -1932,52 +1952,21 @@
         return { amountA, amountB };
     }
 
-    async function fetchPools(poolIds) {
-        if (poolIds.length === 0) return {};
-        const poolMap = {};
+    async function fetchObjectFields(objectIds) {
+        const uniqueIds = [...new Set((objectIds || []).filter(Boolean))];
+        if (!uniqueIds.length) return {};
+        const fieldsById = {};
         try {
-            const promises = poolIds.map(async (id) => {
-                try {
-                    const obj = await rpc('sui_getObject', [
-                        id,
-                        { showContent: true }
-                    ]);
-                    if (obj?.data?.content?.fields) {
-                        poolMap[id] = obj.data.content.fields;
-                    }
-                } catch (e) {
-                    console.error(`Failed to fetch pool ${id}:`, e);
-                }
+            const objects = await rpc('sui_multiGetObjects', [uniqueIds, { showContent: true }]);
+            (objects || []).forEach(object => {
+                const objectId = object?.data?.objectId;
+                const fields = object?.data?.content?.fields;
+                if (objectId && fields) fieldsById[objectId] = fields;
             });
-            await Promise.all(promises);
-        } catch (e) {
-            console.error('Failed to fetch pools:', e);
+        } catch (error) {
+            console.error('Failed to fetch LP object details:', error);
         }
-        return poolMap;
-    }
-
-    async function fetchTurbosPositions(positionIds) {
-        if (positionIds.length === 0) return {};
-        const posMap = {};
-        try {
-            const promises = positionIds.map(async (id) => {
-                try {
-                    const obj = await rpc('sui_getObject', [
-                        id,
-                        { showContent: true }
-                    ]);
-                    if (obj?.data?.content?.fields) {
-                        posMap[id] = obj.data.content.fields;
-                    }
-                } catch (e) {
-                    console.error(`Failed to fetch Turbos position ${id}:`, e);
-                }
-            });
-            await Promise.all(promises);
-        } catch (e) {
-            console.error('Failed to fetch Turbos positions:', e);
-        }
-        return posMap;
+        return fieldsById;
     }
 
     async function renderLpPositions(balances, lpPositionsWrapper) {
@@ -2008,11 +1997,10 @@
                 }
             });
 
-            // 2. Fetch pool state and Turbos underlying position objects in parallel
-            const [poolMap, turbosPositionMap] = await Promise.all([
-                fetchPools(poolIds),
-                fetchTurbosPositions(turbosPositionIds)
-            ]);
+            // 2. Fetch every pool and underlying Turbos position in one RPC.
+            const objectFields = await fetchObjectFields([...poolIds, ...turbosPositionIds]);
+            const poolMap = Object.fromEntries(poolIds.filter(id => objectFields[id]).map(id => [id, objectFields[id]]));
+            const turbosPositionMap = Object.fromEntries(turbosPositionIds.filter(id => objectFields[id]).map(id => [id, objectFields[id]]));
 
             const lpList = [];
 
@@ -2562,6 +2550,7 @@ Return ONLY a valid JSON object with two string keys:
     const WATCHLIST_STORAGE  = 'ac_intel_watchlist';
 
     let dexCache = { pairs: null, ts: 0 };
+    let dexInFlight = null;
     let pulseTimer = null;
     let dexTimer   = null;
 
@@ -2728,32 +2717,39 @@ Return ONLY a valid JSON object with two string keys:
     async function fetchDexData() {
         const now = Date.now();
         if (dexCache.pairs && (now - dexCache.ts) < DEX_CACHE_TTL_MS) return dexCache.pairs;
+        if (dexInFlight) return dexInFlight;
 
-        try {
-            // Search for multiple popular SUI ecosystem tokens in parallel
-            const results = await Promise.all(
-                DEX_SEARCH_TERMS.map(term =>
-                    fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(term)}`, { signal: AbortSignal.timeout(10000) })
-                        .then(r => r.json())
-                        .then(d => d?.pairs || [])
-                        .catch(() => [])
-                )
-            );
-            // Merge all results, filter to SUI chain and minimum liquidity, dedupe by pair address
-            const seen = new Set();
-            const pairs = [];
-            for (const batch of results) {
-                for (const p of batch) {
-                    if (p.chainId === 'sui' && (p.liquidity?.usd || 0) >= MIN_LIQUIDITY_USD && !seen.has(p.pairAddress)) {
-                        seen.add(p.pairAddress);
-                        pairs.push(p);
+        dexInFlight = (async () => {
+            try {
+                const results = await Promise.all(
+                    DEX_SEARCH_TERMS.map(term =>
+                        fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(term)}`, { signal: AbortSignal.timeout(10000) })
+                            .then(response => response.ok ? response.json() : null)
+                            .then(data => data?.pairs || [])
+                            .catch(() => [])
+                    )
+                );
+                const seen = new Set();
+                const pairs = [];
+                for (const batch of results) {
+                    for (const pair of batch) {
+                        if (pair.chainId === 'sui' && (pair.liquidity?.usd || 0) >= MIN_LIQUIDITY_USD && !seen.has(pair.pairAddress)) {
+                            seen.add(pair.pairAddress);
+                            pairs.push(pair);
+                        }
                     }
                 }
+                dexCache = { pairs, ts: Date.now() };
+                return pairs;
+            } catch (_) {
+                return dexCache.pairs || [];
             }
-            dexCache = { pairs, ts: Date.now() };
-            return pairs;
-        } catch (_) {
-            return dexCache.pairs || [];
+        })();
+
+        try {
+            return await dexInFlight;
+        } finally {
+            dexInFlight = null;
         }
     }
 
@@ -3038,6 +3034,33 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // INTELLIGENCE DASHBOARD — TAB LOGIC
     // =========================================================
+    const intelTabRenderers = {
+        trending: renderTrending,
+        ecosystem: renderEcosystem,
+        movers: renderMovers,
+        pools: renderNewPools,
+        watchlist: renderWatchlist,
+    };
+    const intelLoadedTabs = new Set();
+    const intelInFlight = new Map();
+
+    function activeIntelTab() {
+        return document.querySelector('.intel-tab-btn.active')?.getAttribute('data-tab') || 'trending';
+    }
+
+    async function renderIntelTab(tabId, { force = false } = {}) {
+        const renderer = intelTabRenderers[tabId];
+        if (!renderer || (!force && intelLoadedTabs.has(tabId))) return;
+        if (intelInFlight.has(tabId)) return intelInFlight.get(tabId);
+
+        const renderPromise = Promise.resolve()
+            .then(renderer)
+            .then(() => intelLoadedTabs.add(tabId))
+            .finally(() => intelInFlight.delete(tabId));
+        intelInFlight.set(tabId, renderPromise);
+        return renderPromise;
+    }
+
     document.querySelectorAll('.intel-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tabId = btn.getAttribute('data-tab');
@@ -3048,8 +3071,7 @@ Return ONLY a valid JSON object with two string keys:
             document.querySelectorAll('.intel-tab-content').forEach(c => c.classList.remove('active'));
             const panel = document.getElementById('tab-' + tabId);
             if (panel) panel.classList.add('active');
-            // Lazy-load tab data on first view
-            if (tabId === 'watchlist') renderWatchlist();
+            renderIntelTab(tabId);
         });
     });
 
@@ -3083,33 +3105,26 @@ Return ONLY a valid JSON object with two string keys:
         icon.classList.add('refresh-spin');
         dexCache = { pairs: null, ts: 0 }; // bust cache
         ecosystemCache = { tokens: null, ts: 0 }; // bust ecosystem cache
-        await Promise.all([fetchMarketPulse(), fetchTvl(), renderTrending(), renderEcosystem(), renderMovers(), renderNewPools()]);
+        intelLoadedTabs.clear();
+        await Promise.all([fetchMarketPulse(), fetchTvl(), renderIntelTab(activeIntelTab(), { force: true })]);
         icon.classList.remove('refresh-spin');
     });
 
     // =========================================================
     // INTELLIGENCE DASHBOARD — AUTO INIT
     // =========================================================
-    async function initIntelDashboard() {
-        // Fire all initial data loads in parallel
-        await Promise.all([
-            fetchMarketPulse(),
-            fetchTvl(),
-            renderTrending(),
-            renderEcosystem(),
-            renderMovers(),
-            renderNewPools(),
-        ]);
+    async function initMarketPulse() {
+        await Promise.all([fetchMarketPulse(), fetchTvl()]);
+        if (!pulseTimer) pulseTimer = createVisibleInterval(fetchMarketPulse, PULSE_REFRESH_MS);
+    }
 
-        // Set up auto-refresh
-        pulseTimer = setInterval(fetchMarketPulse, PULSE_REFRESH_MS);
-        dexTimer   = setInterval(() => {
+    async function initIntelDashboard() {
+        await renderIntelTab(activeIntelTab());
+        if (!dexTimer) dexTimer = createVisibleInterval(async () => {
             dexCache = { pairs: null, ts: 0 };
             ecosystemCache = { tokens: null, ts: 0 };
-            renderTrending();
-            renderEcosystem();
-            renderMovers();
-            renderNewPools();
+            intelLoadedTabs.clear();
+            await renderIntelTab(activeIntelTab(), { force: true });
         }, DEX_REFRESH_MS);
     }
 
@@ -3130,7 +3145,7 @@ Return ONLY a valid JSON object with two string keys:
             clockEl.textContent = now.toLocaleTimeString([], { hour12: false });
         }
         updateTime();
-        setInterval(updateTime, 1000);
+        createVisibleInterval(updateTime, 1000);
     }
 
     async function initWeather() {
@@ -3857,6 +3872,9 @@ Return ONLY a valid JSON object with two string keys:
     // WHALE WALLET TRACKER
     // =========================================================
     const WHALES_STORAGE = 'ac_trader_whales';
+    const MAX_TRACKED_WHALES = 8;
+    const WHALE_CACHE_TTL_MS = 60_000;
+    const whaleTransactionCache = new Map();
     const DEFAULT_WHALES = [
         { name: 'Sui Foundation', address: '0xd411516e8b2b73dbb8e19c017d84b2e882583856ffbb495e26b8e3ea90eb0a62' },
         { name: 'Cetus Staking', address: '0xc88b2f90a6e3e4a9d73fbab5df15a5125500f907a573066dd0a62c88b2f90a62' }
@@ -3865,7 +3883,10 @@ Return ONLY a valid JSON object with two string keys:
     function loadTrackedWhales() {
         try {
             const raw = localStorage.getItem(WHALES_STORAGE);
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed.slice(0, MAX_TRACKED_WHALES) : DEFAULT_WHALES;
+            }
         } catch (_) {}
         return DEFAULT_WHALES;
     }
@@ -3907,6 +3928,10 @@ Return ONLY a valid JSON object with two string keys:
         }
 
         const list = loadTrackedWhales();
+        if (list.length >= MAX_TRACKED_WHALES) {
+            alert(`Whale tracker limit reached (${MAX_TRACKED_WHALES} addresses).`);
+            return;
+        }
         if (list.some(w => w.address.toLowerCase() === address.toLowerCase())) {
             alert('This address is already being tracked.');
             return;
@@ -3967,7 +3992,7 @@ Return ONLY a valid JSON object with two string keys:
         return summaries;
     }
 
-    async function loadWhaleFeed() {
+    async function loadWhaleFeed({ force = false } = {}) {
         const feedEl = document.getElementById('whale-tx-feed');
         if (!feedEl) return;
 
@@ -3982,6 +4007,9 @@ Return ONLY a valid JSON object with two string keys:
         try {
             const fetchPromises = whales.map(async (w) => {
                 try {
+                    const cacheKey = w.address.toLowerCase();
+                    const cached = whaleTransactionCache.get(cacheKey);
+                    if (!force && cached && Date.now() - cached.ts < WHALE_CACHE_TTL_MS) return cached.transactions;
                     const resp = await rpc('suix_queryTransactionBlocks', [
                         {
                             filter: { FromAddress: w.address },
@@ -3996,7 +4024,7 @@ Return ONLY a valid JSON object with two string keys:
                         true
                     ]);
                     const blocks = resp?.data || [];
-                    return blocks.map(b => ({
+                    const transactions = blocks.map(b => ({
                         whaleName: w.name,
                         whaleAddress: w.address,
                         digest: b.digest,
@@ -4004,6 +4032,8 @@ Return ONLY a valid JSON object with two string keys:
                         status: b.effects?.status?.status || 'success',
                         balanceChanges: parseWhaleBalanceChanges(b, w.address)
                     }));
+                    whaleTransactionCache.set(cacheKey, { transactions, ts: Date.now() });
+                    return transactions;
                 } catch (err) {
                     console.error(`Failed to fetch txs for ${w.name}:`, err);
                     return [];
@@ -4070,7 +4100,7 @@ Return ONLY a valid JSON object with two string keys:
         if (addBtn) addBtn.addEventListener('click', addWhaleAddress);
 
         const refreshBtn = document.getElementById('whale-refresh-btn');
-        if (refreshBtn) refreshBtn.addEventListener('click', loadWhaleFeed);
+        if (refreshBtn) refreshBtn.addEventListener('click', () => loadWhaleFeed({ force: true }));
 
         const addrInput = document.getElementById('whale-address-input');
         if (addrInput) {
@@ -4572,7 +4602,7 @@ Return ONLY a valid JSON object with two string keys:
         updateTokenAlertNotificationButton();
         renderTokenAlertRules();
         checkTokenAlerts();
-        if (!tokenAlertPollTimer) tokenAlertPollTimer = setInterval(checkTokenAlerts, TOKEN_ALERT_POLL_MS);
+        if (!tokenAlertPollTimer) tokenAlertPollTimer = createVisibleInterval(checkTokenAlerts, TOKEN_ALERT_POLL_MS);
     }
 
     async function initWidgetTokenTrendsAndWatchlist() {
@@ -4640,7 +4670,7 @@ Return ONLY a valid JSON object with two string keys:
         initTokenAlerts();
         
         // Interval updates (every 2 minutes)
-        setInterval(() => {
+        createVisibleInterval(() => {
             if (trendTab.classList.contains('active')) {
                 renderWidgetTrending();
             } else {
@@ -4768,22 +4798,81 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // WIDGET: TOP YIELDS APY RADAR
     // =========================================================
+    const APY_REFRESH_MS = 15 * 60_000;
+    const APY_CACHE_STORAGE = 'ac_analyze_apy_cache_v1';
+    let apyInFlight = null;
+    const poolAddressCache = new Map();
+
+    function readApyCache({ allowExpired = false } = {}) {
+        try {
+            const cached = JSON.parse(sessionStorage.getItem(APY_CACHE_STORAGE) || 'null');
+            if (!cached?.pools?.length) return null;
+            if (!allowExpired && Date.now() - Number(cached.ts || 0) >= APY_REFRESH_MS) return null;
+            return cached;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function writeApyCache(pools) {
+        try {
+            sessionStorage.setItem(APY_CACHE_STORAGE, JSON.stringify({ pools, ts: Date.now() }));
+        } catch (_) {}
+    }
+
+    async function fetchTopSuiPools({ force = false } = {}) {
+        if (!force) {
+            const cached = readApyCache();
+            if (cached) return cached.pools;
+        }
+        if (apyInFlight) return apyInFlight;
+
+        apyInFlight = (async () => {
+            try {
+                const response = await fetchWithTimeout('https://yields.llama.fi/pools', {}, 8000);
+                if (!response.ok) throw new Error('Yields fetch failed');
+                const payload = await response.json();
+                const topPools = (payload?.data || [])
+                    .filter(pool => pool.chain?.toLowerCase() === 'sui' && pool.tvlUsd >= 20000 && pool.apy > 0)
+                    .sort((a, b) => b.apy - a.apy)
+                    .slice(0, 5);
+
+                const resolved = await Promise.all(topPools.map(async pool => ({
+                    symbol: pool.symbol,
+                    project: pool.project || 'unknown',
+                    tvlUsd: Number(pool.tvlUsd || 0),
+                    apy: Number(pool.apy || 0),
+                    resolvedAddress: await resolvePoolAddress(pool.project || '', pool.underlyingTokens).catch(() => null),
+                })));
+                writeApyCache(resolved);
+                return resolved;
+            } catch (error) {
+                const stale = readApyCache({ allowExpired: true });
+                if (stale) return stale.pools;
+                throw error;
+            }
+        })();
+
+        try {
+            return await apyInFlight;
+        } finally {
+            apyInFlight = null;
+        }
+    }
+
     async function initWidgetApyRadar() {
         const refreshBtn = document.getElementById('widget-apy-refresh-btn');
         if (!refreshBtn) return;
 
         refreshBtn.addEventListener('click', () => {
-            renderWidgetApyRadar();
+            renderWidgetApyRadar({ force: true });
         });
 
-        // Initial render
         renderWidgetApyRadar();
-
-        // Auto refresh every 5 minutes
-        setInterval(renderWidgetApyRadar, 300000);
+        createVisibleInterval(() => renderWidgetApyRadar({ force: true }), APY_REFRESH_MS);
     }
 
-    async function renderWidgetApyRadar() {
+    async function renderWidgetApyRadar({ force = false } = {}) {
         const listEl = document.getElementById('widget-apy-list');
         const refreshBtn = document.getElementById('widget-apy-refresh-btn');
         if (!listEl) return;
@@ -4792,31 +4881,11 @@ Return ONLY a valid JSON object with two string keys:
         listEl.innerHTML = '<p class="text-xs text-gray-600 py-6 text-center animate-pulse">Scanning SUI pools...</p>';
 
         try {
-            const resp = await fetchWithTimeout('https://yields.llama.fi/pools', {}, 8000);
-            if (!resp.ok) throw new Error("Yields fetch failed");
-            const resData = await resp.json();
-            const pools = resData?.data || [];
-
-            // Filter to Sui chain, minimum TVL $20k, sort by APY descending
-            const suiPools = pools
-                .filter(p => p.chain?.toLowerCase() === 'sui' && p.tvlUsd >= 20000 && p.apy > 0)
-                .sort((a, b) => b.apy - a.apy)
-                .slice(0, 5);
-
-            if (!suiPools.length) {
+            const resolvedPools = await fetchTopSuiPools({ force });
+            if (!resolvedPools.length) {
                 listEl.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No yield pools found.</p>';
                 return;
             }
-
-            // Resolve exact pool addresses in parallel via DexScreener search
-            const resolvedPools = await Promise.all(suiPools.map(async p => {
-                try {
-                    const addr = await resolvePoolAddress(p.project, p.underlyingTokens);
-                    return { ...p, resolvedAddress: addr };
-                } catch (_) {
-                    return { ...p, resolvedAddress: null };
-                }
-            }));
 
             listEl.innerHTML = resolvedPools.map(p => {
                 const symbol = escHtml(p.symbol);
@@ -4881,6 +4950,8 @@ Return ONLY a valid JSON object with two string keys:
         const token1 = normalizeSuiType(underlyingTokens[1]);
 
         const queryStr = `${token0} ${token1}`;
+        const cacheKey = `${project}|${queryStr}`;
+        if (poolAddressCache.has(cacheKey)) return poolAddressCache.get(cacheKey);
         const url = `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(queryStr)}`;
         try {
             const res = await fetchWithTimeout(url, {}, 5000);
@@ -4902,7 +4973,9 @@ Return ONLY a valid JSON object with two string keys:
                 return (base === token0 && quote === token1) || (base === token1 && quote === token0);
             });
 
-            return pair ? pair.pairAddress : null;
+            const address = pair ? pair.pairAddress : null;
+            poolAddressCache.set(cacheKey, address);
+            return address;
         } catch (err) {
             console.warn("Error resolving pool address via DexScreener:", err);
             return null;
@@ -5278,30 +5351,22 @@ Return ONLY a valid JSON object with two string keys:
     initNotes();
     initHabitTracker();
 
-    // 2. Deferred Non-Critical Initializations (Prevents blocking onload thread)
+    runWidgetSafe('MarketPulse', initMarketPulse);
+
+    // 2. Initialize non-critical widgets only when they approach the viewport.
     const deferInit = window.requestIdleCallback || (cb => setTimeout(cb, 100));
     deferInit(() => {
-        const runSafe = (name, fn) => {
-            try {
-                fn();
-            } catch (err) {
-                console.error(`Error initializing widget [${name}]:`, err);
-            }
-        };
-
-        runSafe('Weather', initWeather);
-        runSafe('NewsTerminal', initNewsTerminal);
-        runSafe('XFeed', initXFeed);
-        runSafe('TradingView', initTradingView);
-        runSafe('WhaleTracker', initWhaleTracker);
-        runSafe('SideQuest', initSideQuest);
-        runSafe('WidgetTokenTrends', initWidgetTokenTrendsAndWatchlist);
-        runSafe('WidgetApyRadar', initWidgetApyRadar);
-        runSafe('TokenSafetySniffer', initTokenSafetySniffer);
+        initWhenVisible('token-trends-widget', 'WidgetTokenTrends', initWidgetTokenTrendsAndWatchlist);
+        initWhenVisible('apy-radar-widget', 'WidgetApyRadar', initWidgetApyRadar);
+        initWhenVisible('token-safety-sniffer-widget', 'TokenSafetySniffer', initTokenSafetySniffer);
+        initWhenVisible('tradingview-widget', 'TradingView', initTradingView);
+        initWhenVisible('weather-widget', 'Weather', initWeather);
+        initWhenVisible('news-widget', 'NewsTerminal', initNewsTerminal);
+        initWhenVisible('x-feed-widget', 'XFeed', initXFeed, '100px');
+        initWhenVisible('side-quest-panel', 'SideQuest', initSideQuest);
+        initWhenVisible('whale-tracker-widget', 'WhaleTracker', initWhaleTracker, '100px');
+        initWhenVisible('intel-dashboard', 'IntelDashboard', initIntelDashboard, '300px');
     });
-
-    // Launch the intelligence dashboard (non-blocking — doesn't delay wallet reconnect)
-    initIntelDashboard();
 
     // Auto-reconnect from persisted session (mirrors staking page behavior)
     (async function autoReconnect() {

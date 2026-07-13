@@ -2,14 +2,16 @@
   "name": "alpha-city-static-site",
   "private": true,
   "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.cjs -i ./analyze/tailwind.input.css -o ./analyze/tailwind.css --minify",
     "build:sui": "esbuild shared/sui-client-source.js --bundle --minify --format=iife --global-name=AlphaCitySuiBundle --platform=browser --target=es2022 --outfile=shared/sui-client.js",
-    "build": "npm run build:sui",
+    "build": "npm run build:sui && npm run build:css",
     "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "@mysten/sui": "2.20.3"
   },
   "devDependencies": {
-    "esbuild": "0.28.1"
+    "esbuild": "0.28.1",
+    "tailwindcss": "3.4.17"
   }
 }
