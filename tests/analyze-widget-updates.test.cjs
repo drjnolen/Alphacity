@@ -106,3 +106,39 @@ test('Liquidity Pools recover partial Turbos object batches without refetching h
         { method: 'sui_getObject', request: '0x3' },
     ]);
 });
+
+test('canonical Sui USDC retains six decimals when metadata is unavailable', async () => {
+    const decimalSource = analyzeHtml.slice(
+        analyzeHtml.indexOf('const coinMetadataCache'),
+        analyzeHtml.indexOf('function coinSymbol'),
+    );
+    const createDecimalTools = rpc => new Function(
+        'rpc',
+        'isSuiCoinType',
+        'CITY_TYPE',
+        `${decimalSource}; return { fetchCoinDecimals, coinDecimals, knownCoinDecimals };`,
+    )(rpc, () => false, '0xcity::city::CITY');
+    const usdcType = 'dba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC';
+    const fallbackTools = createDecimalTools(async () => { throw new Error('metadata unavailable'); });
+
+    assert.equal(await fallbackTools.fetchCoinDecimals(`0x${usdcType}`), 6);
+    assert.equal(fallbackTools.coinDecimals(usdcType), 6);
+    assert.equal(195_840_000 / (10 ** fallbackTools.coinDecimals(usdcType)), 195.84);
+
+    const stringMetadataTools = createDecimalTools(async () => ({ decimals: '6' }));
+    assert.equal(await stringMetadataTools.fetchCoinDecimals(usdcType), 6);
+});
+
+test('desktop utility widgets follow Whale Tracker in the right column', () => {
+    const rightColumn = analyzeHtml.indexOf('<!-- ===== RIGHT COLUMN:');
+    const whaleTracker = analyzeHtml.indexOf('id="whale-tracker-widget"');
+    const ecosystemLaunchpad = analyzeHtml.indexOf('id="ecosystem-launchpad-widget"');
+    const citizenManager = analyzeHtml.indexOf('id="citizen-manager-widget"');
+
+    assert.ok(rightColumn >= 0);
+    assert.ok(whaleTracker > rightColumn);
+    assert.ok(ecosystemLaunchpad > whaleTracker);
+    assert.ok(citizenManager > ecosystemLaunchpad);
+    assert.equal((analyzeHtml.match(/id="ecosystem-launchpad-widget"/g) || []).length, 1);
+    assert.equal((analyzeHtml.match(/id="citizen-manager-widget"/g) || []).length, 1);
+});
