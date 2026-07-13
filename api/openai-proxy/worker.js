@@ -31,7 +31,7 @@ export default {
       return handleCors(request, env, new Response(null, { status: 204 }));
     }
 
-    // ── GET requests (for Nitter proxy and Daily Side Quests) ────────
+    // ── GET requests (for the Nitter proxy) ─────────────────────────
     if (request.method === 'GET') {
       const urlObj = new URL(request.url);
       if (urlObj.pathname === '/nitter' || urlObj.pathname.startsWith('/nitter')) {
@@ -87,94 +87,6 @@ export default {
         );
       }
 
-      if (urlObj.pathname === '/sidequest' || urlObj.pathname.startsWith('/sidequest')) {
-        const dateStr = urlObj.searchParams.get('date') || new Date().toISOString().split('T')[0];
-        
-        const cache = caches.default;
-        const cacheKey = new Request(urlObj.toString(), request);
-        let cachedResponse = await cache.match(cacheKey);
-        if (cachedResponse) {
-          return handleCors(request, env, cachedResponse);
-        }
-
-        try {
-          const apiKey = env.OPENAI_API_KEY;
-          if (!apiKey) {
-            throw new Error('OpenAI API key missing in environment');
-          }
-
-          const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are a wellness coach. Generate a healthy, creative daily "side quest" for a web3 user to help them touch grass and stay healthy. It must be simple, creative, actionable, and take less than 15 minutes. Examples: walk outdoors, 50 pushups, stretch, call a loved one. Return ONLY a valid JSON object matching this schema: {"quest": "string", "category": "Mindfulness/Nature/Physical/Connection", "benefit": "string"}. Do not include markdown code block formatting.'
-                },
-                {
-                  role: 'user',
-                  content: `Generate the unique daily quest for date: ${dateStr}. Maintain a positive, refreshing tone.`
-                }
-              ],
-              temperature: 0.7,
-              max_tokens: 150
-            })
-          });
-
-          if (!openaiResponse.ok) {
-            const errBody = await openaiResponse.text();
-            throw new Error(`OpenAI API returned status ${openaiResponse.status}: ${errBody}`);
-          }
-
-          const data = await openaiResponse.json();
-          let questText = data.choices?.[0]?.message?.content?.trim() || '';
-
-          if (questText.startsWith('```')) {
-            questText = questText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-          }
-
-          const parsed = JSON.parse(questText);
-
-          const newResponse = new Response(JSON.stringify(parsed), {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'public, max-age=86400',
-            }
-          });
-
-          await cache.put(cacheKey, newResponse.clone());
-          return handleCors(request, env, newResponse);
-
-        } catch (err) {
-          console.error('Failed to generate daily side quest:', err);
-          const fallbacks = [
-            { quest: "Spend 5 minutes walking silently outdoors.", category: "Nature", benefit: "Boosts mental clarity and lowers cortisol levels." },
-            { quest: "Do 50 pushups (or a comfortable variation).", category: "Physical", benefit: "Improves upper body strength and pumps endorphins." },
-            { quest: "Call or text a loved one to check in.", category: "Connection", benefit: "Strengthens relationships and builds emotional support." },
-            { quest: "Drink a tall glass of water and stretch for 3 minutes.", category: "Physical", benefit: "Rehydrates the body and releases muscle tension." },
-            { quest: "Write down 3 things you are genuinely grateful for today.", category: "Mindfulness", benefit: "Shifts mindset to abundance and positivity." },
-            { quest: "Sit quietly for 5 minutes focusing entirely on your breathing.", category: "Mindfulness", benefit: "Calms the nervous system and improves focus." },
-            { quest: "Tidy up your physical desk space completely.", category: "Mindfulness", benefit: "Clutter-free environment leads to a clutter-free mind." }
-          ];
-          const todayIndex = new Date().getDay();
-          const fallback = fallbacks[todayIndex];
-
-          return handleCors(
-            request,
-            env,
-            new Response(JSON.stringify(fallback), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            })
-          );
-        }
-      }
     }
 
     // ── Only POST allowed for OpenAI requests ───────────────────────
@@ -273,8 +185,7 @@ function handleCors(request, env, response) {
   const headers = new Headers(response.headers);
   const urlObj = new URL(request.url);
   if (request.method === 'GET' && (
-    urlObj.pathname === '/nitter' || urlObj.pathname.startsWith('/nitter') ||
-    urlObj.pathname === '/sidequest' || urlObj.pathname.startsWith('/sidequest')
+    urlObj.pathname === '/nitter' || urlObj.pathname.startsWith('/nitter')
   )) {
     headers.set('Access-Control-Allow-Origin', '*');
   } else if (matched) {

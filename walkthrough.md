@@ -1,12 +1,12 @@
-# Walkthrough - SUI Token Safety Sniffer & Trading Widgets
+# Walkthrough - SUI Token Safety Checker & Trading Widgets
 
-We have successfully implemented the **Token Safety Sniffer** widget alongside the **Trending & Watchlist** and **APY Yield Radar** widgets in the Left Column of the `/analyze` dashboard page.
+We have successfully implemented the **Token Safety Checker** widget alongside the **Trending & Watchlist** and **APY Yield Radar** widgets in the Left Column of the `/analyze` dashboard page.
 
 ---
 
-## 🛡️ SUI Token Safety Sniffer Widget
+## 🛡️ SUI Token Safety Checker Widget
 
-The Token Safety Sniffer is a smart contract audit tool designed to evaluate the risks of SUI-based tokens before users execute trades.
+The Token Safety Checker is a smart contract audit tool designed to evaluate the risks of SUI-based tokens before users execute trades.
 
 ### 1. Data Source Integrations
 - **GoPlus Token Security API:** Connects to GoPlus's dedicated SUI endpoint (`https://api.gopluslabs.io/api/v1/sui/token_security`) to scan for contract ownership privileges and wallet distribution.
