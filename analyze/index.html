@@ -13,6 +13,7 @@
     <script src="/shared/wallet-sync.js"></script>
     <!-- SUI gRPC/GraphQL compatibility client -->
     <script src="/shared/sui-client.js"></script>
+    <script src="/shared/trade-alerts.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -429,6 +430,46 @@
                         <div class="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1" id="widget-watchlist-list">
                             <p class="text-xs text-gray-550 py-4 text-center">No tokens tracked. Add an address above.</p>
                         </div>
+                    </div>
+
+                    <!-- Local trade alerts — reuses the watchlist's cached DexScreener batch -->
+                    <div id="widget-alert-center" class="border-t border-gray-800/80 pt-3 space-y-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-xs" aria-hidden="true">⚡</span>
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-dark-text-secondary">Trade Alerts</span>
+                                <span id="widget-alert-count" class="text-[9px] font-mono text-gray-600">0 active</span>
+                            </div>
+                            <button id="widget-alert-notify-btn" type="button" class="text-[9px] text-gray-500 hover:text-white transition-colors whitespace-nowrap" title="Enable browser notifications while Analyze is open">
+                                Enable notify
+                            </button>
+                        </div>
+
+                        <div id="widget-alert-editor" class="hidden p-2.5 rounded-lg bg-dark-bg/70 border border-brand-primary/30 space-y-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-[9px] uppercase tracking-wider text-gray-500">New alert</span>
+                                <span id="widget-alert-editor-token" class="text-[10px] text-white font-mono truncate">—</span>
+                            </div>
+                            <select id="widget-alert-type" class="watchlist-input text-[10px] py-1.5 px-2.5 w-full" aria-label="Alert condition">
+                                <option value="price_above">Price rises above</option>
+                                <option value="price_below">Price falls below</option>
+                                <option value="liquidity_below">Liquidity falls below</option>
+                                <option value="change_1h_up">1h gain reaches</option>
+                                <option value="change_1h_down">1h drop reaches</option>
+                            </select>
+                            <div class="flex items-center gap-1.5">
+                                <input type="number" id="widget-alert-threshold" class="watchlist-input text-[10px] py-1.5 px-2.5 flex-1 font-mono" min="0" step="any" placeholder="Threshold" inputmode="decimal" aria-label="Alert threshold">
+                                <span id="widget-alert-unit" class="text-[9px] text-gray-500 font-mono w-7 text-center">USD</span>
+                                <button id="widget-alert-save-btn" type="button" class="px-2.5 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[10px] font-bold rounded-lg">Save</button>
+                                <button id="widget-alert-cancel-btn" type="button" class="px-2 py-1.5 text-gray-500 hover:text-white text-[10px]">Cancel</button>
+                            </div>
+                            <p id="widget-alert-editor-error" class="hidden text-[9px] text-red-400" role="alert"></p>
+                        </div>
+
+                        <div id="widget-alert-rules-list" class="space-y-1.5" aria-live="polite">
+                            <p class="text-[10px] text-gray-600 text-center py-1">Use the bell beside a watched token to create an alert.</p>
+                        </div>
+                        <div id="widget-alert-history" class="hidden space-y-1 border-t border-gray-800/60 pt-2" aria-live="polite"></div>
                     </div>
                 </div>
 
@@ -4166,22 +4207,34 @@ Return ONLY a valid JSON object with two string keys:
     // WIDGET: TOKEN TRENDS & WATCHLIST
     // =========================================================
     const TOKEN_WATCHLIST_STORAGE = 'ac_token_watchlist';
+    const TOKEN_ALERT_RULES_STORAGE = 'ac_token_alert_rules_v1';
+    const TOKEN_ALERT_HISTORY_STORAGE = 'ac_token_alert_history_v1';
+    const MAX_TOKEN_WATCHLIST = 20;
+    const MAX_TOKEN_ALERT_RULES = 20;
+    const TOKEN_ALERT_POLL_MS = 60_000;
+    const TOKEN_ALERT_MARKET_CACHE_TTL_MS = 55_000;
     const DEFAULT_WATCHLIST_TOKENS = [
         '0x2::sui::SUI',
         '0xdeeb7a4665e91f2280181d3d4d3a5ca22340259bb661368abbfc159fb70df224::deep::DEEP',
         '0x068647783f05c32140a447850658cf03002aa0d657514cfd54e19bdeae986f73::coin::COIN' // CETUS
     ];
+    let tokenAlertEditorToken = '';
+    let tokenAlertPollTimer = null;
+    let tokenAlertMarketCache = { key: '', expiresAt: 0, pairsByToken: {} };
 
     function loadTokenWatchlist() {
         try {
             const raw = localStorage.getItem(TOKEN_WATCHLIST_STORAGE);
             if (!raw) {
                 localStorage.setItem(TOKEN_WATCHLIST_STORAGE, JSON.stringify(DEFAULT_WATCHLIST_TOKENS));
-                return DEFAULT_WATCHLIST_TOKENS;
+                return [...DEFAULT_WATCHLIST_TOKENS];
             }
-            return JSON.parse(raw);
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [...DEFAULT_WATCHLIST_TOKENS];
+            return [...new Set(parsed.map(token => String(token || '').trim()).filter(Boolean))]
+                .slice(0, MAX_TOKEN_WATCHLIST);
         } catch (_) {
-            return DEFAULT_WATCHLIST_TOKENS;
+            return [...DEFAULT_WATCHLIST_TOKENS];
         }
     }
 
@@ -4189,6 +4242,337 @@ Return ONLY a valid JSON object with two string keys:
         try {
             localStorage.setItem(TOKEN_WATCHLIST_STORAGE, JSON.stringify(list));
         } catch (_) {}
+        tokenAlertMarketCache.expiresAt = 0;
+    }
+
+    function tokenMatchesPairAddress(watchedToken, pairToken) {
+        return window.AlphaCityTradeAlerts?.tokenMatchesPairAddress(watchedToken, pairToken) || false;
+    }
+
+    function mapWatchlistPairs(list, pairs) {
+        const pairsByToken = {};
+        (pairs || []).forEach(pair => {
+            const pairToken = pair.baseToken?.address;
+            if (!pairToken) return;
+            const watchedToken = list.find(token => tokenMatchesPairAddress(token, pairToken));
+            if (!watchedToken) return;
+            const liquidity = Number(pair.liquidity?.usd || 0);
+            const existing = pairsByToken[watchedToken];
+            if (!existing || liquidity > Number(existing.liquidity?.usd || 0)) {
+                pairsByToken[watchedToken] = pair;
+            }
+        });
+        return pairsByToken;
+    }
+
+    async function fetchWidgetWatchlistMarket(list, { force = false } = {}) {
+        const tokens = [...new Set((list || []).map(token => String(token || '').trim()).filter(Boolean))];
+        if (!tokens.length) return {};
+        const key = [...tokens].map(token => token.toLowerCase()).sort().join('|');
+        if (!force && tokenAlertMarketCache.key === key && tokenAlertMarketCache.expiresAt > Date.now()) {
+            return tokenAlertMarketCache.pairsByToken;
+        }
+
+        const batches = [];
+        for (let index = 0; index < tokens.length; index += 30) batches.push(tokens.slice(index, index + 30));
+        const responses = await Promise.all(batches.map(async batch => {
+            const url = `https://api.dexscreener.com/latest/dex/tokens/${batch.map(encodeURIComponent).join(',')}`;
+            const response = await fetchWithTimeout(url, {}, 6000);
+            if (!response.ok) throw new Error(`DexScreener request failed (${response.status})`);
+            const payload = await response.json();
+            return payload?.pairs || [];
+        }));
+        const pairsByToken = mapWatchlistPairs(tokens, responses.flat());
+        tokenAlertMarketCache = {
+            key,
+            expiresAt: Date.now() + TOKEN_ALERT_MARKET_CACHE_TTL_MS,
+            pairsByToken,
+        };
+        return pairsByToken;
+    }
+
+    function loadTokenAlertRules() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(TOKEN_ALERT_RULES_STORAGE) || '[]');
+            const watchlist = new Set(loadTokenWatchlist());
+            return (Array.isArray(parsed) ? parsed : [])
+                .filter(rule => rule?.id && watchlist.has(rule.token) && window.AlphaCityTradeAlerts?.definitionFor(rule.type))
+                .slice(0, MAX_TOKEN_ALERT_RULES);
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function saveTokenAlertRules(rules) {
+        try {
+            localStorage.setItem(TOKEN_ALERT_RULES_STORAGE, JSON.stringify(rules.slice(0, MAX_TOKEN_ALERT_RULES)));
+        } catch (_) {}
+    }
+
+    function loadTokenAlertHistory() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(TOKEN_ALERT_HISTORY_STORAGE) || '[]');
+            return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function saveTokenAlertHistory(history) {
+        try {
+            localStorage.setItem(TOKEN_ALERT_HISTORY_STORAGE, JSON.stringify(history.slice(0, 10)));
+        } catch (_) {}
+    }
+
+    function alertRuleSymbol(rule, pairsByToken = tokenAlertMarketCache.pairsByToken) {
+        return pairsByToken?.[rule.token]?.baseToken?.symbol || coinSymbol(rule.token) || shortAddr(rule.token);
+    }
+
+    function formatTokenAlertValue(rule, value) {
+        if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+        if (rule.type === 'price_above' || rule.type === 'price_below') return fmtPrice(value);
+        if (rule.type === 'liquidity_below') return fmtUsd(value);
+        return `${Number(value) > 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
+    }
+
+    function formatTokenAlertThreshold(rule) {
+        const definition = window.AlphaCityTradeAlerts?.definitionFor(rule.type);
+        if (!definition) return 'Unknown condition';
+        if (rule.type === 'price_above' || rule.type === 'price_below') return `${definition.label} ${fmtPrice(rule.threshold)}`;
+        if (rule.type === 'liquidity_below') return `${definition.label} ${fmtUsd(rule.threshold)}`;
+        return `${definition.label} ${Number(rule.threshold).toFixed(2)}%`;
+    }
+
+    function renderTokenAlertHistory() {
+        const element = document.getElementById('widget-alert-history');
+        if (!element) return;
+        const history = loadTokenAlertHistory();
+        if (!history.length) {
+            element.classList.add('hidden');
+            element.innerHTML = '';
+            return;
+        }
+        element.classList.remove('hidden');
+        element.innerHTML = `
+            <div class="text-[9px] uppercase tracking-wider text-gray-600">Recent triggers</div>
+            ${history.slice(0, 3).map(item => `
+                <div class="flex items-start justify-between gap-2 text-[9px]">
+                    <span class="text-orange-300 leading-tight">${escHtml(item.message)}</span>
+                    <span class="text-gray-600 font-mono whitespace-nowrap">${new Date(item.triggeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            `).join('')}`;
+    }
+
+    function renderTokenAlertRules(pairsByToken = tokenAlertMarketCache.pairsByToken) {
+        const listElement = document.getElementById('widget-alert-rules-list');
+        const countElement = document.getElementById('widget-alert-count');
+        if (!listElement || !countElement) return;
+        const rules = loadTokenAlertRules();
+        countElement.textContent = `${rules.length} active`;
+        countElement.className = rules.some(rule => rule.isTriggered)
+            ? 'text-[9px] font-mono text-orange-400'
+            : 'text-[9px] font-mono text-gray-600';
+
+        if (!rules.length) {
+            listElement.innerHTML = '<p class="text-[10px] text-gray-600 text-center py-1">Use the bell beside a watched token to create an alert.</p>';
+            renderTokenAlertHistory();
+            return;
+        }
+
+        listElement.innerHTML = rules.map(rule => {
+            const symbol = escHtml(alertRuleSymbol(rule, pairsByToken));
+            const stateClass = rule.isTriggered ? 'text-orange-300 bg-orange-500/10 border-orange-500/20' : 'text-green-400 bg-green-500/10 border-green-500/20';
+            const state = rule.isTriggered ? 'Triggered' : 'Armed';
+            return `
+                <div class="flex items-start justify-between gap-2 p-2 rounded-lg bg-dark-bg/45 border border-gray-800/70">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] text-white font-semibold">${symbol}</span>
+                            <span class="text-[8px] px-1.5 py-0.5 rounded border ${stateClass}">${state}</span>
+                        </div>
+                        <div class="text-[9px] text-gray-500 truncate">${escHtml(formatTokenAlertThreshold(rule))}</div>
+                        ${rule.currentValue !== null && rule.currentValue !== undefined ? `<div class="text-[8px] text-gray-600 font-mono">Now ${escHtml(formatTokenAlertValue(rule, rule.currentValue))}</div>` : ''}
+                    </div>
+                    <button type="button" class="widget-alert-remove text-gray-600 hover:text-red-400 text-xs" data-rule-id="${escHtml(rule.id)}" title="Delete alert" aria-label="Delete ${symbol} alert">✕</button>
+                </div>`;
+        }).join('');
+
+        listElement.querySelectorAll('.widget-alert-remove').forEach(button => {
+            button.addEventListener('click', () => {
+                const ruleId = button.getAttribute('data-rule-id');
+                saveTokenAlertRules(loadTokenAlertRules().filter(rule => rule.id !== ruleId));
+                renderTokenAlertRules();
+            });
+        });
+        renderTokenAlertHistory();
+    }
+
+    function removeTokenAlerts(token) {
+        saveTokenAlertRules(loadTokenAlertRules().filter(rule => rule.token !== token));
+        if (tokenAlertEditorToken === token) closeTokenAlertEditor();
+        renderTokenAlertRules();
+    }
+
+    function updateTokenAlertNotificationButton() {
+        const button = document.getElementById('widget-alert-notify-btn');
+        if (!button) return;
+        if (typeof Notification === 'undefined') {
+            button.textContent = 'In-page only';
+            button.disabled = true;
+            return;
+        }
+        if (Notification.permission === 'granted') button.textContent = 'Notify on';
+        else if (Notification.permission === 'denied') button.textContent = 'Notify blocked';
+        else button.textContent = 'Enable notify';
+    }
+
+    function suggestedTokenAlertThreshold(type, pair) {
+        const price = Number(pair?.priceUsd || 0);
+        const liquidity = Number(pair?.liquidity?.usd || 0);
+        if (type === 'price_above' && price > 0) return Number((price * 1.05).toPrecision(8));
+        if (type === 'price_below' && price > 0) return Number((price * 0.95).toPrecision(8));
+        if (type === 'liquidity_below' && liquidity > 0) return Math.max(1, Math.round(liquidity * 0.7));
+        if (type === 'change_1h_up' || type === 'change_1h_down') return 5;
+        return '';
+    }
+
+    function updateTokenAlertEditorType() {
+        const typeElement = document.getElementById('widget-alert-type');
+        const thresholdElement = document.getElementById('widget-alert-threshold');
+        const unitElement = document.getElementById('widget-alert-unit');
+        if (!typeElement || !thresholdElement || !unitElement) return;
+        const definition = window.AlphaCityTradeAlerts?.definitionFor(typeElement.value);
+        unitElement.textContent = definition?.unit || '—';
+        thresholdElement.value = suggestedTokenAlertThreshold(typeElement.value, tokenAlertMarketCache.pairsByToken?.[tokenAlertEditorToken]);
+    }
+
+    function openTokenAlertEditor(token) {
+        const editor = document.getElementById('widget-alert-editor');
+        const tokenElement = document.getElementById('widget-alert-editor-token');
+        const errorElement = document.getElementById('widget-alert-editor-error');
+        const typeElement = document.getElementById('widget-alert-type');
+        if (!editor || !tokenElement || !typeElement) return;
+        tokenAlertEditorToken = token;
+        typeElement.value = 'price_above';
+        tokenElement.textContent = alertRuleSymbol({ token }, tokenAlertMarketCache.pairsByToken);
+        tokenElement.title = token;
+        if (errorElement) {
+            errorElement.classList.add('hidden');
+            errorElement.textContent = '';
+        }
+        editor.classList.remove('hidden');
+        updateTokenAlertEditorType();
+    }
+
+    function closeTokenAlertEditor() {
+        tokenAlertEditorToken = '';
+        document.getElementById('widget-alert-editor')?.classList.add('hidden');
+    }
+
+    function showTokenAlertToast(message) {
+        let container = document.getElementById('token-alert-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'token-alert-toast-container';
+            container.className = 'fixed top-20 right-4 z-[120] w-72 space-y-2 pointer-events-none';
+            container.setAttribute('aria-live', 'assertive');
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = 'pointer-events-auto p-3 rounded-xl border border-orange-500/40 bg-gray-950/95 shadow-2xl text-xs text-orange-100 animate-fade-in';
+        toast.innerHTML = `<div class="text-[9px] uppercase tracking-wider text-orange-400 mb-1">Trade alert triggered</div><div>${escHtml(message)}</div>`;
+        container.prepend(toast);
+        setTimeout(() => toast.remove(), 8000);
+    }
+
+    function deliverTokenAlert(rule, pairsByToken) {
+        const symbol = alertRuleSymbol(rule, pairsByToken);
+        const message = `${symbol}: ${formatTokenAlertThreshold(rule)} · now ${formatTokenAlertValue(rule, rule.currentValue)}`;
+        const history = [{ id: `${rule.id}-${rule.lastTriggeredAt}`, message, triggeredAt: rule.lastTriggeredAt }, ...loadTokenAlertHistory()];
+        saveTokenAlertHistory(history);
+        showTokenAlertToast(message);
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try { new Notification('Alpha City trade alert', { body: message, tag: rule.id }); } catch (_) {}
+        }
+    }
+
+    async function checkTokenAlerts({ force = false } = {}) {
+        const engine = window.AlphaCityTradeAlerts;
+        const rules = loadTokenAlertRules();
+        if (!engine || !rules.length) {
+            renderTokenAlertRules();
+            return;
+        }
+        try {
+            const pairsByToken = await fetchWidgetWatchlistMarket(loadTokenWatchlist(), { force });
+            const snapshots = {};
+            rules.forEach(rule => {
+                const pair = pairsByToken[rule.token];
+                snapshots[rule.token] = pair ? {
+                    priceUsd: pair.priceUsd,
+                    liquidityUsd: pair.liquidity?.usd,
+                    changeH1: pair.priceChange?.h1,
+                } : {
+                    priceUsd: null,
+                    liquidityUsd: null,
+                    changeH1: null,
+                };
+            });
+            const evaluated = engine.evaluateRules(rules, snapshots, Date.now());
+            saveTokenAlertRules(evaluated.rules);
+            evaluated.triggered.forEach(rule => deliverTokenAlert(rule, pairsByToken));
+            renderTokenAlertRules(pairsByToken);
+        } catch (error) {
+            console.warn('Trade alert check skipped:', error.message);
+        }
+    }
+
+    function saveTokenAlertFromEditor() {
+        const engine = window.AlphaCityTradeAlerts;
+        const typeElement = document.getElementById('widget-alert-type');
+        const thresholdElement = document.getElementById('widget-alert-threshold');
+        const errorElement = document.getElementById('widget-alert-editor-error');
+        if (!engine || !typeElement || !thresholdElement || !errorElement) return;
+        try {
+            const rules = loadTokenAlertRules();
+            if (rules.length >= MAX_TOKEN_ALERT_RULES) throw new Error(`Alert limit reached (${MAX_TOKEN_ALERT_RULES}).`);
+            const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+            const rule = engine.createRule({ id, token: tokenAlertEditorToken, type: typeElement.value, threshold: thresholdElement.value });
+            const duplicate = rules.some(existing => existing.token === rule.token && existing.type === rule.type && Number(existing.threshold) === rule.threshold);
+            if (duplicate) throw new Error('That alert already exists.');
+            saveTokenAlertRules([...rules, rule]);
+            closeTokenAlertEditor();
+            renderTokenAlertRules();
+            checkTokenAlerts();
+        } catch (error) {
+            errorElement.textContent = error.message;
+            errorElement.classList.remove('hidden');
+        }
+    }
+
+    function initTokenAlerts() {
+        const notifyButton = document.getElementById('widget-alert-notify-btn');
+        const typeElement = document.getElementById('widget-alert-type');
+        const saveButton = document.getElementById('widget-alert-save-btn');
+        const cancelButton = document.getElementById('widget-alert-cancel-btn');
+        if (!notifyButton || !typeElement || !saveButton || !cancelButton) return;
+
+        notifyButton.addEventListener('click', async () => {
+            if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+            try { await Notification.requestPermission(); } catch (_) {}
+            updateTokenAlertNotificationButton();
+        });
+        typeElement.addEventListener('change', updateTokenAlertEditorType);
+        saveButton.addEventListener('click', saveTokenAlertFromEditor);
+        cancelButton.addEventListener('click', closeTokenAlertEditor);
+        document.getElementById('widget-alert-threshold')?.addEventListener('keydown', event => {
+            if (event.key === 'Enter') saveTokenAlertFromEditor();
+        });
+
+        updateTokenAlertNotificationButton();
+        renderTokenAlertRules();
+        checkTokenAlerts();
+        if (!tokenAlertPollTimer) tokenAlertPollTimer = setInterval(checkTokenAlerts, TOKEN_ALERT_POLL_MS);
     }
 
     async function initWidgetTokenTrendsAndWatchlist() {
@@ -4236,6 +4620,10 @@ Return ONLY a valid JSON object with two string keys:
                 wlInput.value = '';
                 return;
             }
+            if (list.length >= MAX_TOKEN_WATCHLIST) {
+                alert(`Watchlist limit reached (${MAX_TOKEN_WATCHLIST} tokens). Remove a token before adding another.`);
+                return;
+            }
 
             list.push(val);
             saveTokenWatchlist(list);
@@ -4249,6 +4637,7 @@ Return ONLY a valid JSON object with two string keys:
 
         // Initial load
         renderWidgetTrending();
+        initTokenAlerts();
         
         // Interval updates (every 2 minutes)
         setInterval(() => {
@@ -4318,34 +4707,7 @@ Return ONLY a valid JSON object with two string keys:
         listEl.innerHTML = '<p class="text-xs text-gray-605 py-4 text-center animate-pulse">Updating watchlist...</p>';
 
         try {
-            // Batch request to DexScreener tokens endpoint
-            const url = `https://api.dexscreener.com/latest/dex/tokens/${list.map(encodeURIComponent).join(',')}`;
-            const resp = await fetchWithTimeout(url, {}, 6000);
-            if (!resp.ok) throw new Error("Fetch failed");
-            const data = await resp.json();
-            const pairs = data?.pairs || [];
-
-            // Group by baseToken.address or matching standard address in watchlist
-            const tokenToPair = {};
-            pairs.forEach(p => {
-                const tokenAddr = p.baseToken?.address;
-                if (!tokenAddr) return;
-                
-                // Find matching address in our list (could match package or exact type)
-                const matchedAddr = list.find(addr => 
-                    addr.toLowerCase() === tokenAddr.toLowerCase() || 
-                    (addr.includes('::') && addr.toLowerCase().startsWith(tokenAddr.toLowerCase())) ||
-                    tokenAddr.toLowerCase().startsWith(addr.toLowerCase())
-                );
-                
-                if (!matchedAddr) return;
-
-                const liquidity = parseFloat(p.liquidity?.usd || 0);
-                const existing = tokenToPair[matchedAddr];
-                if (!existing || liquidity > parseFloat(existing.liquidity?.usd || 0)) {
-                    tokenToPair[matchedAddr] = p;
-                }
-            });
+            const tokenToPair = await fetchWidgetWatchlistMarket(list);
 
             listEl.innerHTML = list.map(addr => {
                 const p = tokenToPair[addr];
@@ -4370,10 +4732,18 @@ Return ONLY a valid JSON object with two string keys:
                             <div class="text-white font-mono font-semibold">${priceStr}</div>
                             <div class="font-mono text-[10px] ${changeClass}">${changeFormatted}</div>
                         </div>
+                        <button type="button" class="text-gray-500 hover:text-orange-300 text-xs transition-colors cursor-pointer widget-wl-alert" data-addr="${escHtml(addr)}" title="Create trade alert" aria-label="Create ${baseSymbol} trade alert">🔔</button>
                         <button class="text-gray-500 hover:text-red-400 text-sm transition-colors cursor-pointer widget-wl-remove" data-addr="${escHtml(addr)}" title="Remove">✕</button>
                     </div>
                 </div>`;
             }).join('');
+
+            document.querySelectorAll('.widget-wl-alert').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const addr = btn.getAttribute('data-addr');
+                    if (addr) openTokenAlertEditor(addr);
+                });
+            });
 
             // Attach remove handlers
             document.querySelectorAll('.widget-wl-remove').forEach(btn => {
@@ -4382,10 +4752,12 @@ Return ONLY a valid JSON object with two string keys:
                     if (addr) {
                         const currentList = loadTokenWatchlist().filter(a => a !== addr);
                         saveTokenWatchlist(currentList);
+                        removeTokenAlerts(addr);
                         renderWidgetWatchlist();
                     }
                 });
             });
+            renderTokenAlertRules(tokenToPair);
 
         } catch (err) {
             console.error("Watchlist fetch failed:", err);
