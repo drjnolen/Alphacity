@@ -41,6 +41,42 @@ function mockLayer(graphqlResponder = () => ({ data: {} })) {
         async getCoinMetadata() {
             return { coinMetadata: { id: '0xmeta', decimals: 9, name: 'Sui', symbol: 'SUI', description: '', iconUrl: '' } };
         },
+        async getReferenceGasPrice() {
+            return { referenceGasPrice: '100' };
+        },
+        async simulateTransaction({ transaction }) {
+            assert.deepEqual([...transaction], [1, 2, 3]);
+            return {
+                $kind: 'Transaction',
+                Transaction: {
+                    epoch: '9',
+                    effects: {
+                        status: { success: true, error: null },
+                        gasUsed: {
+                            computationCost: '1000', storageCost: '200', storageRebate: '50', nonRefundableStorageFee: '5',
+                        },
+                        transactionDigest: 'dry-run-digest',
+                        dependencies: ['dependency'],
+                    },
+                },
+            };
+        },
+        core: {
+            async getProtocolConfig() {
+                return {
+                    protocolConfig: {
+                        protocolVersion: '128',
+                        featureFlags: { enableEffectsV2: true },
+                        attributes: {
+                            max_tx_gas: '50000000000000',
+                            max_gas_payment_objects: '256',
+                            max_tx_size_bytes: '131072',
+                            max_pure_argument_size: '16384',
+                        },
+                    },
+                };
+            },
+        },
         stateService: {
             async getCoinInfo() { return { response: { treasury: { totalSupply: 1000n } } }; },
         },
@@ -101,6 +137,21 @@ test('GraphQL transaction history retains balanceChanges and status shapes', asy
 
 test('legacy object helper reports missing objects without throwing', () => {
     assert.equal(legacyObject(new Error('missing')).error.message, 'missing');
+});
+
+test('staking transaction builder methods retain legacy JSON-RPC response shapes', async () => {
+    const layer = mockLayer();
+    assert.equal(await layer.rpc('suix_getReferenceGasPrice'), '100');
+
+    const protocol = await layer.rpc('sui_getProtocolConfig');
+    assert.equal(protocol.protocolVersion, '128');
+    assert.equal(protocol.attributes.max_tx_gas.u64, '50000000000000');
+    assert.equal(protocol.attributes.max_tx_size_bytes.u64, '131072');
+
+    const dryRun = await layer.rpc('sui_dryRunTransactionBlock', ['AQID']);
+    assert.equal(dryRun.effects.status.status, 'success');
+    assert.equal(dryRun.effects.gasUsed.computationCost, '1000');
+    assert.equal(dryRun.effects.gasUsed.storageRebate, '50');
 });
 
 test('staking bridge reroutes only legacy JSON-RPC requests', async () => {

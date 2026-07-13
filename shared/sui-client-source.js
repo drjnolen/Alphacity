@@ -132,6 +132,32 @@ function pageSize(limit, fallback = 50) {
     return Math.max(1, Math.min(Number.isFinite(parsed) ? parsed : fallback, 50));
 }
 
+function base64ToBytes(value) {
+    if (typeof value !== 'string' || !value) throw new Error('Transaction bytes must be base64 encoded');
+    const binary = atob(value);
+    return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+
+function legacyProtocolConfigAttribute(value) {
+    if (value == null) return null;
+    const normalized = String(value);
+    if (normalized === 'true' || normalized === 'false') return { bool: normalized };
+    if (/^\d+$/.test(normalized)) return { u64: normalized };
+    if (/^-?\d+(?:\.\d+)?$/.test(normalized)) return { f64: normalized };
+    return null;
+}
+
+function executionErrorMessage(error) {
+    if (!error) return null;
+    if (typeof error === 'string') return error;
+    if (typeof error.message === 'string') return error.message;
+    try {
+        return JSON.stringify(error);
+    } catch (_) {
+        return String(error);
+    }
+}
+
 function normalizeOptions(options = {}) {
     return {
         json: Boolean(options.showContent),
@@ -395,6 +421,59 @@ export function createSuiDataLayer(config = {}) {
         return { value: response.treasury?.totalSupply?.toString() || '0' };
     }
 
+    async function getReferenceGasPrice() {
+        const { referenceGasPrice } = await grpc.getReferenceGasPrice();
+        return String(referenceGasPrice || '0');
+    }
+
+    async function getProtocolConfig() {
+        const { protocolConfig } = await grpc.core.getProtocolConfig();
+        const attributes = {};
+        for (const [key, value] of Object.entries(protocolConfig.attributes || {})) {
+            attributes[key] = legacyProtocolConfigAttribute(value);
+        }
+        return {
+            attributes,
+            featureFlags: { ...(protocolConfig.featureFlags || {}) },
+            minSupportedProtocolVersion: String(protocolConfig.protocolVersion || ''),
+            maxSupportedProtocolVersion: String(protocolConfig.protocolVersion || ''),
+            protocolVersion: String(protocolConfig.protocolVersion || ''),
+        };
+    }
+
+    async function dryRunTransactionBlock(params) {
+        const [transactionBytes] = params;
+        const simulation = await grpc.simulateTransaction({
+            transaction: base64ToBytes(transactionBytes),
+            include: { effects: true },
+        });
+        const transaction = simulation.Transaction || simulation.FailedTransaction;
+        const effects = transaction?.effects;
+        if (!effects) throw new Error('SUI gRPC simulation returned no transaction effects');
+        const success = Boolean(effects.status?.success);
+        return {
+            effects: {
+                status: {
+                    status: success ? 'success' : 'failure',
+                    error: success ? null : executionErrorMessage(effects.status?.error),
+                },
+                executedEpoch: String(transaction?.epoch || ''),
+                gasUsed: {
+                    computationCost: String(effects.gasUsed?.computationCost || '0'),
+                    storageCost: String(effects.gasUsed?.storageCost || '0'),
+                    storageRebate: String(effects.gasUsed?.storageRebate || '0'),
+                    nonRefundableStorageFee: String(effects.gasUsed?.nonRefundableStorageFee || '0'),
+                },
+                transactionDigest: effects.transactionDigest || transaction?.digest || '',
+                dependencies: effects.dependencies || [],
+            },
+            events: [],
+            objectChanges: [],
+            balanceChanges: [],
+            input: null,
+        };
+    }
+
     async function getDynamicFields(params) {
         const [parent, cursor = null, limit = 50] = params;
         const data = await graphql(DYNAMIC_FIELDS_QUERY, { parent, cursor, limit: pageSize(limit) });
@@ -534,6 +613,9 @@ export function createSuiDataLayer(config = {}) {
             case 'sui_multiGetObjects': return multiGetObjects(params);
             case 'suix_getCoinMetadata': return getCoinMetadata(params);
             case 'suix_getTotalSupply': return getTotalSupply(params);
+            case 'suix_getReferenceGasPrice': return getReferenceGasPrice(params);
+            case 'sui_getProtocolConfig': return getProtocolConfig(params);
+            case 'sui_dryRunTransactionBlock': return dryRunTransactionBlock(params);
             case 'suix_getDynamicFields': return getDynamicFields(params);
             case 'suix_queryEvents': return queryEvents(params);
             case 'suix_queryTransactionBlocks': return queryTransactionBlocks(params);
