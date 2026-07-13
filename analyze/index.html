@@ -481,10 +481,10 @@
                 <div id="token-trends-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
                         <div class="flex gap-3">
-                            <button id="widget-token-trending-tab" class="widget-tab-btn active">
+                            <button id="widget-token-trending-tab" class="widget-tab-btn">
                                 🔥 Trending
                             </button>
-                            <button id="widget-token-watchlist-tab" class="widget-tab-btn">
+                            <button id="widget-token-watchlist-tab" class="widget-tab-btn active">
                                 👀 Watchlist
                             </button>
                         </div>
@@ -492,14 +492,14 @@
                     </div>
 
                     <!-- Trending Tab Content -->
-                    <div id="widget-trending-container" class="space-y-2">
+                    <div id="widget-trending-container" class="hidden space-y-2">
                         <div class="flex flex-col gap-1.5" id="widget-trending-list">
                             <p class="text-xs text-gray-600 py-4 text-center animate-pulse">Loading trends...</p>
                         </div>
                     </div>
 
                     <!-- Watchlist Tab Content -->
-                    <div id="widget-watchlist-container" class="hidden space-y-3">
+                    <div id="widget-watchlist-container" class="space-y-3">
                         <div class="flex gap-1.5">
                             <input type="text" id="widget-watchlist-input" class="watchlist-input text-[11px] py-1.5 px-2.5 flex-1" placeholder="Token address (0x...)" autocomplete="off" spellcheck="false">
                             <button id="widget-watchlist-add-btn" class="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
@@ -570,11 +570,11 @@
                     </div>
                 </div>
 
-                <!-- Token Safety Sniffer Widget -->
+                <!-- Token Safety Checker Widget -->
                 <div class="glass-panel deferred-widget p-5 rounded-xl space-y-4" id="token-safety-sniffer-widget">
                     <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
-                            <span>🛡️</span> Token Safety Sniffer
+                            <span>🛡️</span> Token Safety Checker
                         </h3>
                         <span id="widget-sniffer-status" class="text-[9px] text-gray-600 uppercase tracking-wider font-mono">Ready</span>
                     </div>
@@ -631,17 +631,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Notes Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-3">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
-                            <span>📝</span> Notes Terminal
-                        </h3>
-                        <span id="notes-save-status" class="text-[9px] text-gray-600 uppercase tracking-wider">Saved</span>
-                    </div>
-                    <textarea id="notes-textarea" class="watchlist-input text-xs font-sans h-36 resize-none" placeholder="Type notes here... State is saved automatically."></textarea>
                 </div>
 
                 <!-- Ecosystem Launchpad -->
@@ -972,32 +961,15 @@
                     </div>
                 </div>
 
-                <!-- Daily Side Quest Widget -->
-                <div class="glass-panel deferred-widget p-5 rounded-xl space-y-4 animate-fade-in" id="side-quest-panel">
+                <!-- Notes Widget -->
+                <div class="glass-panel p-5 rounded-xl space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
-                            <span>⚔️</span> Daily Side Quest
+                            <span>📝</span> Notes Terminal
                         </h3>
-                        <span id="side-quest-category" class="bg-brand-secondary/10 text-brand-secondary text-[9px] px-2 py-0.5 rounded border border-brand-secondary/20 font-bold uppercase font-mono">
-                            Mindfulness
-                        </span>
+                        <span id="notes-save-status" class="text-[9px] text-gray-600 uppercase tracking-wider">Saved</span>
                     </div>
-                    <div class="space-y-3">
-                        <p id="side-quest-title" class="text-white text-sm font-semibold leading-relaxed">
-                            Loading daily quest...
-                        </p>
-                        <p id="side-quest-benefit" class="text-dark-text-secondary text-xs leading-relaxed italic">
-                            ...
-                        </p>
-                        <div class="flex items-center gap-3 pt-2 border-t border-gray-850">
-                            <button id="side-quest-complete-btn" class="flex-grow py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md">
-                                <span>✔</span> Mark Completed
-                            </button>
-                            <button id="side-quest-share-btn" class="px-3 py-2 bg-dark-card border border-gray-800 text-white rounded-lg text-xs hover:border-brand-primary transition-all font-semibold flex items-center justify-center" title="Copy to clipboard">
-                                <span>📋</span> Share
-                            </button>
-                        </div>
-                    </div>
+                    <textarea id="notes-textarea" class="watchlist-input text-xs font-sans h-36 resize-none" placeholder="Type notes here... State is saved automatically."></textarea>
                 </div>
 
                 <!-- Whale Wallet Tracker -->
@@ -1086,7 +1058,14 @@
                         <div class="pulse-stat"><div class="label">Qualified Pairs</div><div id="signal-sample" class="value">—</div></div>
                     </div>
                     <div id="signals-content"><p class="text-xs text-gray-600 py-8 text-center">Loading signal data…</p></div>
-                    <p class="text-[9px] text-gray-600">Signal scores rank the sampled universe; they are research filters, not predictions or executable quotes.</p>
+                    <details class="rounded-lg border border-gray-800/60 bg-dark-bg/30 px-3 py-2 text-[10px] text-gray-500">
+                        <summary class="cursor-pointer select-none text-gray-400 hover:text-white transition-colors">How signal ratings work</summary>
+                        <div class="mt-2 space-y-1.5 leading-relaxed">
+                            <p><span class="text-green-400 font-mono">S70+</span> strong setup · <span class="text-brand-secondary font-mono">S55–69</span> watch · <span class="text-gray-300 font-mono">S40–54</span> neutral · <span class="text-red-400 font-mono">below S40</span> weak.</p>
+                            <p>The score blends liquidity quality, volume velocity, transaction activity and buy share, short-term momentum, liquidity-to-valuation, and pair age. Thin liquidity, extreme moves, and suspicious flow reduce the rating.</p>
+                            <p class="text-gray-600">For educational research only. Signal ratings are not financial advice, predictions, or executable quotes; independently verify data and risk before trading.</p>
+                        </div>
+                    </details>
                 </div>
             </div>
 
@@ -2116,7 +2095,7 @@
         const sa = Math.pow(1.0001, tickLowerIndex / 2);
         const sb = Math.pow(1.0001, tickUpperIndex / 2);
 
-        const currentSqrtPriceRaw = parseFloat(poolFields.current_sqrt_price || '0');
+        const currentSqrtPriceRaw = parseFloat(poolFields.current_sqrt_price || poolFields.sqrt_price || '0');
         const sp = currentSqrtPriceRaw / 18446744073709551616;
 
         let amountA = 0;
@@ -2136,16 +2115,46 @@
         return { amountA, amountB };
     }
 
+    function extractObjectId(value) {
+        if (typeof value === 'string') return value;
+        if (!value || typeof value !== 'object') return '';
+        return extractObjectId(value.id || value.objectId || value.object_id || value.fields?.id || value.fields?.object_id);
+    }
+
+    function objectIdKey(value) {
+        const objectId = extractObjectId(value).trim().toLowerCase();
+        if (!objectId) return '';
+        const hex = objectId.replace(/^0x/, '');
+        if (!/^[0-9a-f]+$/.test(hex)) return objectId;
+        return `0x${hex.replace(/^0+/, '') || '0'}`;
+    }
+
+    function normalizeEmbeddedCoinType(coinType) {
+        if (typeof coinType !== 'string') return '';
+        const trimmed = coinType.trim();
+        const separatorIndex = trimmed.indexOf('::');
+        if (separatorIndex <= 0) return trimmed;
+        const address = trimmed.slice(0, separatorIndex);
+        return /^[0-9a-fA-F]+$/.test(address) ? `0x${trimmed}` : trimmed;
+    }
+
     async function fetchObjectFields(objectIds) {
-        const uniqueIds = [...new Set((objectIds || []).filter(Boolean))];
+        const uniqueIds = [...new Map((objectIds || [])
+            .map(extractObjectId)
+            .filter(Boolean)
+            .map(objectId => [objectIdKey(objectId), objectId])).values()];
         if (!uniqueIds.length) return {};
         const fieldsById = {};
         try {
             const objects = await rpc('sui_multiGetObjects', [uniqueIds, { showContent: true }]);
-            (objects || []).forEach(object => {
+            (objects || []).forEach((object, index) => {
                 const objectId = object?.data?.objectId;
                 const fields = object?.data?.content?.fields;
-                if (objectId && fields) fieldsById[objectId] = fields;
+                if (!fields) return;
+                const requestedKey = objectIdKey(uniqueIds[index]);
+                const returnedKey = objectIdKey(objectId);
+                if (requestedKey) fieldsById[requestedKey] = fields;
+                if (returnedKey) fieldsById[returnedKey] = fields;
             });
         } catch (error) {
             console.error('Failed to fetch LP object details:', error);
@@ -2169,22 +2178,21 @@
                 const fields = pos.data?.content?.fields || {};
                 const type = pos.data?.type || '';
                 
-                const poolId = fields.pool?.fields?.id || fields.pool_id || fields.pool;
-                if (poolId && !poolIds.includes(poolId)) {
+                const poolId = extractObjectId(fields.pool || fields.pool_id);
+                if (poolId && !poolIds.some(id => objectIdKey(id) === objectIdKey(poolId))) {
                     poolIds.push(poolId);
                 }
 
                 if (type.includes('::position_nft::TurbosPositionNFT') && fields.position_id) {
-                    if (!turbosPositionIds.includes(fields.position_id)) {
-                        turbosPositionIds.push(fields.position_id);
+                    const positionId = extractObjectId(fields.position_id);
+                    if (positionId && !turbosPositionIds.some(id => objectIdKey(id) === objectIdKey(positionId))) {
+                        turbosPositionIds.push(positionId);
                     }
                 }
             });
 
             // 2. Fetch every pool and underlying Turbos position in one RPC.
             const objectFields = await fetchObjectFields([...poolIds, ...turbosPositionIds]);
-            const poolMap = Object.fromEntries(poolIds.filter(id => objectFields[id]).map(id => [id, objectFields[id]]));
-            const turbosPositionMap = Object.fromEntries(turbosPositionIds.filter(id => objectFields[id]).map(id => [id, objectFields[id]]));
 
             const lpList = [];
 
@@ -2197,7 +2205,7 @@
                 
                 let posFields = fields;
                 if (type.includes('::position_nft::TurbosPositionNFT') && fields.position_id) {
-                    const underlying = turbosPositionMap[fields.position_id];
+                    const underlying = objectFields[objectIdKey(fields.position_id)];
                     if (underlying) {
                         posFields = {
                             ...fields,
@@ -2209,13 +2217,13 @@
                 }
 
                 // Filter out closed positions (liquidity = 0)
-                if (parseFloat(posFields.liquidity || '0') === 0) return;
+                if (posFields.liquidity !== undefined && parseFloat(posFields.liquidity || '0') === 0) return;
 
-                const poolId = posFields.pool?.fields?.id || posFields.pool_id || posFields.pool;
-                const poolFields = poolMap[poolId] || null;
+                const poolId = extractObjectId(posFields.pool || posFields.pool_id);
+                const poolFields = objectFields[objectIdKey(poolId)] || null;
 
-                const coinTypeA = posFields.coin_type_a?.fields?.name || posFields.coin_type_a || '';
-                const coinTypeB = posFields.coin_type_b?.fields?.name || posFields.coin_type_b || '';
+                const coinTypeA = normalizeEmbeddedCoinType(posFields.coin_type_a?.fields?.name || posFields.coin_type_a || '');
+                const coinTypeB = normalizeEmbeddedCoinType(posFields.coin_type_b?.fields?.name || posFields.coin_type_b || '');
 
                 let pairName = 'Unknown Pair';
                 if (coinTypeA && coinTypeB) {
@@ -2232,8 +2240,11 @@
                     protocol = 'Turbos CLMM';
                 }
 
-                // Calculate token amounts in position
-                const { amountA, amountB } = calculateLpAmounts(posFields, poolFields);
+                const hasHydratedPosition = posFields.liquidity !== undefined;
+                const hasPoolPrice = Boolean(poolFields?.current_sqrt_price || poolFields?.sqrt_price);
+                const { amountA, amountB } = hasHydratedPosition && hasPoolPrice
+                    ? calculateLpAmounts(posFields, poolFields)
+                    : { amountA: 0, amountB: 0 };
 
                 // Format amounts using decimals
                 const decA = coinDecimals(coinTypeA);
@@ -2249,11 +2260,15 @@
                 const formattedA = amtA > 0.01 ? amtA.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : amtA.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
                 const formattedB = amtB > 0.01 ? amtB.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : amtB.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 
+                const amount = hasHydratedPosition && hasPoolPrice
+                    ? `${formattedA} ${symA} / ${formattedB} ${symB}`
+                    : 'Position detected';
+
                 lpList.push({
                     pair: pairName,
                     protocol: protocol,
                     type: 'Concentrated LP',
-                    amount: `${formattedA} ${symA} / ${formattedB} ${symB}`,
+                    amount,
                     id: data.objectId
                 });
             });
@@ -4186,12 +4201,28 @@ Return ONLY a valid JSON object with two string keys:
         return `${escHtml(truncatedText)} <a href="${escHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline font-medium ml-1">Read on X ↗</a>`;
     }
 
+    function tweetTimestamp(pubDate) {
+        if (!pubDate) return 0;
+        let cleanDate = String(pubDate).trim();
+        if (/^\d{4}-\d{2}-\d{2} /.test(cleanDate)) {
+            cleanDate = cleanDate.replace(' ', 'T');
+        }
+        const timestamp = new Date(cleanDate).getTime();
+        return Number.isFinite(timestamp) ? timestamp : 0;
+    }
+
+    function sortXFeedByMostRecent(container) {
+        [...container.children]
+            .sort((a, b) => Number(b.dataset.tweetTimestamp || 0) - Number(a.dataset.tweetTimestamp || 0))
+            .forEach(card => container.appendChild(card));
+    }
+
     async function loadXFeed() {
         const container = document.getElementById('x-feed-container');
         if (!container) return;
 
         container.innerHTML = X_ACCOUNTS.map(ac => `
-            <div class="p-3 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-card-${ac.handle}">
+            <div class="p-3 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-card-${ac.handle}" data-tweet-timestamp="0">
                 <div class="flex items-center justify-between mb-1.5">
                     <div class="flex items-center gap-1.5">
                         <span class="text-xs font-bold text-white">${ac.name}</span>
@@ -4209,20 +4240,14 @@ Return ONLY a valid JSON object with two string keys:
             fetchNitterFeed(ac.handle).then(tweet => {
                 const bodyEl = document.getElementById(`tweet-body-${ac.handle}`);
                 const timeEl = document.getElementById(`tweet-time-${ac.handle}`);
-                if (bodyEl && timeEl) {
-                    let ts = Date.now();
-                    if (tweet.pubDate) {
-                        try {
-                            let cleanDate = tweet.pubDate;
-                            if (/^\d/.test(cleanDate)) {
-                                cleanDate = cleanDate.replace(' ', 'T');
-                            }
-                            ts = new Date(cleanDate).getTime();
-                        } catch(_) {}
-                    }
+                const cardEl = document.getElementById(`tweet-card-${ac.handle}`);
+                if (bodyEl && timeEl && cardEl) {
+                    const ts = tweetTimestamp(tweet.pubDate);
+                    cardEl.dataset.tweetTimestamp = String(ts);
+                    sortXFeedByMostRecent(container);
                     
                     const tweetLink = tweet.link ? tweet.link.replace(/https:\/\/(?:[a-zA-Z0-9.-]*nitter[a-zA-Z0-9.-]*|xcancel\.com)/gi, 'https://x.com') : `https://x.com/${ac.handle}`;
-                    timeEl.innerHTML = `<a href="${escHtml(tweetLink)}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${timeAgo(ts)} ↗</a>`;
+                    timeEl.innerHTML = `<a href="${escHtml(tweetLink)}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${ts ? timeAgo(ts) : 'time unavailable'} ↗</a>`;
 
                     const cleanedHtml = cleanNitterHtml(tweet.description || tweet.title);
                     bodyEl.innerHTML = truncateTweetHtml(cleanedHtml, 160, tweetLink);
@@ -4508,129 +4533,6 @@ Return ONLY a valid JSON object with two string keys:
                 if (e.key === 'Enter') addWhaleAddress();
             });
         }
-    }
-
-    // =========================================================
-    // DAILY SIDE QUESTS
-    // =========================================================
-    const FALLBACK_SIDE_QUESTS = [
-        { quest: "Spend 5 minutes walking silently outdoors.", category: "Nature", benefit: "Boosts mental clarity and lowers cortisol levels." },
-        { quest: "Do 50 pushups (or a comfortable variation).", category: "Physical", benefit: "Improves upper body strength and pumps endorphins." },
-        { quest: "Call or text a loved one to check in.", category: "Connection", benefit: "Strengthens relationships and builds emotional support." },
-        { quest: "Drink a tall glass of water and stretch for 3 minutes.", category: "Physical", benefit: "Rehydrates the body and releases muscle tension." },
-        { quest: "Write down 3 things you are genuinely grateful for today.", category: "Mindfulness", benefit: "Shifts mindset to abundance and positivity." },
-        { quest: "Sit quietly for 5 minutes focusing entirely on your breathing.", category: "Mindfulness", benefit: "Calms the nervous system and improves focus." },
-        { quest: "Tidy up your physical desk space completely.", category: "Mindfulness", benefit: "Clutter-free environment leads to a clutter-free mind." },
-        { quest: "Step outside and identify 3 different types of birds or trees.", category: "Nature", benefit: "Engages observation skills and fosters nature connection." },
-        { quest: "Do 30 deep squats next to your chair.", category: "Physical", benefit: "Activates large lower-body muscles to boost circulation." },
-        { quest: "Send a public or private thank-you message to a team member.", category: "Connection", benefit: "Promotes social bonding and positive work environment." },
-        { quest: "Unplug from all digital screens for 15 minutes before bed.", category: "Mindfulness", benefit: "Prepares the brain for deeper, more restorative sleep." },
-        { quest: "Close your eyes and listen to one favorite song with full focus.", category: "Mindfulness", benefit: "Provides a quick sensory break and emotional uplift." }
-    ];
-
-    let currentDailyQuest = null;
-
-    async function fetchDailyQuest() {
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        const isWorkerConfigured = typeof OPENAI_PROXY_URL !== 'undefined' && 
-                                   OPENAI_PROXY_URL !== '__OPENAI_PROXY_URL__' && 
-                                   OPENAI_PROXY_URL.startsWith('http');
-        if (isWorkerConfigured) {
-            try {
-                const url = `${OPENAI_PROXY_URL}/sidequest?date=${todayStr}`;
-                const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
-                if (resp.ok) {
-                    const data = await resp.json();
-                    if (data && data.quest) {
-                        return data;
-                    }
-                }
-            } catch (err) {
-                console.warn("Failed to fetch daily quest from worker, using client fallback:", err);
-            }
-        }
-
-        let hash = 0;
-        for (let i = 0; i < todayStr.length; i++) {
-            hash = todayStr.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const index = Math.abs(hash) % FALLBACK_SIDE_QUESTS.length;
-        return FALLBACK_SIDE_QUESTS[index];
-    }
-
-    async function initSideQuest() {
-        const titleEl = document.getElementById('side-quest-title');
-        const benefitEl = document.getElementById('side-quest-benefit');
-        const catEl = document.getElementById('side-quest-category');
-        const completeBtn = document.getElementById('side-quest-complete-btn');
-        const shareBtn = document.getElementById('side-quest-share-btn');
-        
-        if (!titleEl || !benefitEl || !catEl || !completeBtn || !shareBtn) return;
-
-        try {
-            currentDailyQuest = await fetchDailyQuest();
-            
-            titleEl.textContent = currentDailyQuest.quest;
-            benefitEl.textContent = currentDailyQuest.benefit;
-            
-            const category = (currentDailyQuest.category || 'Mindfulness').trim();
-            catEl.textContent = category;
-            
-            catEl.className = 'text-[9px] px-2 py-0.5 rounded border font-bold uppercase font-mono';
-            const catLower = category.toLowerCase();
-            if (catLower.includes('nature')) {
-                catEl.classList.add('bg-green-500/10', 'text-green-400', 'border-green-500/20');
-            } else if (catLower.includes('physical')) {
-                catEl.classList.add('bg-orange-500/10', 'text-orange-400', 'border-orange-500/20');
-            } else if (catLower.includes('connection')) {
-                catEl.classList.add('bg-blue-500/10', 'text-blue-400', 'border-blue-500/20');
-            } else {
-                catEl.classList.add('bg-brand-secondary/10', 'text-brand-secondary', 'border-brand-secondary/20');
-            }
-
-            const todayStr = new Date().toISOString().split('T')[0];
-            const isCompleted = localStorage.getItem(`side_quest_completed_${todayStr}`) === 'true';
-            
-            if (isCompleted) {
-                markQuestUICompleted();
-            } else {
-                completeBtn.addEventListener('click', () => {
-                    localStorage.setItem(`side_quest_completed_${todayStr}`, 'true');
-                    markQuestUICompleted();
-                });
-            }
-
-            shareBtn.addEventListener('click', async () => {
-                const shareText = `Daily Side Quest Completed: "${currentDailyQuest.quest}" (Category: ${category}) - Powered by Alpha City! ⚔️`;
-                try {
-                    await navigator.clipboard.writeText(shareText);
-                    const originalText = shareBtn.innerHTML;
-                    shareBtn.innerHTML = '<span>✔</span>';
-                    setTimeout(() => { shareBtn.innerHTML = originalText; }, 1500);
-                } catch (e) {
-                    console.error("Clipboard copy failed:", e);
-                }
-            });
-
-        } catch (e) {
-            console.error("Error initializing side quest:", e);
-            titleEl.textContent = "Take a deep breath and stretch.";
-            benefitEl.textContent = "Relieves muscle tension and refocuses energy.";
-            catEl.textContent = "Mindfulness";
-            catEl.className = 'bg-brand-secondary/10 text-brand-secondary border-brand-secondary/20 text-[9px] px-2 py-0.5 rounded border font-bold uppercase font-mono';
-        }
-    }
-
-    function markQuestUICompleted() {
-        const titleEl = document.getElementById('side-quest-title');
-        const completeBtn = document.getElementById('side-quest-complete-btn');
-        if (!completeBtn || !titleEl) return;
-
-        titleEl.classList.add('text-gray-500', 'line-through', 'opacity-60');
-        completeBtn.disabled = true;
-        completeBtn.className = 'flex-grow py-2 bg-green-600/10 text-green-400 border border-green-500/20 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-not-allowed shadow-none';
-        completeBtn.innerHTML = '<span>✔</span> Completed!';
     }
 
     // =========================================================
@@ -5335,7 +5237,7 @@ Return ONLY a valid JSON object with two string keys:
         });
 
         // Initial load
-        renderWidgetTrending();
+        renderWidgetWatchlist();
         initTokenAlerts();
         
         // Interval updates (every 2 minutes)
@@ -5698,7 +5600,7 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
-    // WIDGET: TOKEN SAFETY SNIFFER
+    // WIDGET: TOKEN SAFETY CHECKER
     // =========================================================
     async function initTokenSafetySniffer() {
         const scanBtn = document.getElementById('widget-sniffer-scan-btn');
@@ -6005,7 +5907,7 @@ Return ONLY a valid JSON object with two string keys:
             }
 
         } catch (err) {
-            console.error("Token safety sniffer error:", err);
+            console.error("Token safety checker error:", err);
             alert("Scan failed. Unable to fetch security metrics.");
             if (statusEl) {
                 statusEl.textContent = "Failed";
@@ -6038,7 +5940,6 @@ Return ONLY a valid JSON object with two string keys:
         initWhenVisible('weather-widget', 'Weather', initWeather);
         initWhenVisible('news-widget', 'NewsTerminal', initNewsTerminal);
         initWhenVisible('x-feed-widget', 'XFeed', initXFeed, '100px');
-        initWhenVisible('side-quest-panel', 'SideQuest', initSideQuest);
         initWhenVisible('whale-tracker-widget', 'WhaleTracker', initWhaleTracker, '100px');
         initWhenVisible('intel-dashboard', 'IntelDashboard', initIntelDashboard, '300px');
     });
