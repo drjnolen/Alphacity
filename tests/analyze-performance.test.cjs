@@ -39,8 +39,13 @@ test('heavy Analyze widgets initialize near the viewport', () => {
     assert.match(analyzeHtml, /createVisibleInterval/);
 });
 
-test('LP details use one multi-object RPC instead of per-object requests', () => {
+test('LP details batch object RPCs and bound direct fallbacks to missing records', () => {
     assert.match(analyzeHtml, /rpc\('sui_multiGetObjects'/);
-    const helper = analyzeHtml.match(/async function fetchObjectFields[\s\S]*?\n    }/)?.[0] || '';
-    assert.doesNotMatch(helper, /sui_getObject/);
+    const helper = analyzeHtml.slice(
+        analyzeHtml.indexOf('async function fetchObjectFields'),
+        analyzeHtml.indexOf('async function renderLpPositions'),
+    );
+    assert.match(helper, /pendingIds = pendingIds\.filter/);
+    assert.match(helper, /pendingIds\.map[\s\S]*rpc\('sui_getObject'/);
+    assert.doesNotMatch(helper, /uniqueIds\.map[\s\S]*rpc\('sui_getObject'/);
 });

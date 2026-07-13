@@ -2110,20 +2110,47 @@
             .map(objectId => [objectIdKey(objectId), objectId])).values()];
         if (!uniqueIds.length) return {};
         const fieldsById = {};
-        try {
-            const objects = await rpc('sui_multiGetObjects', [uniqueIds, { showContent: true }]);
+
+        const recordObjects = (requestedIds, objects) => {
             (objects || []).forEach((object, index) => {
                 const objectId = object?.data?.objectId;
                 const fields = object?.data?.content?.fields;
                 if (!fields) return;
-                const requestedKey = objectIdKey(uniqueIds[index]);
+                const requestedKey = objectIdKey(requestedIds[index]);
                 const returnedKey = objectIdKey(objectId);
-                if (requestedKey) fieldsById[requestedKey] = fields;
+                // Partial batches may omit an earlier array entry, so a returned
+                // object ID is authoritative. Use the request index only for
+                // compatibility responses that do not expose data.objectId.
                 if (returnedKey) fieldsById[returnedKey] = fields;
+                else if (requestedKey) fieldsById[requestedKey] = fields;
             });
-        } catch (error) {
-            console.error('Failed to fetch LP object details:', error);
+        };
+
+        // Retry missing objects once as a smaller batch. Some transports can
+        // return a partial response when shared pools and object-owned Turbos
+        // position managers are requested together.
+        let pendingIds = uniqueIds;
+        for (let attempt = 0; attempt < 2 && pendingIds.length; attempt++) {
+            try {
+                const objects = await rpc('sui_multiGetObjects', [pendingIds, { showContent: true }]);
+                recordObjects(pendingIds, objects);
+            } catch (error) {
+                console.warn(`LP object batch ${attempt + 1} failed:`, error);
+            }
+            pendingIds = pendingIds.filter(objectId => !fieldsById[objectIdKey(objectId)]);
         }
+
+        // Bounded final fallback: this runs only for records still missing
+        // after both batch attempts (normally zero; typically at most two for Turbos).
+        await Promise.all(pendingIds.map(async objectId => {
+            try {
+                const object = await rpc('sui_getObject', [objectId, { showContent: true }]);
+                recordObjects([objectId], [object]);
+            } catch (error) {
+                console.warn(`LP object ${objectId} could not be hydrated:`, error);
+            }
+        }));
+
         return fieldsById;
     }
 
@@ -2156,8 +2183,13 @@
                 }
             });
 
-            // 2. Fetch every pool and underlying Turbos position in one RPC.
-            const objectFields = await fetchObjectFields([...poolIds, ...turbosPositionIds]);
+            // Shared pool objects and object-owned Turbos position managers are
+            // hydrated separately to avoid partial mixed-owner batch responses.
+            const [poolObjectFields, turbosObjectFields] = await Promise.all([
+                fetchObjectFields(poolIds),
+                fetchObjectFields(turbosPositionIds),
+            ]);
+            const objectFields = { ...poolObjectFields, ...turbosObjectFields };
 
             // LP coin types are not always present in the wallet's fungible balances.
             // Load their metadata explicitly so six-decimal assets are displayed correctly.

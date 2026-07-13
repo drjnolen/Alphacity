@@ -72,8 +72,8 @@
         if (protocol === 'turbos' && positionId) {
             return `https://app.turbos.finance/#/pools/${encodeURIComponent(positionId)}/position`;
         }
-        if (protocol === 'cetus' && poolId) {
-            return `https://app.cetus.zone/liquidity?poolAddress=${encodeURIComponent(poolId)}`;
+        if (protocol === 'cetus' && positionId) {
+            return `https://app.cetus.zone/position-detail/${encodeURIComponent(positionId)}`;
         }
         return null;
     }
