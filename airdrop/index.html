@@ -14,6 +14,7 @@
     <!-- Shared wallet connection sync -->
     <script src="/shared/wallet-sync.js"></script>
     <script src="/shared/sui-client.js"></script>
+    <script src="/shared/staking-credits.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
 
@@ -152,7 +153,7 @@
                     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700">
                         <div>
                             <h2 class="text-white font-bold text-lg">Claimed Credits Leaderboard</h2>
-                            <p class="text-dark-text-secondary text-xs mt-0.5">Based on total lifetime claimed credits from staking events</p>
+                            <p class="text-dark-text-secondary text-xs mt-0.5">Based on lifetime claimed credits stored in every on-chain stake position</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <button id="export-credits-csv-btn" class="hidden px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors flex items-center gap-2 border border-gray-700">
@@ -170,7 +171,7 @@
 
                     <!-- Loading bar -->
                     <div id="lb-progress" class="hidden px-6 py-3 border-b border-gray-700 bg-dark-bg/40">
-                        <p id="lb-progress-text" class="text-xs text-dark-text-secondary mb-1">Fetching on-chain events…</p>
+                        <p id="lb-progress-text" class="text-xs text-dark-text-secondary mb-1">Reading on-chain stake positions…</p>
                         <div class="w-full bg-gray-700 rounded-full h-1.5">
                             <div id="lb-progress-bar" class="bg-brand-primary h-1.5 rounded-full transition-all duration-300" style="width:0%"></div>
                         </div>
@@ -636,6 +637,8 @@
     let leaderboardData      = [];   // [{address, creditsAtomic}]
     let totalCreditsData     = [];   // [{address, creditsAtomic}]
     let holdersData          = [];   // [{address, liquidAtomic, stakedAtomic, totalAtomic}]
+    let stakingCreditsCache  = null;
+    let stakingCreditsCachedAt = 0;
     let activeTab            = 'credits'; // 'credits' | 'total' | 'holders' | 'custom'
     let selectedAddresses    = new Set();
     let currentTokenType     = 'city';  // 'city' | 'sui' | 'custom'
@@ -835,19 +838,21 @@
         return window.AlphaCitySui.rpc(method, params);
     }
 
-    async function queryAllEvents(eventType) {
-        const all = [];
-        let cursor = null;
-        for (;;) {
-            const r = await rpc('suix_queryEvents', [
-                { MoveEventType: eventType },
-                cursor, 100, false
-            ]);
-            all.push(...(r.data || []));
-            if (!r.hasNextPage) break;
-            cursor = r.nextCursor;
+    async function loadStakingCreditsSnapshot({ force = false, onProgress } = {}) {
+        const cacheAgeMs = Date.now() - stakingCreditsCachedAt;
+        if (!force && stakingCreditsCache && cacheAgeMs < 30_000) return stakingCreditsCache;
+        if (!window.AlphaCityStakingCredits?.loadSnapshot) {
+            throw new Error('Citizen Credits accounting module failed to load');
         }
-        return all;
+
+        stakingCreditsCache = await window.AlphaCityStakingCredits.loadSnapshot({
+            rpc,
+            packageIds: STAKING_PKGS,
+            coinType: CITY_TYPE,
+            onProgress,
+        });
+        stakingCreditsCachedAt = Date.now();
+        return stakingCreditsCache;
     }
 
     /** Fetch all coin objects of a type for an address (handles pagination) */
@@ -947,75 +952,26 @@
         icon.classList.add('spin');
         text.textContent = 'Loading…';
         prog.classList.remove('hidden');
-        progText.textContent = 'Fetching staking events…';
+        progText.textContent = 'Reading on-chain stake positions…';
         progBar.style.width  = '0%';
-        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-dark-text-secondary text-sm">Fetching on-chain events…</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-dark-text-secondary text-sm">Reading on-chain stake positions…</td></tr>`;
 
         try {
-            // Fetch all four event types for each staking package
-            const totalPackages = STAKING_PKGS.length;
-            const perPkg = 4;
-            let completed = 0;
-            const updateProgress = (msg) => {
-                completed++;
-                const pct = Math.round((completed / (totalPackages * perPkg)) * 80);
-                progBar.style.width = pct + '%';
-                progText.textContent = msg;
-            };
+            progText.textContent = 'Reading on-chain stake positions…';
+            const snapshot = await loadStakingCreditsSnapshot({
+                force: true,
+                onProgress: ({ objectCount }) => {
+                    progBar.style.width = Math.min(80, 15 + objectCount) + '%';
+                    progText.textContent = `Reading stake positions… (${objectCount} found)`;
+                },
+            });
 
-            const eventGroups = await Promise.all(STAKING_PKGS.flatMap(pkg => [
-                queryAllEvents(`${pkg}::city_staking::StakeCreated`).then(r  => { updateProgress('Processing StakeCreated events…'); return r; }),
-                queryAllEvents(`${pkg}::city_staking::StakeIncreased`).then(r => { updateProgress('Processing StakeIncreased events…'); return r; }),
-                queryAllEvents(`${pkg}::city_staking::Unstaked`).then(r       => { updateProgress('Processing Unstaked events…'); return r; }),
-                queryAllEvents(`${pkg}::city_staking::CreditsClaimed`).then(r => { updateProgress('Processing CreditsClaimed events…'); return r; }),
-            ]));
-
-            progText.textContent = 'Building leaderboard…';
-            progBar.style.width  = '90%';
-
-            // Aggregate per-staker credits from events
-            // stakeIdToStaker: Map<stake_id, address>
-            // stakeIdToCredits: Map<stake_id, lifetime_claimed BigInt>
-            const stakeIdToStaker  = new Map();
-            const stakeIdToCredits = new Map();
-
-            const pkgCount = STAKING_PKGS.length;
-            for (let i = 0; i < pkgCount; i++) {
-                const stakeCreated   = eventGroups[i * 4 + 0];
-                const stakeIncreased = eventGroups[i * 4 + 1];
-                // stakeIncreased not needed for credits; stakeCreated gives us staker per stake_id
-                stakeCreated.forEach(ev => {
-                    const d = ev.parsedJson || {};
-                    if (d.stake_id && d.staker) stakeIdToStaker.set(d.stake_id, d.staker);
-                });
-                stakeIncreased.forEach(ev => {
-                    // StakeIncreased may not have staker — use existing mapping
-                });
-                const creditsClaimed = eventGroups[i * 4 + 3];
-                creditsClaimed.forEach(ev => {
-                    const d = ev.parsedJson || {};
-                    if (!d.stake_id) return;
-                    // Some events include staker directly
-                    if (d.staker) stakeIdToStaker.set(d.stake_id, d.staker);
-                    const prev = stakeIdToCredits.get(d.stake_id) || 0n;
-                    const claimed = BigInt(d.lifetime_claimed || '0');
-                    // lifetime_claimed is the all-time total for this stake — take max to handle re-emitted events
-                    if (claimed > prev) stakeIdToCredits.set(d.stake_id, claimed);
-                });
-            }
-
-            // Sum credits per staker address
-            const stakerCredits = new Map();
-            for (const [stakeId, claimed] of stakeIdToCredits.entries()) {
-                const staker = stakeIdToStaker.get(stakeId);
-                if (!staker) continue;
-                stakerCredits.set(staker, (stakerCredits.get(staker) || 0n) + claimed);
-            }
-
-            // Sort descending by credits (highest first)
-            leaderboardData = [...stakerCredits.entries()]
-                .map(([address, creditsAtomic]) => ({ address, creditsAtomic }))
-                .sort((a, b) => a.creditsAtomic > b.creditsAtomic ? -1 : a.creditsAtomic < b.creditsAtomic ? 1 : a.address.localeCompare(b.address));
+            progText.textContent = 'Building claimed credits leaderboard…';
+            progBar.style.width = '90%';
+            leaderboardData = snapshot.claimedLeaderboard.map((entry) => ({
+                address: entry.address,
+                creditsAtomic: entry.claimedCreditsAtomic,
+            }));
 
             progBar.style.width = '100%';
             progText.textContent = `Loaded ${leaderboardData.length} stakers.`;
@@ -1233,129 +1189,26 @@
         icon.classList.add('spin');
         text.textContent = 'Loading…';
         prog.classList.remove('hidden');
-        progText.textContent = 'Fetching staking events…';
+        progText.textContent = 'Reading on-chain stake positions…';
         progBar.style.width  = '0%';
-        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-dark-text-secondary text-sm">Fetching on-chain events…</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-dark-text-secondary text-sm">Reading on-chain stake positions…</td></tr>`;
 
         try {
-            const totalPackages = STAKING_PKGS.length;
-            const perPkg = 4;
-            let completed = 0;
-            const updateProgress = (msg) => {
-                completed++;
-                const pct = Math.round((completed / (totalPackages * perPkg)) * 30);
-                progBar.style.width = pct + '%';
-                progText.textContent = msg;
-            };
+            progText.textContent = 'Reading claimed and pending credits…';
+            const snapshot = await loadStakingCreditsSnapshot({
+                force: true,
+                onProgress: ({ objectCount }) => {
+                    progBar.style.width = Math.min(80, 15 + objectCount) + '%';
+                    progText.textContent = `Reading stake positions… (${objectCount} found)`;
+                },
+            });
 
-            const eventGroups = await Promise.all(STAKING_PKGS.flatMap(pkg => [
-                queryAllEvents(`${pkg}::city_staking::StakeCreated`).then(r  => { updateProgress('Processing StakeCreated events…'); return r; }),
-                queryAllEvents(`${pkg}::city_staking::StakeIncreased`).then(r => { updateProgress('Processing StakeIncreased events…'); return r; }),
-                queryAllEvents(`${pkg}::city_staking::Unstaked`).then(r       => { updateProgress('Processing Unstaked events…'); return r; }),
-                queryAllEvents(`${pkg}::city_staking::CreditsClaimed`).then(r => { updateProgress('Processing CreditsClaimed events…'); return r; }),
-            ]));
-
-            const stakeIdToStaker = new Map();
-            for (let i = 0; i < totalPackages; i++) {
-                const stakeCreated   = eventGroups[i * 4 + 0];
-                const creditsClaimed = eventGroups[i * 4 + 3];
-                stakeCreated.forEach(ev => {
-                    const d = ev.parsedJson || {};
-                    if (d.stake_id && d.staker) stakeIdToStaker.set(d.stake_id, d.staker);
-                });
-                creditsClaimed.forEach(ev => {
-                    const d = ev.parsedJson || {};
-                    if (d.stake_id && d.staker) stakeIdToStaker.set(d.stake_id, d.staker);
-                });
-            }
-
-            const uniqueStakers = Array.from(new Set(stakeIdToStaker.values()));
-
-            progBar.style.width = '40%';
-            progText.textContent = `Fetching stakes for ${uniqueStakers.length} stakers…`;
-
-            const BATCH_SIZE = 10;
-            const stakerTotalCredits = new Map();
-            uniqueStakers.forEach(addr => stakerTotalCredits.set(addr, 0n));
-
-            const STAKING_TYPE = `${STAKING_PKGS[0]}::city_staking::UserStake<${CITY_TYPE}>`;
-
-            for (let i = 0; i < uniqueStakers.length; i += BATCH_SIZE) {
-                const batch = uniqueStakers.slice(i, i + BATCH_SIZE);
-                const results = await Promise.allSettled(batch.map(async (stakerAddr) => {
-                    let allStakes = [];
-                    let cursor = null;
-                    for (;;) {
-                        const r = await rpc('suix_getOwnedObjects', [
-                            stakerAddr,
-                            {
-                                filter: { StructType: STAKING_TYPE },
-                                options: { showContent: true }
-                            },
-                            cursor,
-                            50
-                        ]);
-                        allStakes.push(...(r.data || []));
-                        if (!r.hasNextPage) break;
-                        cursor = r.nextCursor;
-                    }
-                    return { stakerAddr, stakes: allStakes };
-                }));
-
-                results.forEach(res => {
-                    if (res.status === 'fulfilled') {
-                        const { stakerAddr, stakes } = res.value;
-                        let total = 0n;
-                        stakes.forEach(obj => {
-                            const fields = obj.data?.content?.fields;
-                            if (!fields) return;
-                            const s = fields.principal?.fields?.value;
-                            const stakeObj = {
-                                stakedAmountAtomic: BigInt(fields.staked_amount || s || '0'),
-                                lockDays: Number(fields.lock_days || '0'),
-                                multiplierBps: Number(fields.multiplier_bps || '0'),
-                                lockStartMs: Number(fields.lock_start_ms || '0'),
-                                lockEndMs: Number(fields.lock_end_ms || '0'),
-                                lastAccrualMs: Number(fields.last_accrual_ms || '0'),
-                                unclaimedCreditsAtomic: BigInt(fields.unclaimed_credits || '0'),
-                                claimedCreditsAtomic: BigInt(fields.claimed_credits || '0')
-                            };
-                            const claimed = stakeObj.claimedCreditsAtomic;
-                            const currentUnclaimed = calculateCurrentUnclaimed(stakeObj);
-                            total += claimed + currentUnclaimed;
-                        });
-                        stakerTotalCredits.set(stakerAddr, (stakerTotalCredits.get(stakerAddr) || 0n) + total);
-                    }
-                });
-
-                const pct = 40 + Math.round((Math.min(i + BATCH_SIZE, uniqueStakers.length) / uniqueStakers.length) * 55);
-                progBar.style.width = pct + '%';
-                progText.textContent = `Fetching stakes… (${Math.min(i + BATCH_SIZE, uniqueStakers.length)}/${uniqueStakers.length})`;
-            }
-
-            function calculateGr(stake, timeMs) {
-                const oo = 10n;
-                const Ln = 1000000000n;
-                const qr = 3600000n;
-                const io = 1000000000000000n;
-                return !stake || timeMs <= 0n ? 0n : stake.stakedAmountAtomic * timeMs * BigInt(stake.multiplierBps) * oo * Ln / (qr * io * 10000n);
-            }
-
-            function calculateCurrentUnclaimed(stake) {
-                const now = Date.now();
-                if (!stake) return 0n;
-                if (stake.stakedAmountAtomic === 0n) return stake.unclaimedCreditsAtomic;
-                const limitTime = Math.min(now, stake.lockEndMs);
-                if (limitTime <= stake.lastAccrualMs) return stake.unclaimedCreditsAtomic;
-                const diffTime = BigInt(limitTime - stake.lastAccrualMs);
-                const accrued = calculateGr(stake, diffTime);
-                return stake.unclaimedCreditsAtomic + accrued;
-            }
-
-            totalCreditsData = [...stakerTotalCredits.entries()]
-                .map(([address, creditsAtomic]) => ({ address, creditsAtomic }))
-                .filter(entry => entry.creditsAtomic > 0n)
-                .sort((a, b) => a.creditsAtomic > b.creditsAtomic ? -1 : a.creditsAtomic < b.creditsAtomic ? 1 : a.address.localeCompare(b.address));
+            progText.textContent = 'Building total credits leaderboard…';
+            progBar.style.width = '90%';
+            totalCreditsData = snapshot.totalLeaderboard.map((entry) => ({
+                address: entry.address,
+                creditsAtomic: entry.totalCreditsAtomic,
+            }));
 
             progBar.style.width = '100%';
             progText.textContent = `Loaded ${totalCreditsData.length} stakers.`;
@@ -1463,69 +1316,18 @@
         icon.classList.add('spin');
         text.textContent = 'Loading…';
         prog.classList.remove('hidden');
-        progText.textContent = 'Fetching staking events…';
+        progText.textContent = 'Reading on-chain stake positions…';
         progBar.style.width = '0%';
-        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-dark-text-secondary text-sm">Fetching on-chain events…</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-dark-text-secondary text-sm">Reading on-chain stake positions…</td></tr>`;
 
         try {
-            // Step 1: Fetch StakeCreated, StakeIncreased, Unstaked events
-            const totalPackages = STAKING_PKGS.length;
-            let completed = 0;
-            const updateEventProgress = (msg) => {
-                completed++;
-                const pct = Math.round((completed / (totalPackages * 3)) * 20);
-                progBar.style.width = pct + '%';
-                progText.textContent = msg;
-            };
-
-            const eventResults = await Promise.all(STAKING_PKGS.flatMap(pkg => [
-                queryAllEvents(`${pkg}::city_staking::StakeCreated`).then(r  => { updateEventProgress('Processing StakeCreated…');  return r; }),
-                queryAllEvents(`${pkg}::city_staking::StakeIncreased`).then(r => { updateEventProgress('Processing StakeIncreased…'); return r; }),
-                queryAllEvents(`${pkg}::city_staking::Unstaked`).then(r       => { updateEventProgress('Processing Unstaked…');       return r; }),
-            ]));
-
-            progBar.style.width = '20%';
-            progText.textContent = 'Computing staked balances…';
-
-            // Process staking events to compute per-wallet staked CITY
-            const stakeAmounts = new Map(); // stakeId → staked CITY atomic
-            const stakeOwners  = new Map(); // stakeId → address
-
-            for (let i = 0; i < totalPackages; i++) {
-                const stakeCreated   = eventResults[i * 3 + 0];
-                const stakeIncreased = eventResults[i * 3 + 1];
-                const unstaked       = eventResults[i * 3 + 2];
-
-                stakeCreated.forEach(ev => {
-                    const p = ev.parsedJson || {};
-                    if (!p.stake_id) return;
-                    const amount = BigInt(p.amount || '0');
-                    stakeAmounts.set(p.stake_id, (stakeAmounts.get(p.stake_id) || 0n) + amount);
-                    if (p.staker) stakeOwners.set(p.stake_id, p.staker);
-                });
-
-                stakeIncreased.forEach(ev => {
-                    const p = ev.parsedJson || {};
-                    if (!p.stake_id) return;
-                    const added = BigInt(p.added_amount || '0');
-                    stakeAmounts.set(p.stake_id, (stakeAmounts.get(p.stake_id) || 0n) + added);
-                });
-
-                unstaked.forEach(ev => {
-                    const p = ev.parsedJson || {};
-                    if (!p.stake_id) return;
-                    stakeAmounts.set(p.stake_id, 0n);
-                    if (p.staker) stakeOwners.set(p.stake_id, p.staker);
-                });
-            }
-
-            // Sum staked per wallet
-            const walletStaked = new Map(); // address → total staked CITY atomic
-            for (const [stakeId, amount] of stakeAmounts.entries()) {
-                const owner = stakeOwners.get(stakeId);
-                if (!owner) continue;
-                walletStaked.set(owner, (walletStaked.get(owner) || 0n) + amount);
-            }
+            const snapshot = await loadStakingCreditsSnapshot({
+                onProgress: ({ objectCount }) => {
+                    progBar.style.width = Math.min(20, 5 + Math.floor(objectCount / 8)) + '%';
+                    progText.textContent = `Reading stake positions… (${objectCount} found)`;
+                },
+            });
+            const walletStaked = new Map(snapshot.stakers.map((entry) => [entry.address, entry.stakedAtomic]));
 
             // Step 2: Enumerate all on-chain CITY coin object owners (includes non-stakers).
             // The Sui GraphQL endpoint may not support CORS for browser requests, so we
@@ -1546,7 +1348,7 @@
             }
 
             // Union: stakers + coin object owners (stakers always included even in fallback)
-            for (const addr of stakeOwners.values()) coinHolderAddresses.add(addr);
+            for (const addr of walletStaked.keys()) coinHolderAddresses.add(addr);
             const allAddresses = [...coinHolderAddresses];
 
             progBar.style.width = '40%';

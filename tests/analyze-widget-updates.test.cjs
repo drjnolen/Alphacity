@@ -107,7 +107,7 @@ test('Liquidity Pools recover partial Turbos object batches without refetching h
     ]);
 });
 
-test('canonical Sui USDC retains six decimals when metadata is unavailable', async () => {
+test('canonical Sui LP assets retain six decimals when metadata is unavailable', async () => {
     const decimalSource = analyzeHtml.slice(
         analyzeHtml.indexOf('const coinMetadataCache'),
         analyzeHtml.indexOf('function coinSymbol'),
@@ -119,11 +119,14 @@ test('canonical Sui USDC retains six decimals when metadata is unavailable', asy
         `${decimalSource}; return { fetchCoinDecimals, coinDecimals, knownCoinDecimals };`,
     )(rpc, () => false, '0xcity::city::CITY');
     const usdcType = 'dba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC';
+    const deepType = 'deeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP';
     const fallbackTools = createDecimalTools(async () => { throw new Error('metadata unavailable'); });
 
     assert.equal(await fallbackTools.fetchCoinDecimals(`0x${usdcType}`), 6);
     assert.equal(fallbackTools.coinDecimals(usdcType), 6);
     assert.equal(195_840_000 / (10 ** fallbackTools.coinDecimals(usdcType)), 195.84);
+    assert.equal(await fallbackTools.fetchCoinDecimals(`0x${deepType}`), 6);
+    assert.equal(11_931_000_000 / (10 ** fallbackTools.coinDecimals(deepType)), 11_931);
 
     const stringMetadataTools = createDecimalTools(async () => ({ decimals: '6' }));
     assert.equal(await stringMetadataTools.fetchCoinDecimals(usdcType), 6);
