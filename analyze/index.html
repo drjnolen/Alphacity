@@ -15,6 +15,7 @@
     <script src="/shared/trade-alerts.js"></script>
     <script src="/shared/trade-tools.js"></script>
     <script src="/shared/alpha-signals.js"></script>
+    <script src="/shared/market-integrity.js"></script>
     <script src="/shared/lp-tools.js"></script>
     <!-- Gated tools access check -->
     <script src="/shared/tools-gate.js"></script>
@@ -612,13 +613,31 @@
                         <!-- Liquidity & Supply Stats -->
                         <div class="grid grid-cols-2 gap-2 text-[10px] bg-dark-bg/40 p-2.5 rounded-lg border border-gray-800/60">
                             <div>
-                                <span class="text-gray-500 block">Total Liquidity</span>
+                                <span class="text-gray-500 block">Sampled DEX Liquidity</span>
                                 <span id="sniffer-stat-liquidity" class="text-white font-semibold font-mono">—</span>
                             </div>
                             <div>
                                 <span class="text-gray-500 block">Total Supply</span>
                                 <span id="sniffer-stat-supply" class="text-white font-semibold font-mono">—</span>
                             </div>
+                        </div>
+
+                        <!-- On-demand DexScreener market-structure and promotion audit -->
+                        <div id="sniffer-market-integrity" class="space-y-2.5 bg-dark-bg/40 p-2.5 rounded-lg border border-gray-800/60">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-dark-text-secondary">Market Integrity</span>
+                                <span id="sniffer-integrity-grade" class="mini-badge border border-gray-700 bg-gray-800 text-gray-400">—</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
+                                <div><span class="text-gray-500 block">Pools / Venues</span><span id="sniffer-stat-venues" class="text-white font-semibold font-mono">—</span></div>
+                                <div><span class="text-gray-500 block">24h Turnover</span><span id="sniffer-stat-turnover" class="text-white font-semibold font-mono">—</span></div>
+                                <div><span class="text-gray-500 block">1h Buy Tx Share</span><span id="sniffer-stat-buy-share" class="text-white font-semibold font-mono">—</span></div>
+                                <div><span class="text-gray-500 block">Liquid Price Spread</span><span id="sniffer-stat-dispersion" class="text-white font-semibold font-mono">—</span></div>
+                                <div><span class="text-gray-500 block">Deepest Pool Share</span><span id="sniffer-stat-concentration" class="text-white font-semibold font-mono">—</span></div>
+                                <div><span class="text-gray-500 block">Promotion Disclosure</span><span id="sniffer-stat-promotion" class="text-white font-semibold font-mono break-words">—</span></div>
+                            </div>
+                            <p id="sniffer-integrity-summary" class="text-[9px] text-gray-500 leading-relaxed">Run a scan to compare market structure and promotion disclosures.</p>
+                            <p class="text-[8px] text-gray-600 leading-relaxed">Promotion data is a transparency signal, not proof of fraud or quality. Prices and pool metrics may be delayed.</p>
                         </div>
 
                         <!-- Top Holders Section -->
@@ -1691,6 +1710,8 @@
     const KNOWN_COIN_DECIMALS = Object.freeze({
         // Native Circle USDC on Sui. Pool objects can omit the leading 0x.
         'dba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::usdc': 6,
+        // DeepBook DEEP. Metadata can be intermittently unavailable during LP hydration.
+        'deeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::deep': 6,
     });
 
     function knownCoinDecimals(coinType) {
@@ -5585,6 +5606,108 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // WIDGET: TOKEN SAFETY CHECKER
     // =========================================================
+    const TOKEN_MARKET_CACHE_TTL_MS = 5 * 60 * 1000;
+    const tokenMarketIntegrityCache = new Map();
+
+    async function fetchTokenMarketIntegrity(coinType) {
+        const cacheKey = normalizeSuiType(coinType).toLowerCase();
+        const cached = tokenMarketIntegrityCache.get(cacheKey);
+        if (cached?.data && Date.now() - cached.ts < TOKEN_MARKET_CACHE_TTL_MS) return cached.data;
+        if (cached?.promise) return cached.promise;
+
+        const request = (async () => {
+            const [pairsResponse, promotionResponse] = await Promise.all([
+                fetchWithTimeout(`https://api.dexscreener.com/token-pairs/v1/sui/${encodeURIComponent(coinType)}`, {}, 8000).catch(() => null),
+                fetchWithTimeout(`https://api.dexscreener.com/orders/v1/sui/${encodeURIComponent(coinType)}`, {}, 8000).catch(() => null),
+            ]);
+            const pairsPayload = pairsResponse?.ok ? await pairsResponse.json().catch(() => []) : [];
+            const promotionPayload = promotionResponse?.ok ? await promotionResponse.json().catch(() => ({})) : {};
+            const pairs = (Array.isArray(pairsPayload) ? pairsPayload : (pairsPayload?.pairs || []))
+                .filter(pair => pair?.chainId === 'sui')
+                .sort((a, b) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0));
+            const summary = window.AlphaCityMarketIntegrity?.summarizeMarketIntegrity(
+                pairs,
+                promotionPayload,
+                coinType,
+                { promotionAvailable: Boolean(promotionResponse?.ok) },
+            ) || null;
+            return { pairs, promotionPayload, summary };
+        })();
+
+        tokenMarketIntegrityCache.set(cacheKey, { data: cached?.data || null, ts: cached?.ts || 0, promise: request });
+        try {
+            const data = await request;
+            tokenMarketIntegrityCache.set(cacheKey, { data, ts: Date.now(), promise: null });
+            return data;
+        } catch (error) {
+            tokenMarketIntegrityCache.delete(cacheKey);
+            throw error;
+        }
+    }
+
+    function promotionDisclosure(summary) {
+        if (!summary) return 'Unavailable';
+        if (summary.activeBoosts > 0) return `${summary.activeBoosts} active boost${summary.activeBoosts === 1 ? '' : 's'}`;
+        if (!summary.promotionAvailable) return 'Unavailable';
+        if (summary.paidOrderTypes.length) return `${summary.paidOrderTypes.length} paid service${summary.paidOrderTypes.length === 1 ? '' : 's'}`;
+        if (summary.purchasedBoostAmount > 0) return `${summary.purchasedBoostAmount} prior boosts`;
+        return 'None detected';
+    }
+
+    function paidServiceLabel(type) {
+        return ({
+            tokenProfile: 'token profile',
+            communityTakeover: 'community takeover',
+            tokenAd: 'token ad',
+            trendingBarAd: 'trending-bar ad',
+        })[type] || type;
+    }
+
+    function renderMarketIntegrity(summary) {
+        const gradeEl = document.getElementById('sniffer-integrity-grade');
+        const venuesEl = document.getElementById('sniffer-stat-venues');
+        const turnoverEl = document.getElementById('sniffer-stat-turnover');
+        const buyShareEl = document.getElementById('sniffer-stat-buy-share');
+        const dispersionEl = document.getElementById('sniffer-stat-dispersion');
+        const concentrationEl = document.getElementById('sniffer-stat-concentration');
+        const promotionEl = document.getElementById('sniffer-stat-promotion');
+        const summaryEl = document.getElementById('sniffer-integrity-summary');
+        if (!summary) {
+            if (gradeEl) gradeEl.textContent = 'Unavailable';
+            for (const element of [venuesEl, turnoverEl, buyShareEl, dispersionEl, concentrationEl, promotionEl]) {
+                if (element) element.textContent = '—';
+            }
+            if (summaryEl) summaryEl.textContent = 'DexScreener market data is unavailable for this scan.';
+            return;
+        }
+
+        const gradeClasses = {
+            robust: 'mini-badge border border-green-500/20 bg-green-500/10 text-green-300',
+            developing: 'mini-badge border border-blue-500/20 bg-blue-500/10 text-blue-300',
+            mixed: 'mini-badge border border-yellow-500/20 bg-yellow-500/10 text-yellow-300',
+            fragile: 'mini-badge border border-red-500/20 bg-red-500/10 text-red-300',
+            unavailable: 'mini-badge border border-gray-700 bg-gray-800 text-gray-400',
+        };
+        if (gradeEl) {
+            gradeEl.textContent = summary.structure.charAt(0).toUpperCase() + summary.structure.slice(1);
+            gradeEl.className = gradeClasses[summary.structure] || gradeClasses.unavailable;
+        }
+        if (venuesEl) venuesEl.textContent = `${summary.poolCount} / ${summary.venueCount}`;
+        if (turnoverEl) turnoverEl.textContent = summary.turnoverH24 === null ? '—' : `${summary.turnoverH24.toFixed(2)}×`;
+        if (buyShareEl) buyShareEl.textContent = summary.buySharePct === null ? '—' : `${summary.buySharePct.toFixed(0)}% · ${summary.transactionsH1} tx`;
+        if (dispersionEl) dispersionEl.textContent = summary.priceSpreadPct === null ? '<2 liquid pools' : `${summary.priceSpreadPct.toFixed(2)}%`;
+        if (concentrationEl) concentrationEl.textContent = summary.deepestPoolSharePct === null ? '—' : `${summary.deepestPoolSharePct.toFixed(0)}%`;
+        if (promotionEl) {
+            promotionEl.textContent = promotionDisclosure(summary);
+            const details = summary.paidOrders.map(order => `${paidServiceLabel(order.type)}: ${order.status || 'reported'}`);
+            if (summary.purchasedBoostAmount > 0) details.push(`${summary.purchasedBoostAmount} purchased boosts in order history`);
+            promotionEl.title = !summary.promotionAvailable
+                ? 'DexScreener promotion disclosure was unavailable for this scan'
+                : (details.join(' · ') || 'No paid DexScreener service found in the current response');
+        }
+        if (summaryEl) summaryEl.textContent = summary.observations.join(' · ');
+    }
+
     async function initTokenSafetySniffer() {
         const scanBtn = document.getElementById('widget-sniffer-scan-btn');
         const snInput = document.getElementById('widget-sniffer-input');
@@ -5633,10 +5756,10 @@ Return ONLY a valid JSON object with two string keys:
                 packageAddress = coinType.split('::')[0];
             }
 
-            // Fetch GoPlus and DexScreener in parallel
-            const [goPlusRes, dexRes] = await Promise.all([
+            // Run contract-safety and on-demand market-integrity scans in parallel.
+            const [goPlusRes, marketIntegrityData] = await Promise.all([
                 fetchWithTimeout(`https://api.gopluslabs.io/api/v1/sui/token_security?contract_addresses=${encodeURIComponent(coinType)}`, {}, 8000).catch(() => null),
-                fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(coinType)}`, {}, 6000).catch(() => null)
+                fetchTokenMarketIntegrity(coinType).catch(() => ({ pairs: [], promotionPayload: {}, summary: null })),
             ]);
 
             let goPlusData = null;
@@ -5668,20 +5791,15 @@ Return ONLY a valid JSON object with two string keys:
                 } catch (_) {}
             }
 
-            let dexData = null;
-            if (dexRes && dexRes.ok) {
-                const json = await dexRes.json();
-                if (json && json.pairs && json.pairs.length > 0) {
-                    const suiPairs = json.pairs.filter(p => p.chainId === 'sui');
-                    if (suiPairs.length > 0) {
-                        suiPairs.sort((a, b) => parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0));
-                        dexData = suiPairs[0];
-                    }
-                }
-            }
+            const dexData = marketIntegrityData?.pairs?.[0] || null;
+            const marketSummary = marketIntegrityData?.summary || null;
+            const targetTokenKey = window.AlphaCityMarketIntegrity?.tokenKey(coinType) || '';
+            const dexToken = targetTokenKey && window.AlphaCityMarketIntegrity?.tokenKey(dexData?.quoteToken?.address) === targetTokenKey
+                ? dexData?.quoteToken
+                : dexData?.baseToken;
 
-            if (!goPlusData) {
-                alert("Security data not found for this SUI address. Make sure the token is active and indexable.");
+            if (!goPlusData && !dexData) {
+                alert("No contract-safety or market data was found for this SUI address. Make sure the token is active and indexable.");
                 if (statusEl) {
                     statusEl.textContent = "No Data";
                     statusEl.className = "text-[9px] text-gray-500 font-mono";
@@ -5690,11 +5808,19 @@ Return ONLY a valid JSON object with two string keys:
             }
 
             // Compute safety score and build alerts
-            let score = 100;
+            const hasContractSafetyData = Boolean(goPlusData);
+            let score = hasContractSafetyData ? 100 : null;
             const alerts = [];
 
+            if (!hasContractSafetyData) {
+                alerts.push({
+                    type: 'orange',
+                    text: 'Contract-safety data is unavailable; market-integrity results are still shown below.'
+                });
+            }
+
             // 1. Trusted Token Badge
-            const isTrusted = goPlusData.trusted_token === "1";
+            const isTrusted = goPlusData?.trusted_token === "1";
             if (isTrusted) {
                 alerts.push({
                     type: 'green',
@@ -5703,17 +5829,17 @@ Return ONLY a valid JSON object with two string keys:
             }
 
             // 2. Mint Authority check
-            const isMintable = goPlusData.mintable?.value === "1";
-            const mintOwner = goPlusData.mintable?.cap_owner || '';
+            const isMintable = goPlusData?.mintable?.value === "1";
+            const mintOwner = goPlusData?.mintable?.cap_owner || '';
             const isMintRevoked = !isMintable || mintOwner.toLowerCase() === 'immutable' || mintOwner === '';
 
-            if (!isMintRevoked) {
+            if (hasContractSafetyData && !isMintRevoked) {
                 score -= 35;
                 alerts.push({
                     type: 'red',
                     text: `Mint Authority is Active: Creator can mint infinite tokens at any time (Supply dilution risk). Owner: ${shortAddr(mintOwner)}`
                 });
-            } else {
+            } else if (hasContractSafetyData) {
                 alerts.push({
                     type: 'green',
                     text: 'Mint Privilege Revoked: Token supply cannot be arbitrarily inflated.'
@@ -5721,14 +5847,14 @@ Return ONLY a valid JSON object with two string keys:
             }
 
             // 3. Blacklist / Freeze checks
-            const hasBlacklist = goPlusData.blacklist?.value === "1";
-            if (hasBlacklist) {
+            const hasBlacklist = goPlusData?.blacklist?.value === "1";
+            if (hasContractSafetyData && hasBlacklist) {
                 score -= 35;
                 alerts.push({
                     type: 'red',
                     text: 'Blacklist capability active: Creator can block users from trading or transfering tokens (Honeypot risk).'
                 });
-            } else {
+            } else if (hasContractSafetyData) {
                 alerts.push({
                     type: 'green',
                     text: 'No blacklist / freeze capability detected: Token transfers are unblocked.'
@@ -5739,25 +5865,25 @@ Return ONLY a valid JSON object with two string keys:
             if (dexData) {
                 const liquidity = parseFloat(dexData.liquidity?.usd || 0);
                 if (liquidity < 10000) {
-                    score -= 20;
+                    if (score !== null) score -= 20;
                     alerts.push({
                         type: 'red',
-                        text: `Extremely Low Liquidity: total liquidity is $${liquidity.toLocaleString()} (High rug pull risk).`
+                        text: `Extremely Low Liquidity: deepest-pool liquidity is $${liquidity.toLocaleString()} (High execution and exit risk).`
                     });
                 } else if (liquidity < 50000) {
-                    score -= 10;
+                    if (score !== null) score -= 10;
                     alerts.push({
                         type: 'orange',
-                        text: `Moderate Liquidity: total liquidity is $${liquidity.toLocaleString()}.`
+                        text: `Moderate Liquidity: deepest-pool liquidity is $${liquidity.toLocaleString()}.`
                     });
                 } else {
                     alerts.push({
                         type: 'green',
-                        text: `Healthy Liquidity: total liquidity is $${liquidity.toLocaleString()}.`
+                        text: `Healthy Liquidity: deepest-pool liquidity is $${liquidity.toLocaleString()}.`
                     });
                 }
             } else {
-                score -= 30;
+                if (score !== null) score -= 30;
                 alerts.push({
                     type: 'red',
                     text: 'No liquidity pools detected on major SUI DEXes. High risk of being untradable.'
@@ -5765,7 +5891,7 @@ Return ONLY a valid JSON object with two string keys:
             }
 
             // 5. Holder Concentration
-            const holders = goPlusData.holders || [];
+            const holders = goPlusData?.holders || [];
             if (holders.length > 0) {
                 // Sum top 3 non-exchange holders
                 let nonExchCount = 0;
@@ -5778,13 +5904,13 @@ Return ONLY a valid JSON object with two string keys:
                 });
 
                 if (top3NonExchSum > 50) {
-                    score -= 15;
+                    if (score !== null) score -= 15;
                     alerts.push({
                         type: 'red',
                         text: `Extreme Concentration: Top 3 private wallets hold ${top3NonExchSum.toFixed(1)}% of total supply (High dump risk).`
                     });
                 } else if (top3NonExchSum > 25) {
-                    score -= 5;
+                    if (score !== null) score -= 5;
                     alerts.push({
                         type: 'orange',
                         text: `Moderate Concentration: Top 3 private wallets hold ${top3NonExchSum.toFixed(1)}% of total supply.`
@@ -5797,7 +5923,25 @@ Return ONLY a valid JSON object with two string keys:
                 }
             }
 
-            score = Math.max(0, score);
+            if (score !== null) score = Math.max(0, score);
+
+            if (marketSummary?.activeBoosts > 0) {
+                alerts.push({
+                    type: 'orange',
+                    text: `${marketSummary.activeBoosts} active DexScreener boost${marketSummary.activeBoosts === 1 ? '' : 's'} detected. Treat trending visibility as partially promoted.`
+                });
+            }
+            if (marketSummary?.paidOrderTypes?.length) {
+                alerts.push({
+                    type: 'orange',
+                    text: `Paid DexScreener services disclosed: ${marketSummary.paidOrderTypes.map(paidServiceLabel).join(', ')}. This is a transparency signal, not a fraud finding.`
+                });
+            } else if (marketSummary?.purchasedBoostAmount > 0) {
+                alerts.push({
+                    type: 'orange',
+                    text: `${marketSummary.purchasedBoostAmount} historical DexScreener boost purchases found; no active boost is reported in the current pool snapshot.`
+                });
+            }
 
             // Render details
             const nameEl = document.getElementById('sniffer-token-name');
@@ -5807,12 +5951,14 @@ Return ONLY a valid JSON object with two string keys:
             const statSupplyEl = document.getElementById('sniffer-stat-supply');
             const holderConcEl = document.getElementById('sniffer-holder-concentration');
 
-            if (nameEl) nameEl.textContent = goPlusData.name || dexData?.baseToken?.name || 'Unknown Coin';
-            if (symEl) symEl.textContent = goPlusData.symbol || dexData?.baseToken?.symbol || 'Unknown';
+            if (nameEl) nameEl.textContent = goPlusData?.name || dexToken?.name || 'Unknown Coin';
+            if (symEl) symEl.textContent = goPlusData?.symbol || dexToken?.symbol || 'Unknown';
             
             if (scoreEl) {
-                scoreEl.textContent = `${score}/100`;
-                if (score >= 80) {
+                scoreEl.textContent = score === null ? 'N/A' : `${score}/100`;
+                if (score === null) {
+                    scoreEl.className = "text-xl font-bold font-mono text-gray-400";
+                } else if (score >= 80) {
                     scoreEl.className = "text-xl font-bold font-mono text-green-400";
                 } else if (score >= 50) {
                     scoreEl.className = "text-xl font-bold font-mono text-orange-400";
@@ -5822,13 +5968,14 @@ Return ONLY a valid JSON object with two string keys:
             }
 
             // Stats
-            if (statLiqEl) statLiqEl.textContent = dexData ? fmtUsd(dexData.liquidity?.usd) : 'None';
+            if (statLiqEl) statLiqEl.textContent = marketSummary ? fmtUsd(marketSummary.aggregateLiquidityUsd) : (dexData ? fmtUsd(dexData.liquidity?.usd) : 'None');
             if (statSupplyEl) {
-                const rawSupply = parseFloat(goPlusData.total_supply || 0);
-                const decs = parseInt(goPlusData.decimals || 9);
-                // GoPlus returns raw amount, so we divide by decimals
+                const rawSupply = parseFloat(goPlusData?.total_supply || 0);
+                // GoPlus reports this value in display units.
                 const parsedSupply = rawSupply;
-                if (parsedSupply >= 1000000000) {
+                if (!hasContractSafetyData) {
+                    statSupplyEl.textContent = 'Unavailable';
+                } else if (parsedSupply >= 1000000000) {
                     statSupplyEl.textContent = (parsedSupply / 1000000000).toFixed(1) + 'B';
                 } else if (parsedSupply >= 1000000) {
                     statSupplyEl.textContent = (parsedSupply / 1000000).toFixed(1) + 'M';
@@ -5836,6 +5983,7 @@ Return ONLY a valid JSON object with two string keys:
                     statSupplyEl.textContent = parsedSupply.toLocaleString(undefined, { maximumFractionDigits: 0 });
                 }
             }
+            renderMarketIntegrity(marketSummary);
 
             // Alerts list
             if (alertsList) {
