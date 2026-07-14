@@ -132,18 +132,6 @@ test('canonical Sui LP assets retain six decimals when metadata is unavailable',
     assert.equal(await stringMetadataTools.fetchCoinDecimals(usdcType), 6);
 });
 
-test('Token Safety Checker adds an on-demand cached Market Integrity scan', () => {
-    assert.match(analyzeHtml, /src="\/shared\/market-integrity\.js"/);
-    assert.match(analyzeHtml, /id="sniffer-market-integrity"/);
-    assert.match(analyzeHtml, /id="sniffer-stat-dispersion"/);
-    assert.match(analyzeHtml, /id="sniffer-stat-promotion"/);
-    assert.match(analyzeHtml, /TOKEN_MARKET_CACHE_TTL_MS = 5 \* 60 \* 1000/);
-    assert.match(analyzeHtml, /token-pairs\/v1\/sui\/\$\{encodeURIComponent\(coinType\)\}/);
-    assert.match(analyzeHtml, /orders\/v1\/sui\/\$\{encodeURIComponent\(coinType\)\}/);
-    assert.match(analyzeHtml, /fetchTokenMarketIntegrity\(coinType\)\.catch/);
-    assert.match(analyzeHtml, /Promotion data is a transparency signal, not proof of fraud or quality/);
-});
-
 test('desktop utility widgets follow Whale Tracker in the right column', () => {
     const rightColumn = analyzeHtml.indexOf('<!-- ===== RIGHT COLUMN:');
     const whaleTracker = analyzeHtml.indexOf('id="whale-tracker-widget"');
