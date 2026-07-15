@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Alpha City Paylink</title>
+    <meta name="description" content="Create registry-protected Sui payment requests, QR codes, and verifiable receipts.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Manrope', 'sans-serif'], mono: ['DM Mono', 'monospace'] },
+                    colors: {
+                        ink: '#07101f',
+                        panel: '#0c1728',
+                        line: '#20314a',
+                        electric: '#3b82f6',
+                        cyan: '#2dd4bf',
+                        gold: '#f6c453',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        :root { --blue: #3b82f6; --cyan: #2dd4bf; --gold: #f6c453; --ink: #07101f; --panel: #0c1728; --line: #20314a; }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 16% -10%, rgba(37, 99, 235, .22), transparent 32rem),
+                radial-gradient(circle at 92% 12%, rgba(45, 212, 191, .12), transparent 28rem),
+                linear-gradient(180deg, #07101f 0%, #060c16 100%);
+        }
+        .shell-grid {
+            background-image: linear-gradient(rgba(148,163,184,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.035) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+        .surface { background: rgba(12, 23, 40, .88); border: 1px solid rgba(51, 72, 101, .72); box-shadow: 0 26px 80px rgba(0,0,0,.28); backdrop-filter: blur(16px); }
+        .surface-soft { background: rgba(9, 18, 32, .72); border: 1px solid rgba(51, 72, 101, .55); }
+        .field { width: 100%; border: 1px solid #293b55; background: #081321; color: #f8fafc; border-radius: .8rem; padding: .78rem .9rem; outline: none; transition: border-color .18s, box-shadow .18s, background .18s; }
+        .field:hover { background: #0a1728; }
+        .field:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+        .field::placeholder { color: #52647d; }
+        .field:disabled { opacity: .55; cursor: not-allowed; }
+        .label { display: block; color: #9aacbf; font-size: .69rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: .48rem; }
+        .primary-btn { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; border-radius: .8rem; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; font-weight: 800; padding: .82rem 1rem; transition: transform .18s, filter .18s, opacity .18s; box-shadow: 0 12px 28px rgba(37,99,235,.24); }
+        .primary-btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+        .primary-btn:disabled { opacity: .42; cursor: not-allowed; box-shadow: none; }
+        .secondary-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border-radius: .72rem; border: 1px solid #2b405c; background: #0a1728; color: #dbe7f5; font-weight: 700; padding: .68rem .8rem; transition: border-color .18s, background .18s, color .18s; }
+        .secondary-btn:hover { border-color: #4b6b96; background: #102039; color: white; }
+        .mini-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: .58rem; border: 1px solid #2a3c55; color: #aebed1; background: #0a1524; padding: .43rem .6rem; font-size: .7rem; font-weight: 700; transition: .18s; }
+        .mini-btn:hover { color: white; border-color: #55759e; background: #102039; }
+        .status-dot { width: .48rem; height: .48rem; border-radius: 999px; display: inline-block; }
+        .status-pending { color: #f6c453; background: rgba(246,196,83,.1); border-color: rgba(246,196,83,.28); }
+        .status-paid { color: #4ade80; background: rgba(74,222,128,.1); border-color: rgba(74,222,128,.28); }
+        .status-archived { color: #94a3b8; background: rgba(148,163,184,.08); border-color: rgba(148,163,184,.22); }
+        .toast { transform: translateY(16px); opacity: 0; pointer-events: none; transition: .22s ease; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .qr-frame { width: min(100%, 21.6rem); background: #fff; border-radius: 1.2rem; padding: .8rem; box-shadow: 0 18px 50px rgba(0,0,0,.34); }
+        .qr-frame canvas { display: block; width: 100%; height: auto !important; }
+        .scanline { position: relative; overflow: hidden; }
+        .scanline::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 2px; background: linear-gradient(180deg, transparent, var(--cyan), transparent); opacity: .75; }
+        .history-card { transition: border-color .18s, background .18s, transform .18s; }
+        .history-card:hover { border-color: #385477; background: rgba(14, 29, 50, .88); transform: translateY(-1px); }
+        .spinner { width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.25); border-top-color: currentColor; border-radius: 50%; animation: spin .75s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    </style>
+
+    <!-- Shared wallet session, Sui transport, then immediate CITY gate. -->
+    <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/sui-client.js"></script>
+    <script src="/shared/tools-gate.js"></script>
+    <script src="/shared/paylink-config.js"></script>
+    <script src="/shared/paylink-core.js"></script>
+    <script src="/shared/paylink-client.js"></script>
+</head>
+<body class="shell-grid font-sans text-slate-100 antialiased">
+    <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-[#07101f]/90 backdrop-blur-xl">
+        <nav class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8" aria-label="Primary">
+            <a href="/" class="flex min-w-0 items-center gap-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-400/30 bg-blue-500/10 text-sm font-extrabold text-blue-300">AC</span>
+                <span class="min-w-0">
+                    <span class="block truncate text-sm font-extrabold tracking-tight text-white">Alpha City</span>
+                    <span class="block truncate text-[9px] font-bold uppercase tracking-[.18em] text-slate-500">Ecosystem tools</span>
+                </span>
+            </a>
+            <div class="flex items-center gap-2">
+                <a href="/tools/" class="hidden rounded-lg border border-slate-700/80 px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-slate-500 hover:text-white sm:inline-flex">All tools</a>
+                <a href="/tools/?redirect=/pay/" class="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-blue-400/60">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                    <span id="header-wallet">Connected wallet</span>
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+        <section class="mb-8 grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <div>
+                <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-cyan-300">
+                    <span class="status-dot bg-cyan-300"></span>
+                    Noncustodial Sui payments
+                </div>
+                <h1 class="max-w-3xl text-4xl font-extrabold tracking-[-.045em] text-white sm:text-5xl lg:text-6xl">
+                    Ask for payment.<br><span class="bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300 bg-clip-text text-transparent">Skip the address dance.</span>
+                </h1>
+                <p class="mt-5 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
+                    Create a one-time, registry-protected request with the recipient, token, amount, and memo already filled in. Share a link or QR; payment goes straight to the receiver.
+                </p>
+            </div>
+            <div class="grid grid-cols-3 gap-2 lg:w-[430px]">
+                <div class="surface-soft rounded-xl p-3">
+                    <div class="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">Routing</div>
+                    <div class="mt-2 text-xs font-extrabold text-white">Direct</div>
+                </div>
+                <div class="surface-soft rounded-xl p-3">
+                    <div class="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">Replay</div>
+                    <div class="mt-2 text-xs font-extrabold text-emerald-300">Protected</div>
+                </div>
+                <div class="surface-soft rounded-xl p-3">
+                    <div class="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">Custody</div>
+                    <div class="mt-2 text-xs font-extrabold text-blue-300">Never</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-6 rounded-xl border border-amber-300/20 bg-amber-300/[.06] px-4 py-3 text-xs leading-5 text-amber-100/80">
+            <strong class="text-amber-200">Verify before sharing.</strong> Payments are irreversible. Confirm the complete receiver, token, and amount below. Alpha City does not custody, route, or recover funds. Creator access requires 5M CITY; the payer does not need CITY.
+        </section>
+
+        <section class="grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(390px,.92fr)]">
+            <form id="invoice-form" class="surface min-w-0 rounded-2xl p-5 sm:p-7" novalidate>
+                <div class="mb-6 flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-[10px] font-extrabold uppercase tracking-[.18em] text-blue-300">01 / Request</div>
+                        <h2 class="mt-2 text-xl font-extrabold tracking-tight text-white">Create a Paylink</h2>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">No transaction or gas fee is needed to create the request.</p>
+                    </div>
+                    <span class="rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-emerald-300">Registry protected</span>
+                </div>
+
+                <div class="space-y-5">
+                    <div>
+                        <div class="flex items-center justify-between gap-3">
+                            <label for="receiver-input" class="label">Receive at</label>
+                            <button id="reset-receiver-btn" type="button" class="mb-2 text-[10px] font-bold text-blue-300 hover:text-blue-200">Use connected wallet</button>
+                        </div>
+                        <input id="receiver-input" class="field font-mono text-xs" type="text" autocomplete="off" spellcheck="false" aria-describedby="receiver-help receiver-error">
+                        <div id="receiver-help" class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
+                            <span>Funds go directly to this address.</span>
+                            <span id="receiver-match" class="text-emerald-400">Connected wallet</span>
+                        </div>
+                        <p id="receiver-error" class="mt-2 hidden text-xs text-red-400" role="alert"></p>
+                    </div>
+
+                    <div id="alternate-confirm-row" class="hidden rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-3">
+                        <label class="flex cursor-pointer items-start gap-3 text-xs leading-5 text-amber-100/80">
+                            <input id="alternate-confirm" type="checkbox" class="mt-1 accent-blue-500">
+                            <span>I verified the full receiving address above. It is intentionally different from my connected wallet.</span>
+                        </label>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)]">
+                        <div>
+                            <label for="token-select" class="label">Token</label>
+                            <select id="token-select" class="field text-sm"></select>
+                        </div>
+                        <div>
+                            <label for="amount-input" class="label">Amount</label>
+                            <div class="relative">
+                                <input id="amount-input" class="field pr-20 font-mono text-sm" type="text" inputmode="decimal" autocomplete="off" placeholder="250.00" aria-describedby="amount-error">
+                                <span id="amount-symbol" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-slate-800 px-2 py-1 text-[10px] font-extrabold text-slate-300">USDC</span>
+                            </div>
+                            <p id="amount-error" class="mt-2 hidden text-xs text-red-400" role="alert"></p>
+                        </div>
+                    </div>
+
+                    <div id="custom-token-row" class="hidden rounded-xl border border-slate-700/70 bg-slate-950/30 p-4">
+                        <label for="custom-token-input" class="label">Custom coin type</label>
+                        <div class="flex flex-col gap-2 sm:flex-row">
+                            <input id="custom-token-input" class="field min-w-0 flex-1 font-mono text-xs" type="text" autocomplete="off" spellcheck="false" placeholder="0x…::module::TOKEN">
+                            <button id="verify-token-btn" type="button" class="secondary-btn shrink-0 text-xs">Verify token</button>
+                        </div>
+                        <p id="custom-token-status" class="mt-2 text-xs text-slate-500">Metadata must resolve before creating a link.</p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between gap-3">
+                            <label for="label-input" class="label">Label</label>
+                            <span id="label-count" class="mb-2 font-mono text-[9px] text-slate-600">0 / 64</span>
+                        </div>
+                        <input id="label-input" class="field text-sm" type="text" maxlength="64" autocomplete="off" placeholder="Invoice #1042" aria-describedby="label-error">
+                        <p id="label-error" class="mt-2 hidden text-xs text-red-400" role="alert"></p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between gap-3">
+                            <label for="message-input" class="label">Memo <span class="normal-case tracking-normal text-slate-600">(optional)</span></label>
+                            <span id="message-count" class="mb-2 font-mono text-[9px] text-slate-600">0 / 180</span>
+                        </div>
+                        <textarea id="message-input" class="field min-h-24 resize-y text-sm leading-6" maxlength="180" placeholder="Landing page development"></textarea>
+                        <p id="message-error" class="mt-2 hidden text-xs text-red-400" role="alert"></p>
+                    </div>
+
+                    <div class="scanline rounded-xl border border-slate-700/70 bg-[#081321] p-4 pl-5">
+                        <div class="grid gap-3 text-xs sm:grid-cols-2">
+                            <div>
+                                <div class="text-[9px] font-bold uppercase tracking-[.12em] text-slate-600">Full receiver</div>
+                                <div id="review-receiver" class="mt-1 break-all font-mono text-[10px] leading-4 text-slate-300">—</div>
+                            </div>
+                            <div class="sm:text-right">
+                                <div class="text-[9px] font-bold uppercase tracking-[.12em] text-slate-600">Onchain request</div>
+                                <div id="review-amount" class="mt-1 font-mono text-sm font-medium text-white">—</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="create-btn" type="submit" class="primary-btn w-full" disabled>
+                        <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16m8-8H4"/></svg>
+                        Create Paylink
+                    </button>
+                </div>
+            </form>
+
+            <section class="surface flex min-h-[640px] min-w-0 flex-col rounded-2xl p-5 sm:p-7" aria-labelledby="preview-heading">
+                <div class="mb-6 flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-[10px] font-extrabold uppercase tracking-[.18em] text-cyan-300">02 / Share</div>
+                        <h2 id="preview-heading" class="mt-2 text-xl font-extrabold tracking-tight text-white">Request preview</h2>
+                    </div>
+                    <span id="preview-status-badge" class="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-slate-500">Draft</span>
+                </div>
+
+                <div id="preview-empty" class="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-700/80 bg-slate-950/20 p-8 text-center">
+                    <div class="flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10 text-blue-300">
+                        <svg aria-hidden="true" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM15 14h2v2h-2zM19 14h2v2h-2zM15 18h2v3h-2zM19 18h2v3h-2z"/></svg>
+                    </div>
+                    <h3 class="mt-5 text-base font-extrabold text-white">Your QR appears here</h3>
+                    <p class="mt-2 max-w-xs text-xs leading-6 text-slate-500">Complete the request, verify the full destination, and create a link. Nothing is signed or sent until the payer confirms in their wallet.</p>
+                </div>
+
+                <div id="preview-created" class="hidden min-w-0 flex-1 flex-col">
+                    <div class="mx-auto qr-frame">
+                        <canvas id="qr-canvas" width="320" height="320" aria-label="Paylink QR code"></canvas>
+                    </div>
+                    <div class="mt-5 text-center">
+                        <div id="created-amount" class="font-mono text-2xl font-medium text-white">—</div>
+                        <div id="created-label" class="mt-1 text-sm font-bold text-slate-300">—</div>
+                        <div id="created-message" class="mt-1 text-xs text-slate-500"></div>
+                    </div>
+                    <div class="mt-5 min-w-0 rounded-xl border border-slate-700/70 bg-[#081321] p-3">
+                        <div class="flex items-center justify-between gap-3 text-[9px] font-bold uppercase tracking-[.12em] text-slate-600">
+                            <span>Slush universal link</span><span id="created-nonce" class="font-mono normal-case tracking-normal">—</span>
+                        </div>
+                        <div id="created-url" class="mt-2 min-w-0 truncate font-mono text-[10px] text-slate-300">—</div>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <button id="copy-link-btn" type="button" class="secondary-btn text-xs">Copy Paylink</button>
+                        <a id="open-slush-btn" class="primary-btn text-xs" target="_blank" rel="noopener noreferrer">Open in Slush</a>
+                        <button id="copy-uri-btn" type="button" class="secondary-btn text-xs">Copy sui:pay URI</button>
+                        <button id="download-qr-btn" type="button" class="secondary-btn text-xs">Download QR</button>
+                    </div>
+                    <p class="mt-4 text-center text-[10px] leading-5 text-slate-600">The payer can use this link without CITY. Alpha City stores this invoice only in your current browser.</p>
+                </div>
+            </section>
+        </section>
+
+        <section class="surface mt-6 rounded-2xl p-5 sm:p-7" aria-labelledby="history-heading">
+            <div class="flex flex-col justify-between gap-4 border-b border-slate-800 pb-5 lg:flex-row lg:items-end">
+                <div>
+                    <div class="text-[10px] font-extrabold uppercase tracking-[.18em] text-blue-300">03 / Reconcile</div>
+                    <h2 id="history-heading" class="mt-2 text-xl font-extrabold tracking-tight text-white">Invoice history</h2>
+                    <p class="mt-1 text-xs text-slate-500">Registry records provide exact paid status. History remains local to this wallet and browser.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button id="refresh-all-btn" type="button" class="secondary-btn text-xs">Refresh pending</button>
+                    <button id="export-btn" type="button" class="secondary-btn text-xs">Export CSV</button>
+                </div>
+            </div>
+
+            <div class="my-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <label class="relative block">
+                    <span class="sr-only">Search invoices</span>
+                    <svg aria-hidden="true" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input id="history-search" class="field pl-10 text-xs" type="search" placeholder="Search label, receiver, nonce, or digest">
+                </label>
+                <div class="flex rounded-xl border border-slate-700/70 bg-[#081321] p-1" role="group" aria-label="Invoice status filter">
+                    <button type="button" class="history-filter rounded-lg px-3 py-2 text-[10px] font-extrabold text-white bg-blue-500/20" data-filter="active">Active</button>
+                    <button type="button" class="history-filter rounded-lg px-3 py-2 text-[10px] font-extrabold text-slate-500" data-filter="paid">Paid</button>
+                    <button type="button" class="history-filter rounded-lg px-3 py-2 text-[10px] font-extrabold text-slate-500" data-filter="archived">Archived</button>
+                    <button type="button" class="history-filter rounded-lg px-3 py-2 text-[10px] font-extrabold text-slate-500" data-filter="all">All</button>
+                </div>
+            </div>
+
+            <div class="mb-4 grid grid-cols-3 gap-2 sm:max-w-md">
+                <div class="surface-soft rounded-lg px-3 py-2"><div class="text-[8px] font-bold uppercase tracking-wider text-slate-600">Pending</div><div id="count-pending" class="mt-1 font-mono text-sm text-amber-300">0</div></div>
+                <div class="surface-soft rounded-lg px-3 py-2"><div class="text-[8px] font-bold uppercase tracking-wider text-slate-600">Paid</div><div id="count-paid" class="mt-1 font-mono text-sm text-emerald-300">0</div></div>
+                <div class="surface-soft rounded-lg px-3 py-2"><div class="text-[8px] font-bold uppercase tracking-wider text-slate-600">Archived</div><div id="count-archived" class="mt-1 font-mono text-sm text-slate-300">0</div></div>
+            </div>
+
+            <div id="history-empty" class="rounded-xl border border-dashed border-slate-700/80 py-12 text-center">
+                <div class="text-sm font-bold text-slate-300">No invoices yet</div>
+                <div class="mt-1 text-xs text-slate-600">Create your first Paylink above.</div>
+            </div>
+            <div id="history-list" class="hidden space-y-3" aria-live="polite"></div>
+        </section>
+
+        <section class="mt-6 grid gap-3 text-[10px] leading-5 text-slate-600 sm:grid-cols-3">
+            <div class="surface-soft rounded-xl p-4"><strong class="block text-slate-400">No custody</strong>Payments transfer directly to the receiver encoded in the request.</div>
+            <div class="surface-soft rounded-xl p-4"><strong class="block text-slate-400">Local history</strong>Export before clearing browser data or moving to another device.</div>
+            <div class="surface-soft rounded-xl p-4"><strong class="block text-slate-400">No cancellation</strong>Archiving does not disable a payment link already shared.</div>
+        </section>
+    </main>
+
+    <footer class="mt-8 border-t border-slate-800/80 py-7 text-center text-[10px] text-slate-600">
+        Alpha City Paylink · Payment Kit is evolving; verify every request in your wallet before signing.
+    </footer>
+
+    <div id="toast" class="toast fixed bottom-5 left-1/2 z-50 w-[min(92vw,440px)] -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur" role="status" aria-live="polite"></div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        const Core = window.AlphaCityPaylinkCore;
+        const Client = window.AlphaCityPaylinkClient;
+        const Config = window.AlphaCityPaylinkConfig;
+        if (!Core || !Client || !Config) {
+            document.body.textContent = 'Paylink failed to initialize. Refresh the page and try again.';
+            return;
+        }
+
+        const dom = Object.fromEntries([
+            'invoice-form', 'receiver-input', 'reset-receiver-btn', 'receiver-match', 'receiver-error',
+            'alternate-confirm-row', 'alternate-confirm', 'token-select', 'amount-input', 'amount-symbol',
+            'amount-error', 'custom-token-row', 'custom-token-input', 'verify-token-btn', 'custom-token-status',
+            'label-input', 'label-count', 'label-error', 'message-input', 'message-count', 'message-error',
+            'review-receiver', 'review-amount', 'create-btn', 'preview-empty', 'preview-created',
+            'preview-status-badge', 'qr-canvas', 'created-amount', 'created-label', 'created-message',
+            'created-nonce', 'created-url', 'copy-link-btn', 'copy-uri-btn', 'download-qr-btn', 'open-slush-btn',
+            'history-search', 'history-empty', 'history-list', 'refresh-all-btn', 'export-btn', 'count-pending',
+            'count-paid', 'count-archived', 'header-wallet', 'toast',
+        ].map((id) => [id, document.getElementById(id)]));
+
+        let creatorAddress = null;
+        let storageKey = null;
+        let invoices = [];
+        let selectedInvoiceId = null;
+        let activeToken = Config.tokenPresets[0];
+        let customToken = null;
+        let activeFilter = 'active';
+        let pollTimer = null;
+        const refreshing = new Set();
+
+        function readWalletSession() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem('alphacity_wallet') || 'null');
+                if (!parsed?.address) return null;
+                return { ...parsed, address: Core.canonicalizeAddress(parsed.address) };
+            } catch (_) { return null; }
+        }
+
+        function showToast(message, tone) {
+            const el = dom.toast;
+            el.textContent = message;
+            el.className = 'toast fixed bottom-5 left-1/2 z-50 w-[min(92vw,440px)] -translate-x-1/2 rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur';
+            if (tone === 'error') el.classList.add('border-red-400/30', 'bg-red-950/95', 'text-red-100');
+            else if (tone === 'success') el.classList.add('border-emerald-400/30', 'bg-emerald-950/95', 'text-emerald-100');
+            else el.classList.add('border-slate-700', 'bg-slate-950/95', 'text-slate-200');
+            requestAnimationFrame(() => el.classList.add('show'));
+            clearTimeout(showToast.timer);
+            showToast.timer = setTimeout(() => el.classList.remove('show'), 3200);
+        }
+
+        function setError(element, message) {
+            if (!element) return;
+            element.textContent = message || '';
+            element.classList.toggle('hidden', !message);
+        }
+
+        function populateTokens() {
+            dom['token-select'].replaceChildren();
+            Config.tokenPresets.forEach((token, index) => {
+                const option = document.createElement('option');
+                option.value = String(index);
+                option.textContent = `${token.symbol} · ${token.name}`;
+                dom['token-select'].append(option);
+            });
+            const custom = document.createElement('option');
+            custom.value = 'custom';
+            custom.textContent = 'Custom Sui coin type…';
+            dom['token-select'].append(custom);
+        }
+
+        function currentToken() {
+            return dom['token-select'].value === 'custom' ? customToken : activeToken;
+        }
+
+        function draftValidation(renderErrors) {
+            const token = currentToken();
+            const result = Core.validateInvoiceDraft({
+                receiverAddress: dom['receiver-input'].value,
+                coinType: token?.coinType || '',
+                symbol: token?.symbol || '',
+                decimals: token?.decimals,
+                amountDisplay: dom['amount-input'].value,
+                label: dom['label-input'].value,
+                message: dom['message-input'].value,
+            });
+            let receiverDiffers = false;
+            if (result.value) receiverDiffers = result.value.receiverAddress !== creatorAddress;
+            else {
+                try { receiverDiffers = Core.canonicalizeAddress(dom['receiver-input'].value) !== creatorAddress; }
+                catch (_) {}
+            }
+            dom['alternate-confirm-row'].classList.toggle('hidden', !receiverDiffers);
+            dom['receiver-match'].textContent = receiverDiffers ? 'Different destination' : 'Connected wallet';
+            dom['receiver-match'].className = receiverDiffers ? 'text-amber-300' : 'text-emerald-400';
+            const receiverConfirmed = !receiverDiffers || dom['alternate-confirm'].checked;
+            const customReady = dom['token-select'].value !== 'custom' || Boolean(customToken);
+            dom['create-btn'].disabled = !result.valid || !receiverConfirmed || !customReady;
+
+            if (renderErrors) {
+                setError(dom['receiver-error'], result.errors.receiverAddress);
+                setError(dom['amount-error'], result.errors.amountDisplay);
+                setError(dom['label-error'], result.errors.label);
+                setError(dom['message-error'], result.errors.message);
+            }
+            dom['review-receiver'].textContent = result.value?.receiverAddress || '—';
+            dom['review-amount'].textContent = result.value ? `${result.value.amountDisplay} ${result.value.symbol}` : '—';
+            return { ...result, receiverDiffers, receiverConfirmed, customReady };
+        }
+
+        function updateCounters() {
+            dom['label-count'].textContent = `${Array.from(dom['label-input'].value).length} / 64`;
+            dom['message-count'].textContent = `${Array.from(dom['message-input'].value).length} / 180`;
+        }
+
+        function updateTokenUi() {
+            const isCustom = dom['token-select'].value === 'custom';
+            if (!isCustom) activeToken = Config.tokenPresets[Number(dom['token-select'].value)] || Config.tokenPresets[0];
+            dom['custom-token-row'].classList.toggle('hidden', !isCustom);
+            const token = currentToken();
+            dom['amount-symbol'].textContent = token?.symbol || 'TOKEN';
+            draftValidation(false);
+        }
+
+        function persistInvoices() {
+            Core.saveInvoices(localStorage, storageKey, invoices, Config.maxStoredInvoices);
+        }
+
+        function formatDate(value) {
+            if (!value) return '—';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '—';
+            return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+        }
+
+        function statusLabel(invoice) {
+            if (invoice.archivedAt) return 'Archived';
+            return invoice.paymentStatus === 'paid' ? 'Paid' : 'Pending';
+        }
+
+        function makeButton(label, action, id, extraClass) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `mini-btn ${extraClass || ''}`;
+            button.dataset.action = action;
+            button.dataset.id = id;
+            button.textContent = label;
+            return button;
+        }
+
+        function invoiceMatches(invoice, query) {
+            if (!query) return true;
+            const haystack = [invoice.label, invoice.message, invoice.receiverAddress, invoice.nonce, invoice.transactionDigest, invoice.symbol].join(' ').toLowerCase();
+            return haystack.includes(query);
+        }
+
+        function filterInvoice(invoice) {
+            if (activeFilter === 'all') return true;
+            if (activeFilter === 'archived') return Boolean(invoice.archivedAt);
+            if (activeFilter === 'paid') return !invoice.archivedAt && invoice.paymentStatus === 'paid';
+            return !invoice.archivedAt;
+        }
+
+        function renderCounts() {
+            dom['count-pending'].textContent = String(invoices.filter((item) => !item.archivedAt && item.paymentStatus === 'pending').length);
+            dom['count-paid'].textContent = String(invoices.filter((item) => !item.archivedAt && item.paymentStatus === 'paid').length);
+            dom['count-archived'].textContent = String(invoices.filter((item) => item.archivedAt).length);
+        }
+
+        function renderHistory() {
+            renderCounts();
+            const query = dom['history-search'].value.trim().toLowerCase();
+            const visible = invoices.filter(filterInvoice).filter((invoice) => invoiceMatches(invoice, query));
+            dom['history-list'].replaceChildren();
+            dom['history-empty'].classList.toggle('hidden', visible.length > 0);
+            dom['history-list'].classList.toggle('hidden', visible.length === 0);
+            if (!visible.length) {
+                dom['history-empty'].querySelector('div').textContent = invoices.length ? 'No invoices match this view' : 'No invoices yet';
+                return;
+            }
+
+            visible.forEach((invoice) => {
+                const card = document.createElement('article');
+                card.className = 'history-card rounded-xl border border-slate-700/70 bg-[#091626]/75 p-4';
+
+                const top = document.createElement('div');
+                top.className = 'flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between';
+                const left = document.createElement('div');
+                left.className = 'min-w-0';
+                const status = document.createElement('span');
+                const statusClass = invoice.archivedAt ? 'status-archived' : invoice.paymentStatus === 'paid' ? 'status-paid' : 'status-pending';
+                status.className = `inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider ${statusClass}`;
+                const dot = document.createElement('span');
+                dot.className = `status-dot ${invoice.archivedAt ? 'bg-slate-400' : invoice.paymentStatus === 'paid' ? 'bg-emerald-400' : 'bg-amber-300'}`;
+                status.append(dot, document.createTextNode(statusLabel(invoice)));
+                const title = document.createElement('h3');
+                title.className = 'mt-2 truncate text-sm font-extrabold text-white';
+                title.textContent = invoice.label;
+                const meta = document.createElement('p');
+                meta.className = 'mt-1 font-mono text-[10px] text-slate-500';
+                meta.textContent = `${Core.shortAddress(invoice.receiverAddress)} · ${formatDate(invoice.createdAt)}`;
+                left.append(status, title, meta);
+
+                const amount = document.createElement('div');
+                amount.className = 'shrink-0 sm:text-right';
+                const amountMain = document.createElement('div');
+                amountMain.className = 'font-mono text-lg font-medium text-white';
+                amountMain.textContent = `${invoice.amountDisplay} ${invoice.symbol}`;
+                const nonce = document.createElement('div');
+                nonce.className = 'mt-1 font-mono text-[9px] text-slate-600';
+                nonce.textContent = invoice.nonce;
+                amount.append(amountMain, nonce);
+                top.append(left, amount);
+
+                const bottom = document.createElement('div');
+                bottom.className = 'mt-4 flex flex-col gap-3 border-t border-slate-800 pt-3 sm:flex-row sm:items-center sm:justify-between';
+                const evidence = document.createElement('div');
+                evidence.className = 'min-w-0 text-[10px] text-slate-500';
+                if (invoice.paymentStatus === 'paid' && invoice.transactionDigest) {
+                    const link = document.createElement('a');
+                    link.href = `${Config.explorerTransactionBaseUrl}${encodeURIComponent(invoice.transactionDigest)}`;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.className = 'font-mono text-emerald-300 hover:text-emerald-200';
+                    link.textContent = `Receipt ${Core.shortAddress(invoice.transactionDigest, 9, 6)} ↗`;
+                    evidence.append(link, document.createTextNode(` · detected ${formatDate(invoice.detectedAt)}`));
+                } else if (invoice.lastError) {
+                    evidence.className += ' text-amber-300/80';
+                    evidence.textContent = `Status temporarily unavailable · ${formatDate(invoice.lastCheckedAt)}`;
+                } else {
+                    evidence.textContent = invoice.lastCheckedAt ? `Last checked ${formatDate(invoice.lastCheckedAt)}` : 'Not checked yet';
+                }
+
+                const actions = document.createElement('div');
+                actions.className = 'flex flex-wrap gap-2';
+                actions.append(makeButton('View', 'view', invoice.id));
+                if (!invoice.archivedAt && invoice.paymentStatus === 'pending') {
+                    const refresh = makeButton(refreshing.has(invoice.id) ? 'Checking…' : 'Refresh', 'refresh', invoice.id);
+                    refresh.disabled = refreshing.has(invoice.id);
+                    actions.append(refresh);
+                }
+                actions.append(makeButton('Duplicate', 'duplicate', invoice.id));
+                actions.append(makeButton(invoice.archivedAt ? 'Restore' : 'Archive', invoice.archivedAt ? 'restore' : 'archive', invoice.id));
+                bottom.append(evidence, actions);
+                card.append(top, bottom);
+                dom['history-list'].append(card);
+            });
+        }
+
+        async function showInvoice(invoice) {
+            if (!invoice) return;
+            selectedInvoiceId = invoice.id;
+            dom['preview-empty'].classList.add('hidden');
+            dom['preview-created'].classList.remove('hidden');
+            dom['preview-created'].classList.add('flex');
+            dom['preview-status-badge'].textContent = statusLabel(invoice);
+            dom['preview-status-badge'].className = `rounded-lg border px-2.5 py-1.5 text-[9px] font-extrabold uppercase tracking-wider ${invoice.archivedAt ? 'status-archived' : invoice.paymentStatus === 'paid' ? 'status-paid' : 'status-pending'}`;
+            dom['created-amount'].textContent = `${invoice.amountDisplay} ${invoice.symbol}`;
+            dom['created-label'].textContent = invoice.label;
+            dom['created-message'].textContent = invoice.message || '';
+            dom['created-message'].classList.toggle('hidden', !invoice.message);
+            dom['created-nonce'].textContent = invoice.nonce;
+            dom['created-url'].textContent = invoice.universalUrl;
+            dom['open-slush-btn'].href = invoice.universalUrl;
+            try {
+                await Client.renderQr(dom['qr-canvas'], invoice.universalUrl, { width: 320 });
+            } catch (error) {
+                showToast(`Link created, but QR rendering failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function copyText(value, successMessage) {
+            try {
+                if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value);
+                else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = value;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.append(textarea);
+                    textarea.select();
+                    if (!document.execCommand('copy')) throw new Error('Copy was blocked');
+                    textarea.remove();
+                }
+                showToast(successMessage, 'success');
+            } catch (_) { showToast('Copy failed. Select and copy the link manually.', 'error'); }
+        }
+
+        async function createInvoice(event) {
+            event.preventDefault();
+            const check = draftValidation(true);
+            if (!check.valid || !check.receiverConfirmed || !check.customReady) {
+                showToast('Review the highlighted fields before creating the Paylink.', 'error');
+                return;
+            }
+            if (invoices.length >= Config.maxStoredInvoices) {
+                showToast(`Local history is limited to ${Config.maxStoredInvoices} invoices. Export and archive older records first.`, 'error');
+                return;
+            }
+            const button = dom['create-btn'];
+            const original = button.textContent;
+            button.disabled = true;
+            button.replaceChildren(Object.assign(document.createElement('span'), { className: 'spinner' }), document.createTextNode('Creating…'));
+            try {
+                const nonce = crypto.randomUUID();
+                const base = {
+                    ...check.value,
+                    id: nonce,
+                    nonce,
+                    creatorAddress,
+                    network: Config.network,
+                    registryId: Config.registryId,
+                    registryName: Config.registryName,
+                };
+                const paymentUri = Client.createPaymentUri(base);
+                const universalUrl = Client.createSlushUniversalUrl(paymentUri, Config.slushPaymentBaseUrl);
+                const invoice = Core.createInvoiceRecord({ ...base, paymentUri, universalUrl });
+                invoices.unshift(invoice);
+                persistInvoices();
+                renderHistory();
+                await showInvoice(invoice);
+                dom['amount-input'].value = '';
+                dom['label-input'].value = '';
+                dom['message-input'].value = '';
+                updateCounters();
+                draftValidation(false);
+                showToast('Paylink created and saved in this browser.', 'success');
+            } catch (error) {
+                showToast(error.message || 'Unable to create Paylink.', 'error');
+            } finally {
+                button.textContent = original.trim() || 'Create Paylink';
+                draftValidation(false);
+            }
+        }
+
+        async function verifyCustomToken() {
+            const button = dom['verify-token-btn'];
+            customToken = null;
+            updateTokenUi();
+            button.disabled = true;
+            button.textContent = 'Checking…';
+            dom['custom-token-status'].textContent = 'Loading onchain metadata…';
+            dom['custom-token-status'].className = 'mt-2 text-xs text-blue-300';
+            try {
+                const canonical = Core.canonicalizeCoinType(dom['custom-token-input'].value);
+                const metadata = await Client.getCoinMetadata(canonical);
+                if (!metadata.symbol) throw new Error('Token metadata has no symbol.');
+                customToken = metadata;
+                dom['custom-token-status'].textContent = `${metadata.name} · ${metadata.symbol} · ${metadata.decimals} decimals`;
+                dom['custom-token-status'].className = 'mt-2 text-xs text-emerald-300';
+                updateTokenUi();
+            } catch (error) {
+                dom['custom-token-status'].textContent = error.message || 'Token could not be verified.';
+                dom['custom-token-status'].className = 'mt-2 text-xs text-red-400';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Verify token';
+                draftValidation(false);
+            }
+        }
+
+        async function refreshInvoice(id, quiet) {
+            const index = invoices.findIndex((item) => item.id === id);
+            if (index < 0 || invoices[index].paymentStatus === 'paid') return invoices[index] || null;
+            if (refreshing.has(id)) return invoices[index];
+            refreshing.add(id);
+            renderHistory();
+            try {
+                const record = await Client.getPaymentRecord(invoices[index]);
+                const now = new Date().toISOString();
+                invoices[index] = Core.transitionInvoiceStatus(invoices[index], record ? {
+                    checked: true,
+                    markPaid: true,
+                    transactionDigest: record.transactionDigest,
+                    now,
+                } : { checked: true, error: null, now });
+                persistInvoices();
+                if (record && !quiet) showToast('Payment confirmed onchain.', 'success');
+                if (!record && !quiet) showToast('No matching payment record yet.');
+                if (selectedInvoiceId === id) await showInvoice(invoices[index]);
+            } catch (error) {
+                invoices[index] = Core.transitionInvoiceStatus(invoices[index], {
+                    checked: true,
+                    error: error.message || 'Status temporarily unavailable',
+                });
+                try { persistInvoices(); } catch (_) {}
+                if (!quiet) showToast('Status temporarily unavailable. Existing status was preserved.', 'error');
+            } finally {
+                refreshing.delete(id);
+                renderHistory();
+            }
+            return invoices[index];
+        }
+
+        async function runPool(ids, quiet) {
+            const queue = ids.slice();
+            async function worker() {
+                while (queue.length) await refreshInvoice(queue.shift(), quiet);
+            }
+            const workers = Array.from({ length: Math.min(Config.maxConcurrentChecks, queue.length) }, worker);
+            await Promise.all(workers);
+        }
+
+        async function refreshPending(quiet) {
+            if (!navigator.onLine || document.hidden) return;
+            const ids = invoices.filter((item) => !item.archivedAt && item.paymentStatus === 'pending').slice(0, Config.maxAutomaticChecks).map((item) => item.id);
+            if (!ids.length) {
+                if (!quiet) showToast('There are no active pending invoices.');
+                return;
+            }
+            dom['refresh-all-btn'].disabled = true;
+            dom['refresh-all-btn'].textContent = 'Checking…';
+            try { await runPool(ids, quiet); }
+            finally {
+                dom['refresh-all-btn'].disabled = false;
+                dom['refresh-all-btn'].textContent = 'Refresh pending';
+            }
+        }
+
+        function duplicateInvoice(invoice) {
+            const presetIndex = Config.tokenPresets.findIndex((token) => Core.canonicalizeCoinType(token.coinType) === invoice.coinType);
+            if (presetIndex >= 0) {
+                dom['token-select'].value = String(presetIndex);
+                activeToken = Config.tokenPresets[presetIndex];
+            } else {
+                dom['token-select'].value = 'custom';
+                customToken = { coinType: invoice.coinType, symbol: invoice.symbol, decimals: invoice.decimals, name: invoice.symbol };
+                dom['custom-token-input'].value = invoice.coinType;
+                dom['custom-token-status'].textContent = `${invoice.symbol} · ${invoice.decimals} decimals (from saved invoice)`;
+                dom['custom-token-status'].className = 'mt-2 text-xs text-emerald-300';
+            }
+            dom['receiver-input'].value = invoice.receiverAddress;
+            dom['amount-input'].value = invoice.amountDisplay;
+            dom['label-input'].value = invoice.label;
+            dom['message-input'].value = invoice.message;
+            dom['alternate-confirm'].checked = invoice.receiverAddress !== creatorAddress;
+            updateTokenUi();
+            updateCounters();
+            draftValidation(false);
+            document.getElementById('invoice-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast('Invoice copied into a new draft. Creating it will generate a new nonce.');
+        }
+
+        function archiveInvoice(id, restore) {
+            const index = invoices.findIndex((item) => item.id === id);
+            if (index < 0) return;
+            invoices[index] = Core.transitionInvoiceStatus(invoices[index], restore ? { restore: true } : { archive: true });
+            persistInvoices();
+            renderHistory();
+            if (selectedInvoiceId === id) showInvoice(invoices[index]);
+            showToast(restore ? 'Invoice restored.' : 'Invoice archived locally. The shared link remains usable.');
+        }
+
+        function exportCsv() {
+            if (!invoices.length) { showToast('There are no invoices to export.'); return; }
+            const csv = Core.buildCsv(invoices);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `alpha-city-paylink-${Core.safeFilenamePart(Core.shortAddress(creatorAddress, 8, 6))}-${new Date().toISOString().slice(0, 10)}.csv`;
+            anchor.click();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+            showToast('Invoice history exported.', 'success');
+        }
+
+        function bindEvents() {
+            dom['invoice-form'].addEventListener('submit', createInvoice);
+            const fieldErrorTargets = {
+                'receiver-input': ['receiver-error', 'receiverAddress'],
+                'amount-input': ['amount-error', 'amountDisplay'],
+                'label-input': ['label-error', 'label'],
+                'message-input': ['message-error', 'message'],
+            };
+            ['receiver-input', 'amount-input', 'label-input', 'message-input'].forEach((id) => {
+                dom[id].addEventListener('input', () => {
+                    updateCounters();
+                    const result = draftValidation(false);
+                    const [targetId, errorKey] = fieldErrorTargets[id];
+                    setError(dom[targetId], result.errors[errorKey]);
+                });
+                dom[id].addEventListener('blur', () => draftValidation(true));
+            });
+            dom['alternate-confirm'].addEventListener('change', () => draftValidation(false));
+            dom['token-select'].addEventListener('change', () => { customToken = dom['token-select'].value === 'custom' ? customToken : null; updateTokenUi(); });
+            dom['custom-token-input'].addEventListener('input', () => {
+                customToken = null;
+                dom['custom-token-status'].textContent = 'Metadata must resolve before creating a link.';
+                dom['custom-token-status'].className = 'mt-2 text-xs text-slate-500';
+                draftValidation(false);
+            });
+            dom['verify-token-btn'].addEventListener('click', verifyCustomToken);
+            dom['reset-receiver-btn'].addEventListener('click', () => {
+                dom['receiver-input'].value = creatorAddress;
+                dom['alternate-confirm'].checked = false;
+                draftValidation(false);
+            });
+            dom['copy-link-btn'].addEventListener('click', () => {
+                const invoice = invoices.find((item) => item.id === selectedInvoiceId);
+                if (invoice) copyText(invoice.universalUrl, 'Paylink copied.');
+            });
+            dom['copy-uri-btn'].addEventListener('click', () => {
+                const invoice = invoices.find((item) => item.id === selectedInvoiceId);
+                if (invoice) copyText(invoice.paymentUri, 'sui:pay URI copied.');
+            });
+            dom['download-qr-btn'].addEventListener('click', () => {
+                const invoice = invoices.find((item) => item.id === selectedInvoiceId);
+                if (!invoice) return;
+                try { Client.downloadQr(dom['qr-canvas'], `${Core.safeFilenamePart(invoice.label)}-${invoice.nonce.slice(0, 8)}.png`); }
+                catch (error) { showToast(error.message, 'error'); }
+            });
+            dom['history-search'].addEventListener('input', renderHistory);
+            document.querySelectorAll('.history-filter').forEach((button) => button.addEventListener('click', () => {
+                activeFilter = button.dataset.filter;
+                document.querySelectorAll('.history-filter').forEach((item) => {
+                    const active = item === button;
+                    item.classList.toggle('bg-blue-500/20', active);
+                    item.classList.toggle('text-white', active);
+                    item.classList.toggle('text-slate-500', !active);
+                });
+                renderHistory();
+            }));
+            dom['history-list'].addEventListener('click', async (event) => {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+                const invoice = invoices.find((item) => item.id === button.dataset.id);
+                if (!invoice) return;
+                if (button.dataset.action === 'view') { await showInvoice(invoice); document.getElementById('preview-heading').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                if (button.dataset.action === 'refresh') await refreshInvoice(invoice.id, false);
+                if (button.dataset.action === 'duplicate') duplicateInvoice(invoice);
+                if (button.dataset.action === 'archive') archiveInvoice(invoice.id, false);
+                if (button.dataset.action === 'restore') archiveInvoice(invoice.id, true);
+            });
+            dom['refresh-all-btn'].addEventListener('click', () => refreshPending(false));
+            dom['export-btn'].addEventListener('click', exportCsv);
+            window.addEventListener('online', () => refreshPending(true));
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshPending(true); });
+        }
+
+        function initialize() {
+            const session = readWalletSession();
+            if (!session) return;
+            creatorAddress = session.address;
+            storageKey = Core.createStorageKey(Config.network, creatorAddress);
+            dom['header-wallet'].textContent = Core.shortAddress(creatorAddress);
+            dom['receiver-input'].value = creatorAddress;
+            populateTokens();
+            Client.initialize({
+                dataLayer: window.AlphaCitySui,
+                network: Config.network,
+                registryId: Config.registryId,
+                registryName: Config.registryName,
+                paymentKitPackageId: Config.paymentKitPackageId,
+                slushPaymentBaseUrl: Config.slushPaymentBaseUrl,
+            });
+            const loaded = Core.loadInvoices(localStorage, storageKey);
+            invoices = loaded.invoices;
+            if (loaded.corruptCount) showToast(`${loaded.corruptCount} damaged local invoice record(s) were skipped. Export your remaining history.`, 'error');
+            updateTokenUi();
+            updateCounters();
+            draftValidation(false);
+            bindEvents();
+            renderHistory();
+            if (invoices[0]) showInvoice(invoices[0]);
+            pollTimer = setInterval(() => refreshPending(true), Config.pollIntervalMs);
+            window.addEventListener('beforeunload', () => clearInterval(pollTimer), { once: true });
+            setTimeout(() => refreshPending(true), 1500);
+        }
+
+        try { initialize(); }
+        catch (error) {
+            console.error('[paylink] initialization failed', error);
+            showToast(error.message || 'Paylink failed to initialize.', 'error');
+        }
+    })();
+    </script>
+</body>
+</html>
