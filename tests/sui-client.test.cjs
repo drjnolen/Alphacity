@@ -152,7 +152,7 @@ test('legacy object helper reports missing objects without throwing', () => {
 
 test('staking transaction builder methods retain legacy JSON-RPC response shapes', async () => {
     const layer = mockLayer(undefined, async ({ packageId, moduleName, name }) => {
-        assert.equal(packageId, '0xpackage');
+        assert.equal(packageId, '0x0abc');
         assert.equal(moduleName, 'city_staking');
         assert.equal(name, 'claim_credits');
         return {
@@ -165,7 +165,7 @@ test('staking transaction builder methods retain legacy JSON-RPC response shapes
                         reference: 'immutable',
                         body: {
                             $kind: 'datatype',
-                            datatype: { typeName: '0xpackage::city_staking::StakingPool', typeParameters: [] },
+                            datatype: { typeName: '0x0abc::city_staking::StakingPool', typeParameters: [] },
                         },
                     },
                     {
@@ -173,21 +173,29 @@ test('staking transaction builder methods retain legacy JSON-RPC response shapes
                         body: {
                             $kind: 'datatype',
                             datatype: {
-                                typeName: '0xpackage::city_staking::UserStake',
+                                typeName: '0x0abc::city_staking::UserStake',
                                 typeParameters: [{ $kind: 'typeParameter', index: 0 }],
                             },
                         },
-                    },
-                    { reference: null, body: { $kind: 'u64' } },
-                    {
-                        reference: null,
-                        body: { $kind: 'vector', vector: { $kind: 'u8' } },
                     },
                     {
                         reference: 'immutable',
                         body: {
                             $kind: 'datatype',
-                            datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+                            datatype: {
+                                typeName: '0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+                                typeParameters: [],
+                            },
+                        },
+                    },
+                    {
+                        reference: 'immutable',
+                        body: {
+                            $kind: 'datatype',
+                            datatype: {
+                                typeName: '0x0000000000000000000000000000000000000000000000000000000000000002::tx_context::TxContext',
+                                typeParameters: [],
+                            },
                         },
                     },
                 ],
@@ -208,17 +216,22 @@ test('staking transaction builder methods retain legacy JSON-RPC response shapes
     assert.equal(dryRun.effects.gasUsed.storageRebate, '50');
 
     const moveFunction = await layer.rpc('sui_getNormalizedMoveFunction', [
-        '0xpackage',
+        '0x0abc',
         'city_staking',
         'claim_credits',
     ]);
     assert.equal(moveFunction.visibility, 'Public');
     assert.deepEqual(moveFunction.typeParameters, [{ abilities: ['Key'] }]);
     assert.equal(moveFunction.parameters[0].Reference.Struct.name, 'StakingPool');
+    assert.equal(moveFunction.parameters[0].Reference.Struct.address, '0xabc');
     assert.equal(moveFunction.parameters[1].MutableReference.Struct.typeArguments[0].TypeParameter, 0);
-    assert.equal(moveFunction.parameters[2], 'U64');
-    assert.equal(moveFunction.parameters[3].Vector, 'U8');
-    assert.equal(moveFunction.parameters[4].Reference.Struct.name, 'TxContext');
+    assert.equal(moveFunction.parameters[2].Reference.Struct.name, 'Clock');
+
+    const txContext = moveFunction.parameters[3].Reference.Struct;
+    assert.equal(txContext.address, '0x2');
+    assert.equal(txContext.module, 'tx_context');
+    assert.equal(txContext.name, 'TxContext');
+    assert.equal(moveFunction.parameters.slice(0, -1).length, 3);
 });
 
 test('staking bridge reroutes only legacy JSON-RPC requests', async () => {
