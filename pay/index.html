@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/pay/tailwind.css">
+    <style id="tools-gate-style">body { display: none !important; }</style>
     <style>
         :root { --blue: #3b82f6; --gold: #facc15; --ink: #111827; --panel: #1f2937; --line: #374151; }
         * { box-sizing: border-box; }
@@ -58,13 +59,13 @@
     </style>
 
     <!-- Shared wallet session, Sui transport, then immediate CITY gate. -->
-    <script src="/shared/wallet-sync.js"></script>
-    <script src="/shared/wallet-connector.js"></script>
-    <script src="/shared/sui-client.js"></script>
-    <script src="/shared/tools-gate.js"></script>
-    <script src="/shared/paylink-config.js"></script>
-    <script src="/shared/paylink-core.js"></script>
-    <script src="/shared/paylink-client.js"></script>
+    <script src="/shared/wallet-sync.js" defer></script>
+    <script src="/shared/wallet-connector.js" defer></script>
+    <script src="/shared/sui-client.js" defer></script>
+    <script src="/shared/tools-gate.js" defer></script>
+    <script src="/shared/paylink-config.js" defer></script>
+    <script src="/shared/paylink-core.js" defer></script>
+    <script src="/shared/paylink-client.js" defer></script>
 </head>
 <body class="flex min-h-screen flex-col bg-dark-bg font-sans text-dark-text antialiased">
     <header class="sticky top-0 z-50 border-b border-gray-800 bg-dark-bg/90 backdrop-blur-sm">
@@ -311,6 +312,7 @@
     <div id="toast" class="toast fixed bottom-5 left-1/2 z-50 w-[min(92vw,440px)] -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur" role="status" aria-live="polite"></div>
 
     <script>
+    window.addEventListener('DOMContentLoaded', () => {
     (function () {
         'use strict';
 
@@ -919,6 +921,7 @@
             showToast(error.message || 'Paylink failed to initialize.', 'error');
         }
     })();
+    }, { once: true });
     </script>
 </body>
 </html>

@@ -10,6 +10,10 @@
         explorerTransactionBaseUrl: 'https://suiscan.xyz/mainnet/tx/',
         slushPaymentBaseUrl: 'https://my.slush.app/pay',
         payerRequestBaseUrl: 'https://alphacity.tech/pay/request/',
+        graphqlUrls: [
+            'https://graphql.mainnet.sui.io/graphql',
+            'https://sui-mainnet.mystenlabs.com/graphql',
+        ],
         pollIntervalMs: 60_000,
         maxAutomaticChecks: 20,
         maxConcurrentChecks: 3,
@@ -41,5 +45,6 @@
 
     config.tokenPresets.forEach(Object.freeze);
     Object.freeze(config.tokenPresets);
+    Object.freeze(config.graphqlUrls);
     root.AlphaCityPaylinkConfig = Object.freeze(config);
 })(typeof window !== 'undefined' ? window : globalThis);

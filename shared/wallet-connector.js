@@ -21,6 +21,12 @@
         )).filter(Boolean))];
     }
 
+    function suiAccountAddresses(accounts) {
+        return accountAddresses((accounts || []).filter((account) => (
+            typeof account === 'string' || !account?.chains?.length || account.chains.includes(SUI_CHAIN)
+        )));
+    }
+
     function readSession() {
         try {
             const parsed = JSON.parse(localStorage.getItem(CANONICAL_KEY) || 'null');
@@ -99,6 +105,23 @@
                 if (provider.switchAccount) await provider.switchAccount(address);
                 else if (provider.selectAccount) await provider.selectAccount(address);
             },
+            subscribe(callback) {
+                if (typeof provider.on !== 'function') return () => {};
+                const disposers = [];
+                const handleChange = (payload) => {
+                    const values = payload?.accounts || (payload?.account ? [payload.account] : payload);
+                    callback(accountAddresses(Array.isArray(values) ? values : [values]));
+                };
+                ['accountsChanged', 'accountChanged'].forEach((eventName) => {
+                    try {
+                        const returned = provider.on(eventName, handleChange);
+                        if (typeof returned === 'function') disposers.push(returned);
+                        else if (typeof provider.off === 'function') disposers.push(() => provider.off(eventName, handleChange));
+                        else if (typeof provider.removeListener === 'function') disposers.push(() => provider.removeListener(eventName, handleChange));
+                    } catch (_) {}
+                });
+                return () => disposers.forEach((dispose) => { try { dispose(); } catch (_) {} });
+            },
             async disconnect() {
                 if (provider.disconnect) await provider.disconnect();
                 selectedAddress = null;
@@ -123,20 +146,28 @@
                     result = await connectFeature.connect();
                 }
                 connectedAccounts = result?.accounts || wallet.accounts || [];
-                selectedAccount = connectedAccounts.find((account) => account.address === preferredAddress)
-                    || connectedAccounts.find((account) => !account.chains || account.chains.includes(SUI_CHAIN))
-                    || connectedAccounts[0]
-                    || wallet.accounts?.find((account) => !account.chains || account.chains.includes(SUI_CHAIN))
-                    || wallet.accounts?.[0];
+                const availableAccounts = [...connectedAccounts, ...(wallet.accounts || [])]
+                    .filter((account) => !account?.chains?.length || account.chains.includes(SUI_CHAIN));
+                selectedAccount = availableAccounts.find((account) => account.address === preferredAddress)
+                    || availableAccounts[0];
                 if (!selectedAccount?.address) throw new Error(`${wallet.name} returned no Sui account.`);
                 return selectedAccount.address;
             },
             async getAccounts() {
-                return accountAddresses([...connectedAccounts, ...(wallet.accounts || [])]);
+                return suiAccountAddresses([...connectedAccounts, ...(wallet.accounts || [])]);
             },
             async selectAccount(address) {
                 selectedAccount = [...connectedAccounts, ...(wallet.accounts || [])]
                     .find((account) => account.address === address) || selectedAccount;
+            },
+            subscribe(callback) {
+                const eventsFeature = wallet.features?.['standard:events'];
+                if (typeof eventsFeature?.on !== 'function') return () => {};
+                const unsubscribe = eventsFeature.on('change', ({ accounts } = {}) => {
+                    connectedAccounts = accounts || wallet.accounts || [];
+                    callback(suiAccountAddresses(connectedAccounts));
+                });
+                return typeof unsubscribe === 'function' ? unsubscribe : () => {};
             },
             async disconnect() {
                 if (disconnectFeature?.disconnect) await disconnectFeature.disconnect();
@@ -196,18 +227,30 @@
 
     function choose({ title, description, options, cancelLabel = 'Cancel' }) {
         return new Promise((resolve) => {
+            const previousFocus = document.activeElement;
             const overlay = createElement('div', 'ac-wallet-overlay');
             const card = createElement('section', 'ac-wallet-dialog');
+            const dialogId = `ac-wallet-dialog-${crypto.randomUUID()}`;
+            const descriptionId = `${dialogId}-description`;
             card.setAttribute('role', 'dialog');
             card.setAttribute('aria-modal', 'true');
-            card.setAttribute('aria-label', title);
-            card.append(
-                createElement('h2', 'ac-wallet-dialog-title', title),
-                createElement('p', 'ac-wallet-dialog-copy', description),
-            );
+            card.setAttribute('aria-labelledby', dialogId);
+            card.setAttribute('aria-describedby', descriptionId);
+            const heading = createElement('h2', 'ac-wallet-dialog-title', title);
+            heading.id = dialogId;
+            const copy = createElement('p', 'ac-wallet-dialog-copy', description);
+            copy.id = descriptionId;
+            card.append(heading, copy);
             const list = createElement('div', 'ac-wallet-choice-list');
+            let background = [];
             const finish = (value) => {
+                background.forEach(({ element, inert, ariaHidden }) => {
+                    element.inert = inert;
+                    if (ariaHidden == null) element.removeAttribute('aria-hidden');
+                    else element.setAttribute('aria-hidden', ariaHidden);
+                });
                 overlay.remove();
+                if (previousFocus instanceof HTMLElement) previousFocus.focus();
                 resolve(value || null);
             };
             options.forEach((option) => {
@@ -222,7 +265,33 @@
             card.append(list, cancel);
             overlay.append(card);
             overlay.addEventListener('click', (event) => { if (event.target === overlay) finish(null); });
+            overlay.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    finish(null);
+                    return;
+                }
+                if (event.key !== 'Tab') return;
+                const focusable = [...card.querySelectorAll('button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')];
+                if (!focusable.length) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            });
             document.body.append(overlay);
+            background = [...document.body.children]
+                .filter((element) => element !== overlay)
+                .map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute('aria-hidden') }));
+            background.forEach(({ element }) => {
+                element.inert = true;
+                element.setAttribute('aria-hidden', 'true');
+            });
             card.querySelector('button')?.focus();
         });
     }
@@ -235,6 +304,7 @@
         let address = '';
         let walletName = '';
         let busy = false;
+        let unsubscribe = null;
 
         function session() {
             return address && walletName ? { walletName, address } : null;
@@ -259,16 +329,35 @@
         }
 
         function update(nextAdapter, nextAddress, notify = true) {
+            const adapterChanged = adapter !== (nextAdapter || null);
+            if (adapterChanged && unsubscribe) {
+                try { unsubscribe(); } catch (_) {}
+                unsubscribe = null;
+            }
             adapter = nextAdapter || null;
             address = nextAddress || '';
             walletName = adapter?.name || '';
+            if (adapterChanged && adapter?.subscribe) {
+                try { unsubscribe = adapter.subscribe(handleAccountsChanged); } catch (_) { unsubscribe = null; }
+            }
             if (address && walletName) writeSession(walletName, address);
             else clearSession();
             render();
             if (notify) onChange(session());
         }
 
-        async function selectProvider(preferredName) {
+        function handleAccountsChanged(accounts) {
+            if (!adapter) return;
+            const addresses = accountAddresses(accounts);
+            if (!addresses.length) {
+                update(null, '');
+                return;
+            }
+            const nextAddress = addresses.includes(address) ? address : addresses[0];
+            if (nextAddress !== address) update(adapter, nextAddress);
+        }
+
+        async function selectProvider(preferredName, automatic = false) {
             let wallets = discoverWallets();
             if (!wallets.length) {
                 await new Promise((resolve) => setTimeout(resolve, 600));
@@ -277,6 +366,7 @@
             if (!wallets.length) throw new Error('No supported wallet found. Install Slush, Suiet, Sui Wallet, or Phantom with Sui enabled.');
             const preferred = wallets.find((wallet) => normalizeName(wallet.name) === normalizeName(preferredName));
             if (preferred) return preferred;
+            if (automatic && preferredName) throw new Error(`${preferredName} is not available for automatic reconnection.`);
             if (wallets.length === 1) return wallets[0];
             return choose({
                 title: 'Select Wallet',
@@ -290,11 +380,8 @@
             busy = true;
             render();
             try {
-                const nextAdapter = await selectProvider(preferredSession?.walletName);
+                const nextAdapter = await selectProvider(preferredSession?.walletName, automatic);
                 if (!nextAdapter) return session();
-                if (switchingFrom?.disconnect && switchingFrom !== nextAdapter) {
-                    try { await switchingFrom.disconnect(); } catch (_) {}
-                }
                 const nextAddress = await nextAdapter.connect({
                     silent: automatic,
                     preferredAddress: preferredSession?.address,
@@ -313,6 +400,9 @@
                     await nextAdapter.selectAccount(chosenAddress);
                 }
                 update(nextAdapter, chosenAddress);
+                if (switchingFrom?.disconnect && switchingFrom !== nextAdapter) {
+                    try { await switchingFrom.disconnect(); } catch (_) {}
+                }
                 return session();
             } finally {
                 busy = false;
@@ -327,12 +417,22 @@
 
         async function switchAccount() {
             if (!adapter || adapter.supportsAccountSwitch === false) {
-                alert('Switch the active account inside your wallet, then use Switch Wallet Provider to reconnect.');
+                await choose({
+                    title: 'Switch Account in Wallet',
+                    description: 'Switch the active account inside your wallet, then use Switch Wallet Provider to reconnect.',
+                    options: [],
+                    cancelLabel: 'OK',
+                });
                 return;
             }
             const accounts = await adapter.getAccounts();
             if (accounts.length <= 1) {
-                alert('No alternate accounts were exposed by this wallet. Add or enable another account, then try again.');
+                await choose({
+                    title: 'No Alternate Accounts',
+                    description: 'Add or enable another account inside your wallet, then try again.',
+                    options: [],
+                    cancelLabel: 'OK',
+                });
                 return;
             }
             const nextAddress = await choose({
@@ -369,17 +469,19 @@
             const action = address ? walletOptions() : connect();
             action.catch((error) => {
                 console.error('[wallet-connector]', error);
-                alert(`Wallet connection failed: ${error.message}`);
+                choose({
+                    title: 'Wallet Connection Failed',
+                    description: error.message || 'The wallet could not be connected.',
+                    options: [],
+                    cancelLabel: 'OK',
+                });
             });
         });
 
         const persisted = readSession();
         if (persisted) {
-            address = persisted.address;
-            walletName = persisted.walletName;
             render();
-            onChange(session());
-            connect({ automatic: true, preferredSession: persisted }).catch(() => render());
+            connect({ automatic: true, preferredSession: persisted }).catch(() => update(null, ''));
         } else {
             render();
             onChange(null);

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="dark">
     <title>Payment Request · Alpha City</title>
-    <meta name="description" content="Review an Alpha City payment request before continuing to Slush.">
+    <meta name="description" content="Review and verify an Alpha City payment request before continuing to Slush.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,7 +16,17 @@
         .request-card { background: #1f2937; border: 1px solid #374151; box-shadow: 0 24px 70px rgba(0,0,0,.28); }
         .detail-card { background: #111827; border: 1px solid #374151; }
         .primary-action { box-shadow: 0 14px 34px rgba(59,130,246,.22); }
+        .primary-action:disabled { cursor: not-allowed; opacity: .48; box-shadow: none; }
+        .status-checking { border-color: rgba(96,165,250,.28); background: rgba(59,130,246,.08); color: #bfdbfe; }
+        .status-ready { border-color: rgba(74,222,128,.28); background: rgba(34,197,94,.08); color: #bbf7d0; }
+        .status-paid { border-color: rgba(250,204,21,.3); background: rgba(250,204,21,.08); color: #fef08a; }
+        .status-error { border-color: rgba(248,113,113,.3); background: rgba(239,68,68,.08); color: #fecaca; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.25); border-top-color: currentColor; border-radius: 50%; animation: spin .75s linear infinite; }
+        @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 1.5s; } }
     </style>
+    <script src="/shared/paylink-config.js" defer></script>
+    <script src="/shared/paylink-request.js" defer></script>
 </head>
 <body class="flex min-h-screen flex-col bg-dark-bg font-sans text-dark-text antialiased">
     <header class="sticky top-0 z-50 border-b border-gray-800 bg-dark-bg/90 backdrop-blur-sm">
@@ -45,7 +55,7 @@
                     </div>
                     <div class="shrink-0 sm:text-right">
                         <div class="text-xs font-medium uppercase tracking-wider text-dark-text-secondary">Amount requested</div>
-                        <div id="request-amount" class="mt-1 break-all text-3xl font-bold text-white">—</div>
+                        <div id="request-amount" class="mt-1 break-all text-3xl font-bold text-white">Verifying…</div>
                     </div>
                 </div>
 
@@ -56,26 +66,40 @@
                         <div id="request-receiver" class="mt-2 break-all font-mono text-[10px] leading-4 text-gray-500">—</div>
                     </div>
                     <div class="detail-card rounded-xl p-4">
-                        <div class="text-xs font-medium uppercase tracking-wider text-dark-text-secondary">Token</div>
-                        <div id="request-token" class="mt-2 text-sm font-semibold text-white">—</div>
+                        <div class="text-xs font-medium uppercase tracking-wider text-dark-text-secondary">Token metadata</div>
+                        <div id="request-token" class="mt-2 text-sm font-semibold text-white">Checking on-chain metadata…</div>
+                        <div id="request-coin-type" class="mt-2 break-all font-mono text-[10px] leading-4 text-gray-500">—</div>
                         <div id="request-nonce" class="mt-2 break-all font-mono text-[10px] leading-4 text-gray-500">—</div>
                     </div>
                 </div>
 
-                <div class="mt-5 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3 text-xs leading-5 text-yellow-100/80">
-                    Verify the amount, token, and full receiver address. Slush provides the final transaction review before anything is signed.
+                <div id="request-status" class="status-checking mt-5 rounded-xl border px-4 py-3 text-sm leading-5" role="status" aria-live="polite">
+                    <div class="flex items-start gap-3">
+                        <span id="request-status-icon" class="spinner mt-0.5 shrink-0" aria-hidden="true"></span>
+                        <div>
+                            <div id="request-status-title" class="font-semibold">Verifying payment status</div>
+                            <div id="request-status-copy" class="mt-1 text-xs opacity-80">Checking trusted token metadata and confirming this invoice has not already been paid.</div>
+                            <a id="paid-transaction" class="mt-2 hidden text-xs font-semibold underline underline-offset-2" target="_blank" rel="noopener noreferrer">View original payment</a>
+                        </div>
+                    </div>
                 </div>
 
-                <a id="continue-slush" class="primary-action mt-6 flex w-full items-center justify-center rounded-xl bg-brand-primary px-5 py-4 text-base font-bold text-white transition hover:bg-brand-primary-hover" rel="noopener noreferrer">
-                    Continue in Slush
-                </a>
+                <div class="mt-5 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3 text-xs leading-5 text-yellow-100/80">
+                    Verify the amount, token, and full receiver address. Alpha City rechecks payment status before opening Slush, and the registry prevents concurrent duplicate payments.
+                </div>
+
+                <button id="continue-slush" type="button" class="primary-action mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-4 text-base font-bold text-white transition hover:bg-brand-primary-hover" disabled>
+                    <span id="continue-spinner" class="spinner" aria-hidden="true"></span>
+                    <span id="continue-label">Verifying request…</span>
+                </button>
+                <button id="retry-verification" type="button" class="mt-3 hidden w-full rounded-xl border border-gray-600 px-5 py-3 text-sm font-semibold text-gray-200 transition hover:border-gray-500 hover:bg-gray-800">Retry verification</button>
                 <p class="mt-3 text-center text-xs text-dark-text-secondary">Alpha City never takes custody of this payment.</p>
             </div>
 
             <div id="request-error" class="hidden py-10 text-center" role="alert">
                 <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-red-400/30 bg-red-500/10 text-xl text-red-300">!</div>
                 <h1 class="mt-4 text-xl font-bold text-white">Invalid payment request</h1>
-                <p class="mt-2 text-sm text-dark-text-secondary">This link is incomplete or malformed. Ask the sender to create a new Paylink.</p>
+                <p id="request-error-copy" class="mt-2 text-sm text-dark-text-secondary">This link is incomplete or malformed. Ask the sender to create a new Paylink.</p>
             </div>
         </section>
     </main>
@@ -85,15 +109,27 @@
     </footer>
 
     <script>
-    (function () {
+    window.addEventListener('DOMContentLoaded', () => {
         'use strict';
+
+        const RequestClient = window.AlphaCityPaylinkRequest;
+        const Config = window.AlphaCityPaylinkConfig;
+        const dom = Object.fromEntries([
+            'request-content', 'request-error', 'request-error-copy', 'request-title', 'request-memo',
+            'request-amount', 'request-receiver-short', 'request-receiver', 'request-token',
+            'request-coin-type', 'request-nonce', 'request-status', 'request-status-icon',
+            'request-status-title', 'request-status-copy', 'paid-transaction', 'continue-slush',
+            'continue-spinner', 'continue-label', 'retry-verification',
+        ].map((id) => [id, document.getElementById(id)]));
+        let request = null;
+        let slushUrl = '';
+        let checking = false;
 
         function shortAddress(address) {
             return `${address.slice(0, 6)}...${address.slice(-4)}`;
         }
 
         function formatAmount(atomic, decimals) {
-            if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) return atomic.toString();
             const raw = atomic.toString().padStart(decimals + 1, '0');
             if (!decimals) return raw;
             const whole = raw.slice(0, -decimals);
@@ -101,52 +137,90 @@
             return fraction ? `${whole}.${fraction}` : whole;
         }
 
-        function fail() {
-            document.getElementById('request-error').classList.remove('hidden');
+        function setContinue({ enabled, loading, label }) {
+            dom['continue-slush'].disabled = !enabled;
+            dom['continue-spinner'].classList.toggle('hidden', !loading);
+            dom['continue-label'].textContent = label;
+        }
+
+        function setStatus(tone, title, copy, digest = null) {
+            dom['request-status'].className = `status-${tone} mt-5 rounded-xl border px-4 py-3 text-sm leading-5`;
+            dom['request-status-icon'].className = tone === 'checking' ? 'spinner mt-0.5 shrink-0' : 'mt-0.5 shrink-0 font-bold';
+            dom['request-status-icon'].textContent = tone === 'checking' ? '' : tone === 'ready' ? '✓' : tone === 'paid' ? '●' : '!';
+            dom['request-status-title'].textContent = title;
+            dom['request-status-copy'].textContent = copy;
+            dom['paid-transaction'].classList.toggle('hidden', !digest);
+            if (digest) dom['paid-transaction'].href = `${Config.explorerTransactionBaseUrl}${encodeURIComponent(digest)}`;
+        }
+
+        function showInvalid(error) {
+            console.error('[paylink-request]', error);
+            dom['request-content'].classList.add('hidden');
+            dom['request-error-copy'].textContent = error?.message || 'This link is incomplete or malformed. Ask the sender to create a new Paylink.';
+            dom['request-error'].classList.remove('hidden');
+        }
+
+        function showVerifiedMetadata(metadata) {
+            const amount = formatAmount(request.amountAtomic, metadata.decimals);
+            dom['request-amount'].textContent = `${amount} ${metadata.symbol}`;
+            dom['request-token'].textContent = metadata.name === metadata.symbol
+                ? metadata.symbol
+                : `${metadata.name} (${metadata.symbol})`;
+            if (!metadata.trustedPreset) dom['request-token'].textContent += ' · Custom token';
+        }
+
+        async function verify({ navigate = false } = {}) {
+            if (checking) return;
+            checking = true;
+            dom['retry-verification'].classList.add('hidden');
+            setStatus('checking', navigate ? 'Rechecking before Slush' : 'Verifying payment status', 'Checking trusted token metadata and confirming this invoice has not already been paid.');
+            setContinue({ enabled: false, loading: true, label: navigate ? 'Rechecking…' : 'Verifying request…' });
+            try {
+                const review = await RequestClient.reviewPaymentRequest(request, Config);
+                showVerifiedMetadata(review.metadata);
+                if (review.paid) {
+                    setStatus('paid', 'This invoice is already paid', 'The registry already contains a matching payment record. Slush will not be opened again.', review.transactionDigest);
+                    setContinue({ enabled: false, loading: false, label: 'Already paid' });
+                    return;
+                }
+                const readyCopy = review.metadata.trustedPreset
+                    ? 'Token metadata matches the trusted Alpha City preset and no matching payment record exists yet.'
+                    : 'Metadata is confirmed for this custom coin type and no matching payment record exists. Verify the full coin type before continuing.';
+                setStatus('ready', 'Verified and unpaid', readyCopy);
+                setContinue({ enabled: true, loading: false, label: 'Continue in Slush' });
+                if (navigate) window.location.assign(slushUrl);
+            } catch (error) {
+                console.error('[paylink-request-verification]', error);
+                setStatus('error', 'Verification unavailable', 'Alpha City could not safely confirm token metadata and payment status. No wallet will be opened.');
+                setContinue({ enabled: false, loading: false, label: 'Verification required' });
+                dom['retry-verification'].classList.remove('hidden');
+            } finally {
+                checking = false;
+            }
         }
 
         try {
-            const outer = new URLSearchParams(window.location.search);
-            const paymentUri = outer.get('request');
-            if (!paymentUri || !paymentUri.startsWith('sui:pay?')) throw new Error('Missing payment URI');
-            const request = new URL(paymentUri).searchParams;
-            const receiver = request.get('receiver') || '';
-            const amountText = request.get('amount') || '';
-            const coinType = request.get('coinType') || '';
-            const nonce = request.get('nonce') || '';
-            const label = (request.get('label') || '').trim();
-            const memo = (request.get('message') || '').trim();
-            const decimals = Number(outer.get('decimals'));
-            const symbol = (outer.get('symbol') || '').trim().toUpperCase().slice(0, 24);
-            if (!/^0x[a-fA-F0-9]{1,64}$/.test(receiver) || !/^\d+$/.test(amountText) || BigInt(amountText) <= 0n || !coinType.includes('::') || !nonce || nonce.length > 36) {
-                throw new Error('Invalid payment fields');
+            if (!RequestClient || !Config) throw new Error('Payment verification failed to load. Please refresh and try again.');
+            request = RequestClient.parsePaymentRequest(window.location.search, Config);
+            slushUrl = RequestClient.createSlushUrl(request.paymentUri, Config.slushPaymentBaseUrl);
+            dom['request-title'].textContent = request.label || 'Payment request';
+            dom['request-receiver-short'].textContent = shortAddress(request.receiverAddress);
+            dom['request-receiver'].textContent = request.receiverAddress;
+            dom['request-coin-type'].textContent = request.coinType;
+            dom['request-nonce'].textContent = `Request ${request.nonce}`;
+            if (request.message) {
+                dom['request-memo'].textContent = request.message;
+                dom['request-memo'].classList.remove('hidden');
             }
-
-            const amount = formatAmount(BigInt(amountText), decimals);
-            const slushUrl = new URL('https://my.slush.app/pay');
-            slushUrl.search = paymentUri.slice(paymentUri.indexOf('?') + 1);
-            slushUrl.searchParams.set('uri', paymentUri);
-
-            document.getElementById('request-title').textContent = label || 'Payment request';
-            document.getElementById('request-amount').textContent = symbol ? `${amount} ${symbol}` : amount;
-            document.getElementById('request-receiver-short').textContent = shortAddress(receiver);
-            document.getElementById('request-receiver').textContent = receiver;
-            document.getElementById('request-token').textContent = symbol || coinType.split('::').at(-1) || 'Sui token';
-            document.getElementById('request-nonce').textContent = `Request ${nonce}`;
-            if (memo) {
-                const memoElement = document.getElementById('request-memo');
-                memoElement.textContent = memo;
-                memoElement.classList.remove('hidden');
-            }
-            const continueButton = document.getElementById('continue-slush');
-            continueButton.href = slushUrl.toString();
-            document.title = `${label || 'Payment Request'} · Alpha City`;
-            document.getElementById('request-content').classList.remove('hidden');
+            document.title = `${request.label || 'Payment Request'} · Alpha City`;
+            dom['request-content'].classList.remove('hidden');
+            dom['continue-slush'].addEventListener('click', () => verify({ navigate: true }));
+            dom['retry-verification'].addEventListener('click', () => verify());
+            verify();
         } catch (error) {
-            console.error('[paylink-request]', error);
-            fail();
+            showInvalid(error);
         }
-    })();
+    }, { once: true });
     </script>
 </body>
 </html>
