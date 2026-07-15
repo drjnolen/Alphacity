@@ -109,7 +109,14 @@ function createSlushUniversalUrl(uri, baseUrl) {
     void parsed;
     const question = uri.indexOf('?');
     if (question < 0) throw new Error('Payment URI has no query parameters.');
-    return `${baseUrl || initializedConfig?.slushPaymentBaseUrl || 'https://my.slush.app/pay'}?${uri.slice(question + 1)}`;
+    const universalUrl = new URL(baseUrl || initializedConfig?.slushPaymentBaseUrl || 'https://my.slush.app/pay');
+    universalUrl.search = uri.slice(question + 1);
+    // Slush mobile reconstructs the Payment Kit URI from the documented query
+    // fields. Its current web route instead expects the complete URI in a
+    // `uri` route parameter. Supplying both keeps one link compatible with both
+    // clients; Payment Kit safely ignores the additional parameter on mobile.
+    universalUrl.searchParams.set('uri', uri);
+    return universalUrl.toString();
 }
 
 async function getPaymentRecord(invoice) {
