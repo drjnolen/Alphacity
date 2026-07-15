@@ -8,6 +8,7 @@ const root = path.join(__dirname, '..');
 const page = fs.readFileSync(path.join(root, 'pay', 'index.html'), 'utf8');
 const portal = fs.readFileSync(path.join(root, 'tools', 'index.html'), 'utf8');
 const clientSource = fs.readFileSync(path.join(root, 'shared', 'paylink-client-source.js'), 'utf8');
+const clientBundle = fs.readFileSync(path.join(root, 'shared', 'paylink-client.js'), 'utf8');
 const configSource = fs.readFileSync(path.join(root, 'shared', 'paylink-config.js'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
@@ -30,6 +31,37 @@ test('generated payer links remain public Slush links while only creation is CIT
     assert.match(configSource, /https:\/\/my\.slush\.app\/pay/);
     assert.match(clientSource, /createSlushUniversalUrl/);
     assert.match(clientSource, /uri\.slice\(question \+ 1\)/);
+    assert.match(clientSource, /searchParams\.set\('uri', uri\)/);
+});
+
+test('Slush links include direct mobile fields and the complete URI required by Slush web', async () => {
+    const context = { window: {}, URL };
+    vm.runInNewContext(clientBundle, context, { filename: 'shared/paylink-client.js' });
+    const Client = context.window.AlphaCityPaylinkClient;
+    const registryId = `0x${'b'.repeat(64)}`;
+    const paymentUri = `sui:pay?receiver=0x${'a'.repeat(64)}&amount=1250000&coinType=0x2%3A%3Asui%3A%3ASUI&nonce=integration-test-nonce&registry=${registryId}&label=Test+invoice`;
+    const universalUrl = new URL(Client.createSlushUniversalUrl(paymentUri));
+
+    assert.equal(universalUrl.origin, 'https://my.slush.app');
+    assert.equal(universalUrl.pathname, '/pay');
+    assert.equal(universalUrl.searchParams.get('receiver'), `0x${'a'.repeat(64)}`);
+    assert.equal(universalUrl.searchParams.get('amount'), '1250000');
+    assert.equal(universalUrl.searchParams.get('coinType'), '0x2::sui::SUI');
+    assert.equal(universalUrl.searchParams.get('nonce'), 'integration-test-nonce');
+    assert.equal(universalUrl.searchParams.get('registry'), registryId);
+    assert.equal(universalUrl.searchParams.get('uri'), paymentUri);
+
+    const { parsePaymentTransactionUri } = await import('@mysten/payment-kit');
+    const mobileParsed = parsePaymentTransactionUri(`sui:pay?${universalUrl.searchParams}`);
+    assert.equal(mobileParsed.receiverAddress, `0x${'a'.repeat(64)}`);
+    assert.equal(mobileParsed.registryId, registryId);
+});
+
+test('stored invoices are upgraded to the compatible Slush URL without changing payment identity', () => {
+    assert.match(page, /function upgradeSlushUniversalUrls\(items\)/);
+    assert.match(page, /Client\.createSlushUniversalUrl\(invoice\.paymentUri, Config\.slushPaymentBaseUrl\)/);
+    assert.match(page, /return \{ \.\.\.invoice, universalUrl \}/);
+    assert.match(page, /if \(upgraded\.changed\) persistInvoices\(\)/);
 });
 
 test('payment requests use the registry composite identity and exact bigint values', () => {

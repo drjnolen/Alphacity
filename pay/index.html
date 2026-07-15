@@ -457,6 +457,22 @@
             Core.saveInvoices(localStorage, storageKey, invoices, Config.maxStoredInvoices);
         }
 
+        function upgradeSlushUniversalUrls(items) {
+            let changed = false;
+            const upgraded = items.map((invoice) => {
+                if (!invoice.paymentUri) return invoice;
+                try {
+                    const universalUrl = Client.createSlushUniversalUrl(invoice.paymentUri, Config.slushPaymentBaseUrl);
+                    if (universalUrl === invoice.universalUrl) return invoice;
+                    changed = true;
+                    return { ...invoice, universalUrl };
+                } catch (_) {
+                    return invoice;
+                }
+            });
+            return { invoices: upgraded, changed };
+        }
+
         function formatDate(value) {
             if (!value) return '—';
             const date = new Date(value);
@@ -885,7 +901,9 @@
                 slushPaymentBaseUrl: Config.slushPaymentBaseUrl,
             });
             const loaded = Core.loadInvoices(localStorage, storageKey);
-            invoices = loaded.invoices;
+            const upgraded = upgradeSlushUniversalUrls(loaded.invoices);
+            invoices = upgraded.invoices;
+            if (upgraded.changed) persistInvoices();
             if (loaded.corruptCount) showToast(`${loaded.corruptCount} damaged local invoice record(s) were skipped. Export your remaining history.`, 'error');
             updateTokenUi();
             updateCounters();
