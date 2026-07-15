@@ -10,7 +10,18 @@ vm.runInThisContext(bundle, { filename: 'shared/sui-client.js' });
 
 const { createSuiDataLayer, legacyMoveJson, legacyObject } = AlphaCitySuiBundle;
 
-function mockLayer(graphqlResponder = () => ({ data: {} })) {
+function mockLayer(
+    graphqlResponder = () => ({ data: {} }),
+    moveFunctionResponder = async () => ({
+        function: {
+            visibility: 'public',
+            isEntry: false,
+            typeParameters: [],
+            parameters: [],
+            returns: [],
+        },
+    }),
+) {
     const grpcClient = {
         async getBalance() {
             return { balance: { coinType: '0x2::sui::SUI', balance: '42', coinBalance: '40', addressBalance: '2' } };
@@ -84,7 +95,7 @@ function mockLayer(graphqlResponder = () => ({ data: {} })) {
     return createSuiDataLayer({
         grpcClient,
         graphqlUrls: ['mock'],
-        graphqlClients: [{ query: graphqlResponder }],
+        graphqlClients: [{ query: graphqlResponder, getMoveFunction: moveFunctionResponder }],
     });
 }
 
@@ -140,7 +151,50 @@ test('legacy object helper reports missing objects without throwing', () => {
 });
 
 test('staking transaction builder methods retain legacy JSON-RPC response shapes', async () => {
-    const layer = mockLayer();
+    const layer = mockLayer(undefined, async ({ packageId, moduleName, name }) => {
+        assert.equal(packageId, '0xpackage');
+        assert.equal(moduleName, 'city_staking');
+        assert.equal(name, 'claim_credits');
+        return {
+            function: {
+                visibility: 'public',
+                isEntry: false,
+                typeParameters: [{ isPhantom: false, constraints: ['key'] }],
+                parameters: [
+                    {
+                        reference: 'immutable',
+                        body: {
+                            $kind: 'datatype',
+                            datatype: { typeName: '0xpackage::city_staking::StakingPool', typeParameters: [] },
+                        },
+                    },
+                    {
+                        reference: 'mutable',
+                        body: {
+                            $kind: 'datatype',
+                            datatype: {
+                                typeName: '0xpackage::city_staking::UserStake',
+                                typeParameters: [{ $kind: 'typeParameter', index: 0 }],
+                            },
+                        },
+                    },
+                    { reference: null, body: { $kind: 'u64' } },
+                    {
+                        reference: null,
+                        body: { $kind: 'vector', vector: { $kind: 'u8' } },
+                    },
+                    {
+                        reference: 'immutable',
+                        body: {
+                            $kind: 'datatype',
+                            datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+                        },
+                    },
+                ],
+                returns: [],
+            },
+        };
+    });
     assert.equal(await layer.rpc('suix_getReferenceGasPrice'), '100');
 
     const protocol = await layer.rpc('sui_getProtocolConfig');
@@ -152,6 +206,19 @@ test('staking transaction builder methods retain legacy JSON-RPC response shapes
     assert.equal(dryRun.effects.status.status, 'success');
     assert.equal(dryRun.effects.gasUsed.computationCost, '1000');
     assert.equal(dryRun.effects.gasUsed.storageRebate, '50');
+
+    const moveFunction = await layer.rpc('sui_getNormalizedMoveFunction', [
+        '0xpackage',
+        'city_staking',
+        'claim_credits',
+    ]);
+    assert.equal(moveFunction.visibility, 'Public');
+    assert.deepEqual(moveFunction.typeParameters, [{ abilities: ['Key'] }]);
+    assert.equal(moveFunction.parameters[0].Reference.Struct.name, 'StakingPool');
+    assert.equal(moveFunction.parameters[1].MutableReference.Struct.typeArguments[0].TypeParameter, 0);
+    assert.equal(moveFunction.parameters[2], 'U64');
+    assert.equal(moveFunction.parameters[3].Vector, 'U8');
+    assert.equal(moveFunction.parameters[4].Reference.Struct.name, 'TxContext');
 });
 
 test('staking bridge reroutes only legacy JSON-RPC requests', async () => {
