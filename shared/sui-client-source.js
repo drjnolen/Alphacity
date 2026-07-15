@@ -253,6 +253,65 @@ function normalizedType(type) {
     });
 }
 
+function legacyMoveSignatureBody(body) {
+    if (!body || typeof body !== 'object') throw new Error('SUI Move function returned an invalid parameter type');
+
+    const primitiveTypes = {
+        bool: 'Bool',
+        u8: 'U8',
+        u16: 'U16',
+        u32: 'U32',
+        u64: 'U64',
+        u128: 'U128',
+        u256: 'U256',
+        address: 'Address',
+    };
+    if (primitiveTypes[body.$kind]) return primitiveTypes[body.$kind];
+
+    if (body.$kind === 'vector') {
+        return { Vector: legacyMoveSignatureBody(body.vector) };
+    }
+    if (body.$kind === 'typeParameter') {
+        return { TypeParameter: Number(body.index) };
+    }
+    if (body.$kind === 'datatype') {
+        const [address, module, name, ...rest] = String(body.datatype?.typeName || '').split('::');
+        if (!address || !module || !name || rest.length) {
+            throw new Error(`SUI Move function returned an invalid datatype: ${body.datatype?.typeName || ''}`);
+        }
+        return {
+            Struct: {
+                address,
+                module,
+                name,
+                typeArguments: (body.datatype?.typeParameters || []).map(legacyMoveSignatureBody),
+            },
+        };
+    }
+
+    throw new Error(`Unsupported SUI Move parameter type: ${body.$kind || 'unknown'}`);
+}
+
+function legacyMoveSignature(signature) {
+    const body = legacyMoveSignatureBody(signature?.body);
+    if (signature.reference === 'immutable') return { Reference: body };
+    if (signature.reference === 'mutable') return { MutableReference: body };
+    if (signature.reference == null) return body;
+    throw new Error(`Unsupported SUI Move reference type: ${signature.reference}`);
+}
+
+function legacyMoveAbility(ability) {
+    const abilities = { copy: 'Copy', drop: 'Drop', store: 'Store', key: 'Key' };
+    if (abilities[ability]) return abilities[ability];
+    throw new Error(`Unsupported SUI Move ability: ${ability}`);
+}
+
+function legacyMoveVisibility(visibility) {
+    const values = { public: 'Public', private: 'Private', friend: 'Friend' };
+    if (values[visibility]) return values[visibility];
+    throw new Error(`Unsupported SUI Move visibility: ${visibility}`);
+}
+
 function matchesFilter(type, filter) {
     if (!filter) return true;
     const canonicalType = normalizedType(type);
@@ -441,6 +500,38 @@ export function createSuiDataLayer(config = {}) {
         };
     }
 
+    async function getNormalizedMoveFunction(params) {
+        const [packageId, moduleName, name] = params;
+        if (!packageId || !moduleName || !name) throw new Error('Move function package, module, and name are required');
+
+        let lastError = new Error('SUI GraphQL Move function request failed');
+        for (let pass = 0; pass < 2; pass++) {
+            for (const client of graphqlClients) {
+                try {
+                    if (typeof client.getMoveFunction !== 'function') {
+                        throw new Error('SUI GraphQL client does not support Move function queries');
+                    }
+                    const result = await client.getMoveFunction({ packageId, moduleName, name });
+                    const moveFunction = result?.function;
+                    if (!moveFunction) throw new Error('SUI GraphQL returned no Move function');
+                    return {
+                        visibility: legacyMoveVisibility(moveFunction.visibility),
+                        isEntry: Boolean(moveFunction.isEntry),
+                        typeParameters: (moveFunction.typeParameters || []).map(parameter => ({
+                            abilities: (parameter.constraints || []).map(legacyMoveAbility),
+                        })),
+                        parameters: (moveFunction.parameters || []).map(legacyMoveSignature),
+                        return: (moveFunction.returns || []).map(legacyMoveSignature),
+                    };
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+            if (pass === 0) await sleep(250);
+        }
+        throw lastError;
+    }
+
     async function dryRunTransactionBlock(params) {
         const [transactionBytes] = params;
         const simulation = await grpc.simulateTransaction({
@@ -615,6 +706,7 @@ export function createSuiDataLayer(config = {}) {
             case 'suix_getTotalSupply': return getTotalSupply(params);
             case 'suix_getReferenceGasPrice': return getReferenceGasPrice(params);
             case 'sui_getProtocolConfig': return getProtocolConfig(params);
+            case 'sui_getNormalizedMoveFunction': return getNormalizedMoveFunction(params);
             case 'sui_dryRunTransactionBlock': return dryRunTransactionBlock(params);
             case 'suix_getDynamicFields': return getDynamicFields(params);
             case 'suix_queryEvents': return queryEvents(params);
