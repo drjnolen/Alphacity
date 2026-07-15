@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Payment Request · Alpha City</title>
+    <meta name="description" content="Review an Alpha City payment request before continuing to Slush.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/pay/tailwind.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { min-height: 100vh; background: #111827; }
+        .request-card { background: #1f2937; border: 1px solid #374151; box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+        .detail-card { background: #111827; border: 1px solid #374151; }
+        .primary-action { box-shadow: 0 14px 34px rgba(59,130,246,.22); }
+    </style>
+</head>
+<body class="flex min-h-screen flex-col bg-dark-bg font-sans text-dark-text antialiased">
+    <header class="sticky top-0 z-50 border-b border-gray-800 bg-dark-bg/90 backdrop-blur-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Primary">
+            <div class="flex h-20 items-center justify-between">
+                <a href="/" class="flex items-center gap-2 text-2xl font-bold text-white">
+                    <span>Alpha<span class="text-brand-secondary"> City</span></span>
+                    <span class="ml-2 rounded border border-green-500/30 bg-green-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-400">Mainnet Live</span>
+                </a>
+                <a href="/" class="hidden text-dark-text-secondary transition-colors hover:text-white sm:block">Back to Home</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto flex flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
+        <section class="request-card w-full max-w-2xl rounded-2xl p-6 sm:p-8" aria-labelledby="request-title">
+            <div id="request-content" class="hidden">
+                <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0">
+                        <div class="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300">
+                            <span class="h-2 w-2 rounded-full bg-blue-400"></span>
+                            Payment Request
+                        </div>
+                        <h1 id="request-title" class="mt-4 break-words text-2xl font-bold text-white sm:text-3xl">Payment request</h1>
+                        <p id="request-memo" class="mt-3 hidden whitespace-pre-wrap break-words text-sm leading-6 text-dark-text-secondary"></p>
+                    </div>
+                    <div class="shrink-0 sm:text-right">
+                        <div class="text-xs font-medium uppercase tracking-wider text-dark-text-secondary">Amount requested</div>
+                        <div id="request-amount" class="mt-1 break-all text-3xl font-bold text-white">—</div>
+                    </div>
+                </div>
+
+                <div class="mt-7 grid gap-3 sm:grid-cols-2">
+                    <div class="detail-card rounded-xl p-4">
+                        <div class="text-xs font-medium uppercase tracking-wider text-dark-text-secondary">Receiver</div>
+                        <div id="request-receiver-short" class="mt-2 font-mono text-sm font-semibold text-white">—</div>
+                        <div id="request-receiver" class="mt-2 break-all font-mono text-[10px] leading-4 text-gray-500">—</div>
+                    </div>
+                    <div class="detail-card rounded-xl p-4">
+                        <div class="text-xs font-medium uppercase tracking-wider text-dark-text-secondary">Token</div>
+                        <div id="request-token" class="mt-2 text-sm font-semibold text-white">—</div>
+                        <div id="request-nonce" class="mt-2 break-all font-mono text-[10px] leading-4 text-gray-500">—</div>
+                    </div>
+                </div>
+
+                <div class="mt-5 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3 text-xs leading-5 text-yellow-100/80">
+                    Verify the amount, token, and full receiver address. Slush provides the final transaction review before anything is signed.
+                </div>
+
+                <a id="continue-slush" class="primary-action mt-6 flex w-full items-center justify-center rounded-xl bg-brand-primary px-5 py-4 text-base font-bold text-white transition hover:bg-brand-primary-hover" rel="noopener noreferrer">
+                    Continue in Slush
+                </a>
+                <p class="mt-3 text-center text-xs text-dark-text-secondary">Alpha City never takes custody of this payment.</p>
+            </div>
+
+            <div id="request-error" class="hidden py-10 text-center" role="alert">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-red-400/30 bg-red-500/10 text-xl text-red-300">!</div>
+                <h1 class="mt-4 text-xl font-bold text-white">Invalid payment request</h1>
+                <p class="mt-2 text-sm text-dark-text-secondary">This link is incomplete or malformed. Ask the sender to create a new Paylink.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-gray-800 py-6 text-center text-xs text-dark-text-secondary">
+        © 2026 Alpha City. All rights reserved.
+    </footer>
+
+    <script>
+    (function () {
+        'use strict';
+
+        function shortAddress(address) {
+            return `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+
+        function formatAmount(atomic, decimals) {
+            if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) return atomic.toString();
+            const raw = atomic.toString().padStart(decimals + 1, '0');
+            if (!decimals) return raw;
+            const whole = raw.slice(0, -decimals);
+            const fraction = raw.slice(-decimals).replace(/0+$/, '');
+            return fraction ? `${whole}.${fraction}` : whole;
+        }
+
+        function fail() {
+            document.getElementById('request-error').classList.remove('hidden');
+        }
+
+        try {
+            const outer = new URLSearchParams(window.location.search);
+            const paymentUri = outer.get('request');
+            if (!paymentUri || !paymentUri.startsWith('sui:pay?')) throw new Error('Missing payment URI');
+            const request = new URL(paymentUri).searchParams;
+            const receiver = request.get('receiver') || '';
+            const amountText = request.get('amount') || '';
+            const coinType = request.get('coinType') || '';
+            const nonce = request.get('nonce') || '';
+            const label = (request.get('label') || '').trim();
+            const memo = (request.get('message') || '').trim();
+            const decimals = Number(outer.get('decimals'));
+            const symbol = (outer.get('symbol') || '').trim().toUpperCase().slice(0, 24);
+            if (!/^0x[a-fA-F0-9]{1,64}$/.test(receiver) || !/^\d+$/.test(amountText) || BigInt(amountText) <= 0n || !coinType.includes('::') || !nonce || nonce.length > 36) {
+                throw new Error('Invalid payment fields');
+            }
+
+            const amount = formatAmount(BigInt(amountText), decimals);
+            const slushUrl = new URL('https://my.slush.app/pay');
+            slushUrl.search = paymentUri.slice(paymentUri.indexOf('?') + 1);
+            slushUrl.searchParams.set('uri', paymentUri);
+
+            document.getElementById('request-title').textContent = label || 'Payment request';
+            document.getElementById('request-amount').textContent = symbol ? `${amount} ${symbol}` : amount;
+            document.getElementById('request-receiver-short').textContent = shortAddress(receiver);
+            document.getElementById('request-receiver').textContent = receiver;
+            document.getElementById('request-token').textContent = symbol || coinType.split('::').at(-1) || 'Sui token';
+            document.getElementById('request-nonce').textContent = `Request ${nonce}`;
+            if (memo) {
+                const memoElement = document.getElementById('request-memo');
+                memoElement.textContent = memo;
+                memoElement.classList.remove('hidden');
+            }
+            const continueButton = document.getElementById('continue-slush');
+            continueButton.href = slushUrl.toString();
+            document.title = `${label || 'Payment Request'} · Alpha City`;
+            document.getElementById('request-content').classList.remove('hidden');
+        } catch (error) {
+            console.error('[paylink-request]', error);
+            fail();
+        }
+    })();
+    </script>
+</body>
+</html>

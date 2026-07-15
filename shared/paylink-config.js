@@ -9,6 +9,7 @@
         paymentKitPackageId: '0xbc126f1535fba7d641cb9150ad9eae93b104972586ba20f3c60bfe0e53b69bc6',
         explorerTransactionBaseUrl: 'https://suiscan.xyz/mainnet/tx/',
         slushPaymentBaseUrl: 'https://my.slush.app/pay',
+        payerRequestBaseUrl: 'https://alphacity.tech/pay/request/',
         pollIntervalMs: 60_000,
         maxAutomaticChecks: 20,
         maxConcurrentChecks: 3,
