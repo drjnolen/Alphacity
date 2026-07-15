@@ -253,6 +253,12 @@ function normalizedType(type) {
     });
 }
 
+function legacyMoveAddress(address) {
+    const match = String(address || '').match(/^0x([0-9a-f]+)$/i);
+    if (!match) throw new Error(`SUI Move function returned an invalid address: ${address || ''}`);
+    return `0x${match[1].replace(/^0+/, '') || '0'}`;
+}
+
 function legacyMoveSignatureBody(body) {
     if (!body || typeof body !== 'object') throw new Error('SUI Move function returned an invalid parameter type');
 
@@ -281,7 +287,7 @@ function legacyMoveSignatureBody(body) {
         }
         return {
             Struct: {
-                address,
+                address: legacyMoveAddress(address),
                 module,
                 name,
                 typeArguments: (body.datatype?.typeParameters || []).map(legacyMoveSignatureBody),
