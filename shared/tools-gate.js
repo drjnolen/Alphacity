@@ -10,10 +10,13 @@
     // Immediately hide body for gated pages on page load
     let styleEl = null;
     if (!isToolsPage) {
-        styleEl = document.createElement('style');
-        styleEl.id = 'tools-gate-style';
-        styleEl.innerHTML = 'body { display: none !important; }';
-        document.head.appendChild(styleEl);
+        styleEl = document.getElementById('tools-gate-style');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'tools-gate-style';
+            styleEl.textContent = 'body { display: none !important; }';
+            document.head.appendChild(styleEl);
+        }
     }
 
     async function rpc(method, params) {

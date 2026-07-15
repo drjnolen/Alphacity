@@ -124,8 +124,6 @@ function createPayerRequestUrl(invoice, baseUrl) {
     parsePaymentUri(paymentUri);
     const payerUrl = new URL(baseUrl || initializedConfig?.payerRequestBaseUrl || 'https://alphacity.tech/pay/request/');
     payerUrl.searchParams.set('request', paymentUri);
-    payerUrl.searchParams.set('symbol', String(invoice?.symbol || '').trim().toUpperCase());
-    payerUrl.searchParams.set('decimals', String(invoice?.decimals ?? ''));
     return payerUrl.toString();
 }
 
