@@ -69,6 +69,7 @@
   <script src="/shared/staking-credits.js"></script>
   <script src="/staking/credits-data-bridge.js"></script>
   <script src="/shared/sui-jsonrpc-bridge.js"></script>
+  <script defer src="/staking/transaction-confirmation.js"></script>
   <script type="module" crossorigin src="/assets/index-BymD0MH7.js"></script>
 </head>
 <body class="bg-dark-bg text-dark-text font-sans antialiased min-h-screen flex flex-col">
@@ -405,6 +406,41 @@
         </div>
 
     </main>
+
+    <div id="staking-transaction-confirmation" class="hidden fixed inset-0 z-[100] items-center justify-center p-4" aria-hidden="true">
+        <button type="button" class="absolute inset-0 bg-black/80 backdrop-blur-sm" data-confirm-backdrop aria-label="Cancel transaction confirmation"></button>
+        <section class="relative w-full max-w-lg rounded-2xl border border-gray-700 bg-dark-card p-6 shadow-2xl shadow-black/60" role="dialog" aria-modal="true" aria-labelledby="staking-confirm-title" aria-describedby="staking-confirm-description" tabindex="-1">
+            <div class="flex items-start gap-4">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-secondary/40 bg-brand-secondary/10 text-brand-secondary" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5c-.132.63-.2 1.283-.2 1.95 0 5.18 3.438 9.554 8.034 10.95 4.596-1.396 8.034-5.77 8.034-10.95 0-.667-.068-1.32-.2-1.95A11.954 11.954 0 0110 1.944zM8.707 11.707a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L8 9.586l4.293-4.293a1 1 0 011.414 1.414l-5 5z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-secondary">Review wallet action</p>
+                    <h2 id="staking-confirm-title" class="mt-1 text-xl font-bold text-white">Confirm transaction</h2>
+                    <p id="staking-confirm-description" class="mt-2 text-sm leading-relaxed text-dark-text-secondary"></p>
+                </div>
+            </div>
+
+            <div class="mt-5 rounded-xl border border-gray-700 bg-dark-bg/70 p-4">
+                <div class="flex items-center justify-between gap-4">
+                    <span class="text-xs uppercase tracking-wide text-dark-text-secondary">Network</span>
+                    <span class="rounded-full border border-blue-400/30 bg-blue-400/10 px-2.5 py-1 text-xs font-semibold text-blue-300">Sui Mainnet</span>
+                </div>
+                <p id="staking-confirm-detail" class="mt-3 text-sm text-white"></p>
+            </div>
+
+            <div class="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-xs leading-relaxed text-yellow-100/80">
+                Your wallet is the authoritative signing screen. Verify the connected account, contract actions, and gas fee there before approving.
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" class="rounded-lg border border-gray-600 px-5 py-2.5 font-semibold text-gray-200 transition-colors hover:border-gray-500 hover:bg-gray-700" data-confirm-cancel>Cancel</button>
+                <button type="button" class="rounded-lg bg-brand-primary px-5 py-2.5 font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-brand-primary-hover" data-confirm-continue>Continue to wallet</button>
+            </div>
+        </section>
+    </div>
 
     <!-- Simple Footer -->
     <footer class="bg-dark-bg border-t border-gray-800 py-8 mt-auto">
