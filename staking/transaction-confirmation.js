@@ -30,7 +30,6 @@
             return {
                 title: `Stake ${amount} CITY`,
                 description: `You are asking Alpha City to stake ${amount} CITY for ${lockDays} days.`,
-                detail: 'CITY will leave your available wallet balance and remain locked in the staking contract until the position unlocks.',
             };
         }
 
@@ -39,7 +38,6 @@
             return {
                 title: `Claim approximately ${amount} Citizen Credits`,
                 description: `You are asking Alpha City to claim the roughly ${amount} Citizen Credits currently shown as pending.`,
-                detail: 'The staking contract calculates the final claim amount when the transaction executes, so it may be slightly higher than this live estimate.',
             };
         }
 
@@ -48,7 +46,6 @@
             return {
                 title: `Unstake ${amount} CITY`,
                 description: `You are asking Alpha City to unstake ${amount} CITY from all currently unlocked positions.`,
-                detail: 'Unlocked CITY will be returned to your wallet. Positions that are still locked are not included.',
             };
         }
 
@@ -58,7 +55,6 @@
             return {
                 title: `Unstake ${amount} CITY`,
                 description: `You are asking Alpha City to unstake this ${amount} CITY position.`,
-                detail: 'This unlocked staking position will be closed and its CITY returned to your wallet.',
             };
         }
 
@@ -73,11 +69,10 @@
         const dialog = modal?.querySelector('[role="dialog"]');
         const title = root.getElementById('staking-confirm-title');
         const description = root.getElementById('staking-confirm-description');
-        const detail = root.getElementById('staking-confirm-detail');
         const continueButton = modal?.querySelector('[data-confirm-continue]');
         const cancelButton = modal?.querySelector('[data-confirm-cancel]');
         const backdrop = modal?.querySelector('[data-confirm-backdrop]');
-        if (!modal || !dialog || !title || !description || !detail || !continueButton || !cancelButton || !backdrop) return;
+        if (!modal || !dialog || !title || !description || !continueButton || !cancelButton || !backdrop) return;
 
         const bypass = new WeakSet();
         let resolveConfirmation = null;
@@ -100,7 +95,6 @@
         function open(summary, source) {
             title.textContent = summary.title;
             description.textContent = summary.description;
-            detail.textContent = summary.detail;
             trigger = source;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
