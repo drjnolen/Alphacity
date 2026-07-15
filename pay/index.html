@@ -8,55 +8,28 @@
     <meta name="description" content="Create registry-protected Sui payment requests, QR codes, and verifiable receipts.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Manrope', 'sans-serif'], mono: ['DM Mono', 'monospace'] },
-                    colors: {
-                        ink: '#07101f',
-                        panel: '#0c1728',
-                        line: '#20314a',
-                        electric: '#3b82f6',
-                        cyan: '#2dd4bf',
-                        gold: '#f6c453',
-                    },
-                },
-            },
-        };
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/pay/tailwind.css">
     <style>
-        :root { --blue: #3b82f6; --cyan: #2dd4bf; --gold: #f6c453; --ink: #07101f; --panel: #0c1728; --line: #20314a; }
+        :root { --blue: #3b82f6; --gold: #facc15; --ink: #111827; --panel: #1f2937; --line: #374151; }
         * { box-sizing: border-box; }
         html { scroll-behavior: smooth; }
-        body {
-            min-height: 100vh;
-            background:
-                radial-gradient(circle at 16% -10%, rgba(37, 99, 235, .22), transparent 32rem),
-                radial-gradient(circle at 92% 12%, rgba(45, 212, 191, .12), transparent 28rem),
-                linear-gradient(180deg, #07101f 0%, #060c16 100%);
-        }
-        .shell-grid {
-            background-image: linear-gradient(rgba(148,163,184,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.035) 1px, transparent 1px);
-            background-size: 32px 32px;
-        }
-        .surface { background: rgba(12, 23, 40, .88); border: 1px solid rgba(51, 72, 101, .72); box-shadow: 0 26px 80px rgba(0,0,0,.28); backdrop-filter: blur(16px); }
-        .surface-soft { background: rgba(9, 18, 32, .72); border: 1px solid rgba(51, 72, 101, .55); }
-        .field { width: 100%; border: 1px solid #293b55; background: #081321; color: #f8fafc; border-radius: .8rem; padding: .78rem .9rem; outline: none; transition: border-color .18s, box-shadow .18s, background .18s; }
-        .field:hover { background: #0a1728; }
+        body { min-height: 100vh; background: #111827; }
+        .surface { background: #1f2937; border: 1px solid #374151; box-shadow: 0 18px 45px rgba(0,0,0,.2); }
+        .surface-soft { background: rgba(31, 41, 55, .72); border: 1px solid #374151; }
+        .field { width: 100%; border: 1px solid #4b5563; background: #111827; color: #f9fafb; border-radius: .75rem; padding: .78rem .9rem; outline: none; transition: border-color .18s, box-shadow .18s, background .18s; }
+        .field:hover { background: #172033; }
         .field:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
-        .field::placeholder { color: #52647d; }
+        .field::placeholder { color: #6b7280; }
         .field:disabled { opacity: .55; cursor: not-allowed; }
-        .label { display: block; color: #9aacbf; font-size: .69rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: .48rem; }
-        .primary-btn { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; border-radius: .8rem; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; font-weight: 800; padding: .82rem 1rem; transition: transform .18s, filter .18s, opacity .18s; box-shadow: 0 12px 28px rgba(37,99,235,.24); }
-        .primary-btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+        .label { display: block; color: #9ca3af; font-size: .69rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: .48rem; }
+        .primary-btn { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; border-radius: .75rem; background: #3b82f6; color: white; font-weight: 700; padding: .82rem 1rem; transition: background .18s, opacity .18s; box-shadow: 0 10px 24px rgba(59,130,246,.2); }
+        .primary-btn:hover:not(:disabled) { background: #60a5fa; }
         .primary-btn:disabled { opacity: .42; cursor: not-allowed; box-shadow: none; }
-        .secondary-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border-radius: .72rem; border: 1px solid #2b405c; background: #0a1728; color: #dbe7f5; font-weight: 700; padding: .68rem .8rem; transition: border-color .18s, background .18s, color .18s; }
-        .secondary-btn:hover { border-color: #4b6b96; background: #102039; color: white; }
-        .mini-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: .58rem; border: 1px solid #2a3c55; color: #aebed1; background: #0a1524; padding: .43rem .6rem; font-size: .7rem; font-weight: 700; transition: .18s; }
-        .mini-btn:hover { color: white; border-color: #55759e; background: #102039; }
+        .secondary-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border-radius: .72rem; border: 1px solid #4b5563; background: #111827; color: #e5e7eb; font-weight: 600; padding: .68rem .8rem; transition: border-color .18s, background .18s, color .18s; }
+        .secondary-btn:hover { border-color: #6b7280; background: #273244; color: white; }
+        .mini-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: .58rem; border: 1px solid #4b5563; color: #d1d5db; background: #111827; padding: .43rem .6rem; font-size: .7rem; font-weight: 600; transition: .18s; }
+        .mini-btn:hover { color: white; border-color: #6b7280; background: #273244; }
         .status-dot { width: .48rem; height: .48rem; border-radius: 999px; display: inline-block; }
         .status-pending { color: #f6c453; background: rgba(246,196,83,.1); border-color: rgba(246,196,83,.28); }
         .status-paid { color: #4ade80; background: rgba(74,222,128,.1); border-color: rgba(74,222,128,.28); }
@@ -66,53 +39,64 @@
         .qr-frame { width: min(100%, 21.6rem); background: #fff; border-radius: 1.2rem; padding: .8rem; box-shadow: 0 18px 50px rgba(0,0,0,.34); }
         .qr-frame canvas { display: block; width: 100%; height: auto !important; }
         .scanline { position: relative; overflow: hidden; }
-        .scanline::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 2px; background: linear-gradient(180deg, transparent, var(--cyan), transparent); opacity: .75; }
+        .scanline::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 2px; background: #3b82f6; opacity: .75; }
         .history-card { transition: border-color .18s, background .18s, transform .18s; }
-        .history-card:hover { border-color: #385477; background: rgba(14, 29, 50, .88); transform: translateY(-1px); }
+        .history-card:hover { border-color: #4b5563; background: #273244; transform: translateY(-1px); }
         .spinner { width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.25); border-top-color: currentColor; border-radius: 50%; animation: spin .75s linear infinite; }
+        .ac-wallet-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,.72); }
+        .ac-wallet-dialog { width: 100%; max-width: 28rem; border: 1px solid #374151; border-radius: 1rem; background: #1f2937; padding: 1.25rem; box-shadow: 0 24px 70px rgba(0,0,0,.45); }
+        .ac-wallet-dialog-title { color: #fff; font-size: 1.125rem; font-weight: 700; }
+        .ac-wallet-dialog-copy { margin-top: .25rem; margin-bottom: 1rem; color: #9ca3af; font-size: .875rem; }
+        .ac-wallet-choice-list { display: grid; gap: .5rem; }
+        .ac-wallet-choice, .ac-wallet-cancel { width: 100%; border: 1px solid #4b5563; border-radius: .65rem; padding: .75rem 1rem; color: #fff; text-align: left; transition: border-color .18s, background .18s; }
+        .ac-wallet-choice:hover { border-color: #3b82f6; background: rgba(59,130,246,.08); }
+        .ac-wallet-cancel { margin-top: 1rem; color: #9ca3af; text-align: center; }
+        .ac-wallet-cancel:hover { border-color: #6b7280; color: #fff; }
+        .ac-wallet-dot { width: .5rem; height: .5rem; border-radius: 999px; background: #22c55e; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
     </style>
 
     <!-- Shared wallet session, Sui transport, then immediate CITY gate. -->
     <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/wallet-connector.js"></script>
     <script src="/shared/sui-client.js"></script>
     <script src="/shared/tools-gate.js"></script>
     <script src="/shared/paylink-config.js"></script>
     <script src="/shared/paylink-core.js"></script>
     <script src="/shared/paylink-client.js"></script>
 </head>
-<body class="shell-grid font-sans text-slate-100 antialiased">
-    <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-[#07101f]/90 backdrop-blur-xl">
-        <nav class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8" aria-label="Primary">
-            <a href="/" class="flex min-w-0 items-center gap-3">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-400/30 bg-blue-500/10 text-sm font-extrabold text-blue-300">AC</span>
-                <span class="min-w-0">
-                    <span class="block truncate text-sm font-extrabold tracking-tight text-white">Alpha City</span>
-                    <span class="block truncate text-[9px] font-bold uppercase tracking-[.18em] text-slate-500">Ecosystem tools</span>
-                </span>
-            </a>
-            <div class="flex items-center gap-2">
-                <a href="/tools/" class="hidden rounded-lg border border-slate-700/80 px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-slate-500 hover:text-white sm:inline-flex">All tools</a>
-                <a href="/tools/?redirect=/pay/" class="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-blue-400/60">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                    <span id="header-wallet">Connected wallet</span>
+<body class="flex min-h-screen flex-col bg-dark-bg font-sans text-dark-text antialiased">
+    <header class="sticky top-0 z-50 border-b border-gray-800 bg-dark-bg/90 backdrop-blur-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Primary">
+            <div class="flex h-20 items-center justify-between">
+                <a href="/" class="flex items-center gap-2 text-2xl font-bold text-white">
+                    <span>Alpha<span class="text-brand-secondary"> City</span></span>
+                    <span class="ml-2 rounded border border-green-500/30 bg-green-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-400">Mainnet Live</span>
                 </a>
+                <div class="flex items-center gap-4">
+                    <a href="/" class="hidden text-dark-text-secondary transition-colors hover:text-white md:block">Back to Home</a>
+                    <a href="/districts/" class="hidden font-medium text-purple-400 transition-colors hover:text-purple-300 md:block">Districts</a>
+                    <button id="connect-wallet-btn" type="button" class="flex items-center gap-2 rounded-lg bg-brand-primary px-5 py-2 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:bg-brand-primary-hover">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 010-2z" clip-rule="evenodd" /></svg>
+                        <span id="wallet-text">Connect Wallet</span>
+                    </button>
+                </div>
             </div>
         </nav>
     </header>
 
-    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+    <main class="container mx-auto flex-grow px-4 py-10 sm:px-6 lg:px-8">
         <section class="mb-8 grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
             <div>
-                <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-cyan-300">
-                    <span class="status-dot bg-cyan-300"></span>
+                <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300">
+                    <span class="status-dot bg-blue-400"></span>
                     Noncustodial Sui payments
                 </div>
-                <h1 class="max-w-3xl text-4xl font-extrabold tracking-[-.045em] text-white sm:text-5xl lg:text-6xl">
-                    Ask for payment.<br><span class="bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300 bg-clip-text text-transparent">Skip the address dance.</span>
+                <h1 class="max-w-3xl text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                    Ask for payment. <span class="text-brand-secondary">Skip the address dance.</span>
                 </h1>
-                <p class="mt-5 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
+                <p class="mt-4 max-w-2xl text-sm leading-7 text-dark-text-secondary sm:text-base">
                     Create a one-time, registry-protected request with the recipient, token, amount, and memo already filled in. Share a link or QR; payment goes straight to the receiver.
                 </p>
             </div>
@@ -258,7 +242,7 @@
                     </div>
                     <div class="mt-5 min-w-0 rounded-xl border border-slate-700/70 bg-[#081321] p-3">
                         <div class="flex items-center justify-between gap-3 text-[9px] font-bold uppercase tracking-[.12em] text-slate-600">
-                            <span>Slush universal link</span><span id="created-nonce" class="font-mono normal-case tracking-normal">—</span>
+                            <span>Public Paylink</span><span id="created-nonce" class="font-mono normal-case tracking-normal">—</span>
                         </div>
                         <div id="created-url" class="mt-2 min-w-0 truncate font-mono text-[10px] text-slate-300">—</div>
                     </div>
@@ -268,7 +252,7 @@
                         <button id="copy-uri-btn" type="button" class="secondary-btn text-xs">Copy sui:pay URI</button>
                         <button id="download-qr-btn" type="button" class="secondary-btn text-xs">Download QR</button>
                     </div>
-                    <p class="mt-4 text-center text-[10px] leading-5 text-slate-600">The payer can use this link without CITY. Alpha City stores this invoice only in your current browser.</p>
+                    <p class="mt-4 text-center text-[10px] leading-5 text-slate-500">The public page shows the label and memo before continuing to Slush. Payers do not need CITY. Alpha City stores this invoice only in your current browser.</p>
                 </div>
             </section>
         </section>
@@ -333,7 +317,8 @@
         const Core = window.AlphaCityPaylinkCore;
         const Client = window.AlphaCityPaylinkClient;
         const Config = window.AlphaCityPaylinkConfig;
-        if (!Core || !Client || !Config) {
+        const WalletConnector = window.AlphaCityWalletConnector;
+        if (!Core || !Client || !Config || !WalletConnector) {
             document.body.textContent = 'Paylink failed to initialize. Refresh the page and try again.';
             return;
         }
@@ -347,7 +332,7 @@
             'preview-status-badge', 'qr-canvas', 'created-amount', 'created-label', 'created-message',
             'created-nonce', 'created-url', 'copy-link-btn', 'copy-uri-btn', 'download-qr-btn', 'open-slush-btn',
             'history-search', 'history-empty', 'history-list', 'refresh-all-btn', 'export-btn', 'count-pending',
-            'count-paid', 'count-archived', 'header-wallet', 'toast',
+            'count-paid', 'count-archived', 'connect-wallet-btn', 'toast',
         ].map((id) => [id, document.getElementById(id)]));
 
         let creatorAddress = null;
@@ -359,14 +344,6 @@
         let activeFilter = 'active';
         let pollTimer = null;
         const refreshing = new Set();
-
-        function readWalletSession() {
-            try {
-                const parsed = JSON.parse(localStorage.getItem('alphacity_wallet') || 'null');
-                if (!parsed?.address) return null;
-                return { ...parsed, address: Core.canonicalizeAddress(parsed.address) };
-            } catch (_) { return null; }
-        }
 
         function showToast(message, tone) {
             const el = dom.toast;
@@ -457,15 +434,16 @@
             Core.saveInvoices(localStorage, storageKey, invoices, Config.maxStoredInvoices);
         }
 
-        function upgradeSlushUniversalUrls(items) {
+        function upgradePaylinkUrls(items) {
             let changed = false;
             const upgraded = items.map((invoice) => {
                 if (!invoice.paymentUri) return invoice;
                 try {
-                    const universalUrl = Client.createSlushUniversalUrl(invoice.paymentUri, Config.slushPaymentBaseUrl);
-                    if (universalUrl === invoice.universalUrl) return invoice;
+                    const slushUrl = Client.createSlushUniversalUrl(invoice.paymentUri, Config.slushPaymentBaseUrl);
+                    const payerUrl = Client.createPayerRequestUrl(invoice, Config.payerRequestBaseUrl);
+                    if (slushUrl === invoice.slushUrl && payerUrl === invoice.payerUrl && payerUrl === invoice.universalUrl) return invoice;
                     changed = true;
-                    return { ...invoice, universalUrl };
+                    return { ...invoice, slushUrl, payerUrl, universalUrl: payerUrl };
                 } catch (_) {
                     return invoice;
                 }
@@ -607,10 +585,10 @@
             dom['created-message'].textContent = invoice.message || '';
             dom['created-message'].classList.toggle('hidden', !invoice.message);
             dom['created-nonce'].textContent = invoice.nonce;
-            dom['created-url'].textContent = invoice.universalUrl;
-            dom['open-slush-btn'].href = invoice.universalUrl;
+            dom['created-url'].textContent = invoice.payerUrl || invoice.universalUrl;
+            dom['open-slush-btn'].href = invoice.slushUrl;
             try {
-                await Client.renderQr(dom['qr-canvas'], invoice.universalUrl, { width: 320 });
+                await Client.renderQr(dom['qr-canvas'], invoice.payerUrl || invoice.universalUrl, { width: 320 });
             } catch (error) {
                 showToast(`Link created, but QR rendering failed: ${error.message}`, 'error');
             }
@@ -660,8 +638,9 @@
                     registryName: Config.registryName,
                 };
                 const paymentUri = Client.createPaymentUri(base);
-                const universalUrl = Client.createSlushUniversalUrl(paymentUri, Config.slushPaymentBaseUrl);
-                const invoice = Core.createInvoiceRecord({ ...base, paymentUri, universalUrl });
+                const slushUrl = Client.createSlushUniversalUrl(paymentUri, Config.slushPaymentBaseUrl);
+                const payerUrl = Client.createPayerRequestUrl({ ...base, paymentUri }, Config.payerRequestBaseUrl);
+                const invoice = Core.createInvoiceRecord({ ...base, paymentUri, slushUrl, payerUrl, universalUrl: payerUrl });
                 invoices.unshift(invoice);
                 persistInvoices();
                 renderHistory();
@@ -884,13 +863,35 @@
             document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshPending(true); });
         }
 
-        function initialize() {
-            const session = readWalletSession();
-            if (!session) return;
-            creatorAddress = session.address;
+        function loadWalletSession(session) {
+            if (!session?.address) return;
+            const previousAddress = creatorAddress;
+            creatorAddress = Core.canonicalizeAddress(session.address);
             storageKey = Core.createStorageKey(Config.network, creatorAddress);
-            dom['header-wallet'].textContent = Core.shortAddress(creatorAddress);
-            dom['receiver-input'].value = creatorAddress;
+            if (!dom['receiver-input'].value || dom['receiver-input'].value === previousAddress) {
+                dom['receiver-input'].value = creatorAddress;
+                dom['alternate-confirm'].checked = false;
+            }
+            const loaded = Core.loadInvoices(localStorage, storageKey);
+            const upgraded = upgradePaylinkUrls(loaded.invoices);
+            invoices = upgraded.invoices;
+            selectedInvoiceId = null;
+            if (upgraded.changed) persistInvoices();
+            if (loaded.corruptCount) showToast(`${loaded.corruptCount} damaged local invoice record(s) were skipped. Export your remaining history.`, 'error');
+            updateTokenUi();
+            updateCounters();
+            draftValidation(false);
+            renderHistory();
+            if (invoices[0]) showInvoice(invoices[0]);
+            else {
+                dom['preview-empty'].classList.remove('hidden');
+                dom['preview-created'].classList.add('hidden');
+                dom['preview-created'].classList.remove('flex');
+            }
+            setTimeout(() => refreshPending(true), 1500);
+        }
+
+        function initialize() {
             populateTokens();
             Client.initialize({
                 dataLayer: window.AlphaCitySui,
@@ -899,21 +900,17 @@
                 registryName: Config.registryName,
                 paymentKitPackageId: Config.paymentKitPackageId,
                 slushPaymentBaseUrl: Config.slushPaymentBaseUrl,
+                payerRequestBaseUrl: Config.payerRequestBaseUrl,
             });
-            const loaded = Core.loadInvoices(localStorage, storageKey);
-            const upgraded = upgradeSlushUniversalUrls(loaded.invoices);
-            invoices = upgraded.invoices;
-            if (upgraded.changed) persistInvoices();
-            if (loaded.corruptCount) showToast(`${loaded.corruptCount} damaged local invoice record(s) were skipped. Export your remaining history.`, 'error');
-            updateTokenUi();
-            updateCounters();
-            draftValidation(false);
             bindEvents();
-            renderHistory();
-            if (invoices[0]) showInvoice(invoices[0]);
+            WalletConnector.create({
+                button: dom['connect-wallet-btn'],
+                onChange: (session) => {
+                    if (session?.address && session.address !== creatorAddress) loadWalletSession(session);
+                },
+            });
             pollTimer = setInterval(() => refreshPending(true), Config.pollIntervalMs);
             window.addEventListener('beforeunload', () => clearInterval(pollTimer), { once: true });
-            setTimeout(() => refreshPending(true), 1500);
         }
 
         try { initialize(); }

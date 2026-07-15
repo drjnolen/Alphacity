@@ -3,9 +3,10 @@
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.cjs -i ./analyze/tailwind.input.css -o ./analyze/tailwind.css --minify",
+    "build:paylink-css": "tailwindcss -c pay/tailwind.config.cjs -i ./pay/tailwind.input.css -o ./pay/tailwind.css --minify",
     "build:paylink": "esbuild shared/paylink-client-source.js --bundle --minify --format=iife --global-name=AlphaCityPaylinkBundle --platform=browser --target=es2022 --outfile=shared/paylink-client.js",
     "build:sui": "esbuild shared/sui-client-source.js --bundle --minify --format=iife --global-name=AlphaCitySuiBundle --platform=browser --target=es2022 --outfile=shared/sui-client.js",
-    "build": "npm run build:sui && npm run build:paylink && npm run build:css",
+    "build": "npm run build:sui && npm run build:paylink && npm run build:css && npm run build:paylink-css",
     "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {

@@ -6,6 +6,8 @@ const vm = require('node:vm');
 
 const root = path.join(__dirname, '..');
 const page = fs.readFileSync(path.join(root, 'pay', 'index.html'), 'utf8');
+const requestPage = fs.readFileSync(path.join(root, 'pay', 'request', 'index.html'), 'utf8');
+const walletConnector = fs.readFileSync(path.join(root, 'shared', 'wallet-connector.js'), 'utf8');
 const portal = fs.readFileSync(path.join(root, 'tools', 'index.html'), 'utf8');
 const clientSource = fs.readFileSync(path.join(root, 'shared', 'paylink-client-source.js'), 'utf8');
 const clientBundle = fs.readFileSync(path.join(root, 'shared', 'paylink-client.js'), 'utf8');
@@ -14,22 +16,25 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 
 test('the creator dashboard loads wallet sync, Sui client, and gate before Paylink code', () => {
     const wallet = page.indexOf('/shared/wallet-sync.js');
+    const connector = page.indexOf('/shared/wallet-connector.js');
     const sui = page.indexOf('/shared/sui-client.js');
     const gate = page.indexOf('/shared/tools-gate.js');
     const config = page.indexOf('/shared/paylink-config.js');
     const core = page.indexOf('/shared/paylink-core.js');
     const client = page.indexOf('/shared/paylink-client.js');
-    assert.ok(wallet > 0 && wallet < sui);
+    assert.ok(wallet > 0 && wallet < connector && connector < sui);
     assert.ok(sui < gate);
     assert.ok(gate < config);
     assert.ok(config < core && core < client);
 });
 
-test('generated payer links remain public Slush links while only creation is CITY-gated', () => {
+test('generated links use a public payer context page while only creation is CITY-gated', () => {
     assert.match(page, /Creator access requires 5M CITY/i);
     assert.match(page, /payer does not need CITY/i);
     assert.match(configSource, /https:\/\/my\.slush\.app\/pay/);
+    assert.match(configSource, /https:\/\/alphacity\.tech\/pay\/request\//);
     assert.match(clientSource, /createSlushUniversalUrl/);
+    assert.match(clientSource, /createPayerRequestUrl/);
     assert.match(clientSource, /uri\.slice\(question \+ 1\)/);
     assert.match(clientSource, /searchParams\.set\('uri', uri\)/);
 });
@@ -55,13 +60,45 @@ test('Slush links include direct mobile fields and the complete URI required by 
     const mobileParsed = parsePaymentTransactionUri(`sui:pay?${universalUrl.searchParams}`);
     assert.equal(mobileParsed.receiverAddress, `0x${'a'.repeat(64)}`);
     assert.equal(mobileParsed.registryId, registryId);
+
+    const payerUrl = new URL(Client.createPayerRequestUrl({
+        paymentUri,
+        symbol: 'SUI',
+        decimals: 9,
+    }));
+    assert.equal(payerUrl.origin, 'https://alphacity.tech');
+    assert.equal(payerUrl.pathname, '/pay/request/');
+    assert.equal(payerUrl.searchParams.get('request'), paymentUri);
+    assert.equal(payerUrl.searchParams.get('symbol'), 'SUI');
+    assert.equal(payerUrl.searchParams.get('decimals'), '9');
 });
 
-test('stored invoices are upgraded to the compatible Slush URL without changing payment identity', () => {
-    assert.match(page, /function upgradeSlushUniversalUrls\(items\)/);
+test('stored invoices are upgraded to payer and Slush URLs without changing payment identity', () => {
+    assert.match(page, /function upgradePaylinkUrls\(items\)/);
     assert.match(page, /Client\.createSlushUniversalUrl\(invoice\.paymentUri, Config\.slushPaymentBaseUrl\)/);
-    assert.match(page, /return \{ \.\.\.invoice, universalUrl \}/);
+    assert.match(page, /Client\.createPayerRequestUrl\(invoice, Config\.payerRequestBaseUrl\)/);
+    assert.match(page, /return \{ \.\.\.invoice, slushUrl, payerUrl, universalUrl: payerUrl \}/);
     assert.match(page, /if \(upgraded\.changed\) persistInvoices\(\)/);
+});
+
+test('the public payer page shows label and memo before continuing to Slush', () => {
+    assert.match(requestPage, /id="request-title"/);
+    assert.match(requestPage, /id="request-memo"/);
+    assert.match(requestPage, /Continue in Slush/i);
+    assert.match(requestPage, /request\.get\('label'\)/);
+    assert.match(requestPage, /request\.get\('message'\)/);
+    assert.match(requestPage, /searchParams\.set\('uri', paymentUri\)/);
+    assert.doesNotMatch(requestPage, /tools-gate\.js/);
+});
+
+test('Paylink mirrors the standard wallet button and wallet-management menu', () => {
+    assert.match(page, /id="connect-wallet-btn"/);
+    assert.match(page, /AlphaCityWalletConnector/);
+    assert.match(walletConnector, /Switch Account/);
+    assert.match(walletConnector, /Switch Wallet Provider/);
+    assert.match(walletConnector, /Disconnect/);
+    assert.match(walletConnector, /wallet-standard:app-ready/);
+    assert.match(walletConnector, /standard:disconnect/);
 });
 
 test('payment requests use the registry composite identity and exact bigint values', () => {
@@ -98,7 +135,11 @@ test('Paylink dependencies are exact and included in the normal production build
     assert.equal(packageJson.dependencies['@mysten/payment-kit'], '0.2.5');
     assert.equal(packageJson.dependencies.qrcode, '1.5.4');
     assert.match(packageJson.scripts['build:paylink'], /paylink-client-source\.js/);
+    assert.match(packageJson.scripts['build:paylink-css'], /pay\/tailwind\.css/);
     assert.match(packageJson.scripts.build, /build:paylink/);
+    assert.match(packageJson.scripts.build, /build:paylink-css/);
+    assert.match(page, /href="\/pay\/tailwind\.css"/);
+    assert.doesNotMatch(page, /cdn\.tailwindcss\.com/);
 });
 
 test('the inline Paylink controller parses as JavaScript', () => {
@@ -106,6 +147,12 @@ test('the inline Paylink controller parses as JavaScript', () => {
     assert.ok(scripts.length >= 2);
     const controller = scripts.at(-1)[1];
     assert.doesNotThrow(() => new vm.Script(controller, { filename: 'pay/index.html:inline-controller.js' }));
+});
+
+test('the inline public request controller parses as JavaScript', () => {
+    const scripts = [...requestPage.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
+    assert.equal(scripts.length, 1);
+    assert.doesNotThrow(() => new vm.Script(scripts[0][1], { filename: 'pay/request/index.html:inline-controller.js' }));
 });
 
 test('Payment Kit creates and parses the exact registry-backed request URI', async () => {

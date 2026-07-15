@@ -50,6 +50,7 @@ function initialize(options = {}) {
         registryName: options.registryName || DEFAULT_REGISTRY_NAME,
         paymentKitPackageId: options.paymentKitPackageId || PAYMENT_KIT_PACKAGE_IDS[network],
         slushPaymentBaseUrl: options.slushPaymentBaseUrl || 'https://my.slush.app/pay',
+        payerRequestBaseUrl: options.payerRequestBaseUrl || 'https://alphacity.tech/pay/request/',
     };
     return { ...initializedConfig };
 }
@@ -105,8 +106,7 @@ function parsePaymentUri(uri) {
 }
 
 function createSlushUniversalUrl(uri, baseUrl) {
-    const parsed = parsePaymentUri(uri);
-    void parsed;
+    parsePaymentUri(uri);
     const question = uri.indexOf('?');
     if (question < 0) throw new Error('Payment URI has no query parameters.');
     const universalUrl = new URL(baseUrl || initializedConfig?.slushPaymentBaseUrl || 'https://my.slush.app/pay');
@@ -117,6 +117,16 @@ function createSlushUniversalUrl(uri, baseUrl) {
     // clients; Payment Kit safely ignores the additional parameter on mobile.
     universalUrl.searchParams.set('uri', uri);
     return universalUrl.toString();
+}
+
+function createPayerRequestUrl(invoice, baseUrl) {
+    const paymentUri = invoice?.paymentUri || invoice?.uri;
+    parsePaymentUri(paymentUri);
+    const payerUrl = new URL(baseUrl || initializedConfig?.payerRequestBaseUrl || 'https://alphacity.tech/pay/request/');
+    payerUrl.searchParams.set('request', paymentUri);
+    payerUrl.searchParams.set('symbol', String(invoice?.symbol || '').trim().toUpperCase());
+    payerUrl.searchParams.set('decimals', String(invoice?.decimals ?? ''));
+    return payerUrl.toString();
 }
 
 async function getPaymentRecord(invoice) {
@@ -205,6 +215,7 @@ if (typeof window !== 'undefined') {
         createPaymentUri,
         parsePaymentUri,
         createSlushUniversalUrl,
+        createPayerRequestUrl,
         getPaymentRecord,
         getCoinMetadata,
         renderQr,
@@ -218,6 +229,7 @@ export {
     createPaymentUri,
     parsePaymentUri,
     createSlushUniversalUrl,
+    createPayerRequestUrl,
     getPaymentRecord,
     getCoinMetadata,
     renderQr,
