@@ -5,19 +5,25 @@
     <link rel="apple-touch-icon" href="https://i.postimg.cc/9QgzZr7t/wd-1CLt-O-400x400.jpg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A daily SUI intelligence dashboard for portfolio monitoring, market research, trade planning, alerts, news, weather, habits, and notes.">
+    <meta name="theme-color" content="#111827">
+    <meta name="color-scheme" content="dark">
     <title>CITY Intelligence Terminal - Alpha City</title>
     <link rel="stylesheet" href="/analyze/tailwind.css">
 
+    <!-- Prevent gated content from flashing while deferred access checks run. -->
+    <style id="tools-gate-style">body { display: none !important; }</style>
+
     <!-- Shared wallet connection sync -->
-    <script src="/shared/wallet-sync.js"></script>
+    <script defer src="/shared/wallet-sync.js"></script>
     <!-- SUI gRPC/GraphQL compatibility client -->
-    <script src="/shared/sui-client.js"></script>
-    <script src="/shared/trade-alerts.js"></script>
-    <script src="/shared/trade-tools.js"></script>
-    <script src="/shared/alpha-signals.js"></script>
-    <script src="/shared/lp-tools.js"></script>
+    <script defer src="/shared/sui-client.js"></script>
+    <script defer src="/shared/trade-alerts.js"></script>
+    <script defer src="/shared/trade-tools.js"></script>
+    <script defer src="/shared/alpha-signals.js"></script>
+    <script defer src="/shared/lp-tools.js"></script>
     <!-- Gated tools access check -->
-    <script src="/shared/tools-gate.js"></script>
+    <script defer src="/shared/tools-gate.js?v=20260716"></script>
 
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -198,6 +204,21 @@
         .refresh-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+        :focus-visible {
+            outline: 2px solid #60A5FA;
+            outline-offset: 3px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto !important; }
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
         /* Token Watchlist & APY Radar Widget Styles */
         .widget-tab-btn {
             font-size: 0.7rem;
@@ -231,22 +252,22 @@
     <!-- ===================== NAVIGATION ===================== -->
     <header class="bg-dark-bg/95 sticky top-0 z-50 border-b border-gray-800">
         <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
+            <div class="flex justify-between items-center h-16 sm:h-20 gap-3">
                 <!-- Logo -->
-                <a href="/" class="text-2xl font-bold text-white flex items-center gap-2 group">
+                <a href="/" class="text-lg sm:text-2xl font-bold text-white flex items-center gap-1 sm:gap-2 group flex-shrink-0">
                     <span>Alpha<span class="text-brand-secondary"> City</span></span>
-                    <div class="flex flex-col items-start">
+                    <div class="hidden sm:flex flex-col items-start">
                         <span class="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded border border-blue-500/30 uppercase tracking-wide font-bold ml-2">Intelligence</span>
                     </div>
                 </a>
 
                 <!-- Right Side Actions -->
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 sm:gap-4 min-w-0">
                     <a href="/" class="hidden md:block text-dark-text-secondary hover:text-white transition-colors">Back to Home</a>
-                    <a href="/tools/" class="text-dark-text-secondary hover:text-white transition-colors text-sm font-semibold text-brand-primary">Tools Portal</a>
+                    <a href="/tools/" class="text-dark-text-secondary hover:text-white transition-colors text-xs sm:text-sm font-semibold text-brand-primary"><span class="hidden sm:inline">Tools Portal</span><span class="sm:hidden">Tools</span></a>
                     <button id="connect-wallet-btn"
-                        class="bg-brand-primary text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        class="bg-brand-primary text-white px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-base font-medium hover:bg-brand-primary-hover shadow-lg shadow-blue-500/20 transition-all duration-200 flex items-center gap-2 min-w-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="hidden sm:block h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 010-2z" clip-rule="evenodd"/>
                         </svg>
                         <span id="wallet-text">Connect Wallet</span>
@@ -257,7 +278,7 @@
     </header>
 
     <!-- ===================== MAIN ===================== -->
-    <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
 
         <!-- Page Hero -->
         <div class="text-center mb-6">
@@ -270,8 +291,48 @@
             </p>
         </div>
 
+        <!-- Daily brief and long-page navigation -->
+        <section id="daily-brief" class="glass-panel p-4 md:p-5 rounded-xl mb-6" aria-labelledby="daily-brief-title">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h2 id="daily-brief-title" class="text-sm font-semibold text-white">Daily Brief</h2>
+                        <span id="daily-date" class="text-[10px] text-gray-500 font-mono">—</span>
+                        <span id="connection-status" class="mini-badge bg-green-500/10 text-green-400 border border-green-500/20">Online</span>
+                    </div>
+                    <p id="daily-greeting" class="text-[11px] text-gray-500 mt-1">Preparing your dashboard…</p>
+                </div>
+                <div class="grid grid-cols-3 gap-2 min-w-0 lg:min-w-[420px]">
+                    <div class="rounded-lg bg-dark-bg/45 border border-gray-800/70 px-3 py-2 min-w-0">
+                        <div class="text-[9px] uppercase tracking-wider text-gray-600">Market tone</div>
+                        <div id="daily-market-tone" class="text-xs font-semibold text-gray-300 truncate">Waiting for data</div>
+                    </div>
+                    <div class="rounded-lg bg-dark-bg/45 border border-gray-800/70 px-3 py-2 min-w-0">
+                        <div class="text-[9px] uppercase tracking-wider text-gray-600">Routines</div>
+                        <div id="daily-habit-progress" class="text-xs font-semibold text-gray-300 truncate">—</div>
+                    </div>
+                    <div class="rounded-lg bg-dark-bg/45 border border-gray-800/70 px-3 py-2 min-w-0">
+                        <div class="text-[9px] uppercase tracking-wider text-gray-600">Trade alerts</div>
+                        <div id="daily-alert-count" class="text-xs font-semibold text-gray-300 truncate">—</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-gray-800/70 overflow-x-auto pb-1" aria-label="Dashboard shortcuts">
+                <button type="button" data-jump-target="market-pulse" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Market</button>
+                <button type="button" data-jump-target="trade-decision-lab" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Trade Lab</button>
+                <button type="button" data-jump-target="portfolio-home" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Portfolio</button>
+                <button type="button" data-jump-target="token-trends-widget" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Watchlist</button>
+                <button type="button" data-jump-target="news-widget" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">News</button>
+                <button type="button" data-jump-target="notes-widget" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Notes</button>
+                <button type="button" data-jump-target="intel-dashboard" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Signals</button>
+                <span class="flex-1"></span>
+                <button id="refresh-home-btn" type="button" class="px-3 py-1.5 rounded-lg bg-brand-primary/10 border border-brand-primary/30 text-[10px] text-brand-primary hover:bg-brand-primary/20 whitespace-nowrap disabled:opacity-50">Refresh active data</button>
+                <span id="daily-sync-status" class="text-[9px] text-gray-600 font-mono whitespace-nowrap" aria-live="polite">Ready</span>
+            </div>
+        </section>
+
         <!-- Market Pulse Bar -->
-        <div id="market-pulse" class="glass-panel p-4 rounded-xl mb-8">
+        <div id="market-pulse" class="glass-panel p-4 rounded-xl mb-8 scroll-mt-24">
             <div class="flex items-center justify-between mb-2">
                 <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                     <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse-slow"></span>
@@ -304,7 +365,7 @@
         </div>
 
         <!-- Trade Decision Lab: on-demand execution and position planning -->
-        <section id="trade-decision-lab" class="glass-panel p-5 md:p-6 rounded-xl mb-8">
+        <section id="trade-decision-lab" class="glass-panel p-5 md:p-6 rounded-xl mb-8 scroll-mt-24">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-800/80 pb-4 mb-4">
                 <div>
                     <div class="flex items-center gap-2">
@@ -408,7 +469,7 @@
         </section>
 
         <!-- Three-column layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div id="portfolio-home" class="grid grid-cols-1 lg:grid-cols-12 gap-8 scroll-mt-24">
 
             <!-- ===== LEFT COLUMN: Portfolio & Notes ===== -->
             <div class="lg:col-span-3 space-y-6">
@@ -479,7 +540,7 @@
                 </div>
 
                 <!-- Trending & Watchlist Widget -->
-                <div id="token-trends-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
+                <div id="token-trends-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4 scroll-mt-24">
                     <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
                         <div class="flex gap-3">
                             <button id="widget-token-trending-tab" class="widget-tab-btn">
@@ -652,16 +713,22 @@
                 </div>
 
                 <!-- Time & Weather Widget -->
-                <div id="weather-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
+                <div id="weather-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4 scroll-mt-24">
                     <div class="flex items-center justify-between">
                         <div class="flex flex-col">
-                            <span id="weather-location" class="text-white font-bold text-sm">Detecting location...</span>
+                            <div class="flex items-center gap-2">
+                                <span id="weather-location" class="text-white font-bold text-sm">Detecting location...</span>
+                                <select id="weather-unit" class="bg-dark-bg border border-gray-700 rounded px-1.5 py-0.5 text-[9px] text-gray-400" aria-label="Temperature unit">
+                                    <option value="fahrenheit">°F</option>
+                                    <option value="celsius">°C</option>
+                                </select>
+                            </div>
                             <span id="local-clock" class="text-2xl font-bold text-brand-secondary font-mono">00:00:00</span>
                         </div>
                         <div class="flex items-center gap-3 text-right">
                             <div id="weather-temp-icon" class="text-3xl" style="line-height: 1">☀️</div>
                             <div class="flex flex-col">
-                                <span id="weather-temp" class="text-xl font-bold text-white">--°C</span>
+                                <span id="weather-temp" class="text-xl font-bold text-white">--°</span>
                                 <span class="text-[10px] text-dark-text-secondary" id="weather-high-low">H: --° L: --°</span>
                             </div>
                         </div>
@@ -679,7 +746,7 @@
                 </div>
 
                 <!-- News Terminal -->
-                <div id="news-widget" class="glass-panel deferred-widget p-5 rounded-xl flex flex-col space-y-4">
+                <div id="news-widget" class="glass-panel deferred-widget p-5 rounded-xl flex flex-col space-y-4 scroll-mt-24">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📰</span> News Terminal
@@ -832,7 +899,7 @@
                 </div>
 
                 <!-- Habit Tracker Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-4">
+                <div id="habits-widget" class="glass-panel p-5 rounded-xl space-y-4 scroll-mt-24">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>✅</span> Habit Tracker
@@ -869,7 +936,7 @@
                 </div>
 
                 <!-- Notes Widget -->
-                <div class="glass-panel p-5 rounded-xl space-y-3">
+                <div id="notes-widget" class="glass-panel p-5 rounded-xl space-y-3 scroll-mt-24">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📝</span> Notes Terminal
@@ -1006,7 +1073,7 @@
         </div>
 
         <!-- ===================== INTELLIGENCE DASHBOARD ===================== -->
-        <div id="intel-dashboard" class="deferred-widget mt-12">
+        <div id="intel-dashboard" class="deferred-widget mt-12 scroll-mt-24">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
                 <h2 class="text-2xl font-bold text-white flex items-center gap-3">
                     <span class="text-brand-secondary">⚡</span> Intelligence Dashboard
@@ -1198,7 +1265,7 @@
     <!-- ===================== FOOTER ===================== -->
     <footer class="bg-dark-bg border-t border-gray-800 py-8 mt-auto">
         <div class="container mx-auto px-4 text-center text-dark-text-secondary text-sm">
-            &copy; 2024 Alpha City. All rights reserved.
+            &copy; <span id="current-year">2026</span> Alpha City. All rights reserved.
         </div>
     </footer>
 
@@ -1580,22 +1647,32 @@
 
     async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
         const controller = new AbortController();
-        const { signal } = controller;
-        const id = setTimeout(() => controller.abort(), timeoutMs);
+        const externalSignal = options.signal;
+        const abortFromExternal = () => controller.abort(externalSignal?.reason);
+        if (externalSignal?.aborted) abortFromExternal();
+        else externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
+        const id = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), timeoutMs);
         try {
-            const response = await fetch(url, { ...options, signal });
+            return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
             clearTimeout(id);
-            return response;
-        } catch (err) {
-            clearTimeout(id);
-            throw err;
+            externalSignal?.removeEventListener('abort', abortFromExternal);
         }
     }
 
     function createVisibleInterval(callback, delay) {
+        let timerId = null;
         let running = false;
-        return setInterval(async () => {
-            if (document.hidden || running) return;
+        let stopped = false;
+        let nextRunAt = Date.now() + delay;
+
+        const schedule = () => {
+            clearTimeout(timerId);
+            if (stopped || document.hidden) return;
+            timerId = setTimeout(run, Math.max(50, nextRunAt - Date.now()));
+        };
+        const run = async () => {
+            if (stopped || document.hidden || running) return;
             running = true;
             try {
                 await callback();
@@ -1603,8 +1680,29 @@
                 console.warn('Scheduled Analyze refresh skipped:', error?.message || error);
             } finally {
                 running = false;
+                nextRunAt = Date.now() + delay;
+                schedule();
             }
-        }, delay);
+        };
+        const handleVisibility = () => {
+            if (document.hidden) {
+                clearTimeout(timerId);
+            } else if (Date.now() >= nextRunAt) {
+                run();
+            } else {
+                schedule();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibility);
+        schedule();
+        return {
+            stop() {
+                stopped = true;
+                clearTimeout(timerId);
+                document.removeEventListener('visibilitychange', handleVisibility);
+            }
+        };
     }
 
     function runWidgetSafe(name, initializer) {
@@ -1618,6 +1716,8 @@
         }
     }
 
+    const initializedWidgets = new Set();
+
     function initWhenVisible(elementId, name, initializer, rootMargin = '200px') {
         const element = document.getElementById(elementId);
         if (!element) return;
@@ -1625,6 +1725,7 @@
         const start = () => {
             if (started) return;
             started = true;
+            initializedWidgets.add(name);
             runWidgetSafe(name, initializer);
         };
         if (!('IntersectionObserver' in window)) {
@@ -2728,17 +2829,23 @@ Return ONLY a valid JSON object with two string keys:
     // INTELLIGENCE DASHBOARD — MARKET PULSE
     // =========================================================
     const PULSE_REFRESH_MS   = 60_000;  // 60 seconds — market pulse auto-refresh
+    const TVL_REFRESH_MS     = 15 * 60_000;
     const DEX_REFRESH_MS     = 300_000; // 5 minutes — DEX data auto-refresh
     const DEX_CACHE_TTL_MS   = 60_000;  // 60 seconds — minimum time before re-fetching DexScreener
     const MIN_LIQUIDITY_USD  = 1_000;   // filter spam pairs
     const WATCHLIST_STORAGE  = 'ac_intel_watchlist';
     const MAX_INTEL_WATCHLIST = 8;
     const INTEL_WATCHLIST_CACHE_TTL_MS = 60_000;
+    const MARKET_PULSE_CACHE_STORAGE = 'ac_analyze_market_pulse_v1';
+    const TVL_CACHE_STORAGE = 'ac_analyze_tvl_v1';
 
     let dexCache = { pairs: null, ts: 0 };
     let dexInFlight = null;
     let pulseTimer = null;
+    let tvlTimer = null;
     let dexTimer   = null;
+    let latestMarketPulse = null;
+    let lastDataSyncAt = null;
     const intelWatchlistCache = new Map();
 
     function fmtUsd(n) {
@@ -2785,43 +2892,101 @@ Return ONLY a valid JSON object with two string keys:
         return d.innerHTML;
     }
 
-    async function fetchMarketPulse() {
+    function safeExternalUrl(value) {
         try {
-            const resp = await fetch(
-                'https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true',
-                { signal: AbortSignal.timeout(8000) }
-            );
-            const data = await resp.json();
-            const sui = data?.sui;
-            if (!sui) return;
-
-            const priceEl  = document.getElementById('pulse-price');
-            const changeEl = document.getElementById('pulse-change');
-            const volEl    = document.getElementById('pulse-volume');
-            const mcapEl   = document.getElementById('pulse-mcap');
-            const updEl    = document.getElementById('pulse-updated');
-
-            priceEl.textContent  = sui.usd != null ? '$' + sui.usd.toFixed(4) : '—';
-            changeEl.textContent = fmtPct(sui.usd_24h_change);
-            changeEl.className   = 'value ' + pctClass(sui.usd_24h_change);
-            volEl.textContent    = fmtUsd(sui.usd_24h_vol);
-            mcapEl.textContent   = fmtUsd(sui.usd_market_cap);
-            updEl.textContent    = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            // Also update the module-level SUI price
-            if (typeof sui.usd === 'number') latestSuiPriceUsd = sui.usd;
-        } catch (_) {}
+            const url = new URL(String(value || ''));
+            return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
+        } catch (_) {
+            return '';
+        }
     }
 
-    async function fetchTvl() {
+    function readSessionCache(key) {
+        try { return JSON.parse(sessionStorage.getItem(key) || 'null'); }
+        catch (_) { return null; }
+    }
+
+    function writeSessionCache(key, value) {
+        try { sessionStorage.setItem(key, JSON.stringify(value)); }
+        catch (_) {}
+    }
+
+    function applyMarketPulse(sui, timestamp, source = 'Updated') {
+        if (!sui) return;
+        const price = Number(sui.usd);
+        const change = Number(sui.usd_24h_change);
+        const volume = Number(sui.usd_24h_vol);
+        const marketCap = Number(sui.usd_market_cap);
+        const priceEl  = document.getElementById('pulse-price');
+        const changeEl = document.getElementById('pulse-change');
+        const volEl    = document.getElementById('pulse-volume');
+        const mcapEl   = document.getElementById('pulse-mcap');
+        const updEl    = document.getElementById('pulse-updated');
+
+        if (priceEl) priceEl.textContent = Number.isFinite(price) ? '$' + price.toFixed(4) : '—';
+        if (changeEl) {
+            changeEl.textContent = fmtPct(change);
+            changeEl.className = 'value ' + pctClass(change);
+        }
+        if (volEl) volEl.textContent = fmtUsd(volume);
+        if (mcapEl) mcapEl.textContent = fmtUsd(marketCap);
+        if (updEl) updEl.textContent = `${source} ${new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        if (Number.isFinite(price)) latestSuiPriceUsd = price;
+        latestMarketPulse = { price, change, volume, marketCap, timestamp };
+        lastDataSyncAt = Math.max(Number(lastDataSyncAt || 0), Number(timestamp || 0));
+        updateDailyBrief();
+    }
+
+    async function fetchMarketPulse({ force = false } = {}) {
+        const cached = readSessionCache(MARKET_PULSE_CACHE_STORAGE);
+        if (cached?.sui && Number.isFinite(Number(cached.ts))) {
+            applyMarketPulse(cached.sui, cached.ts, 'Cached');
+            if (!force && Date.now() - cached.ts < PULSE_REFRESH_MS) return cached.sui;
+        }
         try {
-            const resp = await fetch('https://api.llama.fi/v2/chains', { signal: AbortSignal.timeout(8000) });
+            const resp = await fetchWithTimeout(
+                'https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true',
+                {},
+                8000
+            );
+            if (!resp.ok) throw new Error(`Market pulse request failed (${resp.status})`);
+            const data = await resp.json();
+            const sui = data?.sui;
+            if (!sui || !Number.isFinite(Number(sui.usd))) throw new Error('Market pulse response was incomplete');
+            const ts = Date.now();
+            writeSessionCache(MARKET_PULSE_CACHE_STORAGE, { sui, ts });
+            lastDataSyncAt = ts;
+            applyMarketPulse(sui, ts);
+            return sui;
+        } catch (error) {
+            if (!cached?.sui) {
+                const updEl = document.getElementById('pulse-updated');
+                if (updEl) updEl.textContent = navigator.onLine ? 'Market data unavailable' : 'Offline';
+            }
+            return cached?.sui || null;
+        }
+    }
+
+    async function fetchTvl({ force = false } = {}) {
+        const cached = readSessionCache(TVL_CACHE_STORAGE);
+        const tvlEl = document.getElementById('pulse-tvl');
+        if (cached && Number.isFinite(Number(cached.tvl)) && Number.isFinite(Number(cached.ts))) {
+            if (tvlEl) tvlEl.textContent = fmtUsd(Number(cached.tvl));
+            if (!force && Date.now() - cached.ts < TVL_REFRESH_MS) return Number(cached.tvl);
+        }
+        try {
+            const resp = await fetchWithTimeout('https://api.llama.fi/v2/chains', {}, 8000);
+            if (!resp.ok) throw new Error(`TVL request failed (${resp.status})`);
             const chains = await resp.json();
             const sui = (chains || []).find(c => (c.name || '').toLowerCase() === 'sui');
-            const tvlEl = document.getElementById('pulse-tvl');
-            tvlEl.textContent = sui?.tvl != null ? fmtUsd(sui.tvl) : '—';
+            const tvl = Number(sui?.tvl);
+            if (!Number.isFinite(tvl)) throw new Error('SUI TVL unavailable');
+            if (tvlEl) tvlEl.textContent = fmtUsd(tvl);
+            writeSessionCache(TVL_CACHE_STORAGE, { tvl, ts: Date.now() });
+            return tvl;
         } catch (_) {
-            document.getElementById('pulse-tvl').textContent = '—';
+            if (!cached && tvlEl) tvlEl.textContent = '—';
+            return cached?.tvl || null;
         }
     }
 
@@ -2855,8 +3020,9 @@ Return ONLY a valid JSON object with two string keys:
         const vol    = fmtUsd(t.total_volume);
         const mcap   = fmtUsd(t.market_cap);
         const attention = Number(t.market_cap) > 0 ? (Number(t.total_volume || 0) / Number(t.market_cap)) * 100 : null;
-        const imgTag = t.image
-            ? `<img src="${escHtml(t.image)}" alt="" class="w-5 h-5 rounded-full flex-shrink-0" loading="lazy" onerror="this.style.display='none'">`
+        const imageUrl = safeExternalUrl(t.image);
+        const imgTag = imageUrl
+            ? `<img src="${escHtml(imageUrl)}" alt="" class="w-5 h-5 rounded-full flex-shrink-0" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
             : '';
         return `
             <div class="token-row">
@@ -3427,6 +3593,8 @@ Return ONLY a valid JSON object with two string keys:
     };
     const intelLoadedTabs = new Set();
     const intelInFlight = new Map();
+    const INTEL_TAB_STORAGE = 'ac_analyze_intel_tab_v1';
+    const intelTabButtons = [...document.querySelectorAll('.intel-tab-btn')];
 
     function activeIntelTab() {
         return document.querySelector('.intel-tab-btn.active')?.getAttribute('data-tab') || 'signals';
@@ -3445,23 +3613,46 @@ Return ONLY a valid JSON object with two string keys:
         return renderPromise;
     }
 
-    document.querySelectorAll('.intel-tab-btn').forEach(btn => {
+    function activateIntelTab(btn, { focus = false, render = true } = {}) {
+        if (!btn) return;
+        const tabId = btn.getAttribute('data-tab');
+        intelTabButtons.forEach(button => {
+            const active = button === btn;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-selected', String(active));
+            button.setAttribute('tabindex', active ? '0' : '-1');
+        });
+        document.querySelectorAll('.intel-tab-content').forEach(panel => {
+            const active = panel.id === 'tab-' + tabId;
+            panel.classList.toggle('active', active);
+            panel.setAttribute('aria-hidden', String(!active));
+        });
+        try { localStorage.setItem(INTEL_TAB_STORAGE, tabId); } catch (_) {}
+        if (focus) btn.focus();
+        if (render) renderIntelTab(tabId);
+    }
+
+    function restoreIntelTab() {
+        let saved = '';
+        try { saved = localStorage.getItem(INTEL_TAB_STORAGE) || ''; } catch (_) {}
+        const button = intelTabButtons.find(candidate => candidate.getAttribute('data-tab') === saved) || intelTabButtons[0];
+        activateIntelTab(button, { render: false });
+    }
+
+    intelTabButtons.forEach(btn => {
         btn.setAttribute('role', 'tab');
         btn.setAttribute('aria-selected', String(btn.classList.contains('active')));
-        btn.addEventListener('click', () => {
-            const tabId = btn.getAttribute('data-tab');
-            // Update button states
-            document.querySelectorAll('.intel-tab-btn').forEach(b => {
-                b.classList.remove('active');
-                b.setAttribute('aria-selected', 'false');
-            });
-            btn.classList.add('active');
-            btn.setAttribute('aria-selected', 'true');
-            // Update content visibility
-            document.querySelectorAll('.intel-tab-content').forEach(c => c.classList.remove('active'));
-            const panel = document.getElementById('tab-' + tabId);
-            if (panel) panel.classList.add('active');
-            renderIntelTab(tabId);
+        btn.addEventListener('click', () => activateIntelTab(btn));
+        btn.addEventListener('keydown', event => {
+            const currentIndex = intelTabButtons.indexOf(btn);
+            let nextIndex = null;
+            if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % intelTabButtons.length;
+            if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + intelTabButtons.length) % intelTabButtons.length;
+            if (event.key === 'Home') nextIndex = 0;
+            if (event.key === 'End') nextIndex = intelTabButtons.length - 1;
+            if (nextIndex === null) return;
+            event.preventDefault();
+            activateIntelTab(intelTabButtons[nextIndex], { focus: true });
         });
     });
 
@@ -3513,8 +3704,9 @@ Return ONLY a valid JSON object with two string keys:
     // INTELLIGENCE DASHBOARD — AUTO INIT
     // =========================================================
     async function initMarketPulse() {
-        await Promise.all([fetchMarketPulse(), fetchTvl()]);
+        await Promise.allSettled([fetchMarketPulse(), fetchTvl()]);
         if (!pulseTimer) pulseTimer = createVisibleInterval(fetchMarketPulse, PULSE_REFRESH_MS);
+        if (!tvlTimer) tvlTimer = createVisibleInterval(fetchTvl, TVL_REFRESH_MS);
     }
 
     async function initIntelDashboard() {
@@ -3536,6 +3728,11 @@ Return ONLY a valid JSON object with two string keys:
         lat: 40.7128,
         lon: -74.0060
     };
+    const WEATHER_UNIT_STORAGE = 'ac_analyze_weather_unit_v1';
+    const WEATHER_LOCATION_CACHE_STORAGE = 'ac_analyze_weather_location_v1';
+    const WEATHER_CACHE_STORAGE = 'ac_analyze_weather_v1';
+    const WEATHER_LOCATION_TTL_MS = 6 * 60 * 60_000;
+    const WEATHER_TTL_MS = 15 * 60_000;
 
     function initClock() {
         function updateTime() {
@@ -3548,51 +3745,96 @@ Return ONLY a valid JSON object with two string keys:
         createVisibleInterval(updateTime, 1000);
     }
 
-    async function initWeather() {
+    function preferredWeatherUnit() {
+        try {
+            const stored = localStorage.getItem(WEATHER_UNIT_STORAGE);
+            if (stored === 'celsius' || stored === 'fahrenheit') return stored;
+        } catch (_) {}
+        return navigator.language?.toLowerCase() === 'en-us' ? 'fahrenheit' : 'celsius';
+    }
+
+    async function initWeather({ force = false } = {}) {
+        const unitControl = document.getElementById('weather-unit');
+        if (unitControl && unitControl.dataset.initialized !== 'true') {
+            unitControl.value = preferredWeatherUnit();
+            unitControl.dataset.initialized = 'true';
+            unitControl.addEventListener('change', () => {
+                try { localStorage.setItem(WEATHER_UNIT_STORAGE, unitControl.value); } catch (_) {}
+                initWeather({ force: false });
+            });
+        }
+        const unit = unitControl?.value || preferredWeatherUnit();
+
         let location = { ...FALLBACK_WEATHER };
+        const cachedLocation = readSessionCache(WEATHER_LOCATION_CACHE_STORAGE);
+        const hasFreshCachedLocation = cachedLocation?.location && Date.now() - Number(cachedLocation.ts || 0) < WEATHER_LOCATION_TTL_MS;
+        if (hasFreshCachedLocation) {
+            location = cachedLocation.location;
+        }
         const services = [
             { url: 'https://ipapi.co/json/', lat: 'latitude', lon: 'longitude', city: 'city', region: 'region' },
             { url: 'https://ipwho.is/', lat: 'latitude', lon: 'longitude', city: 'city', region: 'region' },
             { url: 'https://freeipapi.com/api/json', lat: 'latitude', lon: 'longitude', city: 'cityName', region: 'regionName' }
         ];
 
-        for (const service of services) {
-            try {
-                const ipResp = await fetch(service.url, { signal: AbortSignal.timeout(3000) });
-                if (ipResp.ok) {
-                    const ipData = await ipResp.json();
-                    if (ipData[service.lat] && ipData[service.lon]) {
-                        const cityVal = ipData[service.city];
-                        const regionVal = ipData[service.region];
-                        location.name = (cityVal && regionVal) ? `${cityVal}, ${regionVal}` : cityVal || "Local Area";
-                        location.lat = ipData[service.lat];
-                        location.lon = ipData[service.lon];
-                        break;
+        if (!hasFreshCachedLocation) {
+            for (const service of services) {
+                try {
+                    const ipResp = await fetchWithTimeout(service.url, {}, 3000);
+                    if (ipResp.ok) {
+                        const ipData = await ipResp.json();
+                        const lat = Number(ipData[service.lat]);
+                        const lon = Number(ipData[service.lon]);
+                        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                            const cityVal = ipData[service.city];
+                            const regionVal = ipData[service.region];
+                            location.name = (cityVal && regionVal) ? `${cityVal}, ${regionVal}` : cityVal || "Local Area";
+                            location.lat = lat;
+                            location.lon = lon;
+                            writeSessionCache(WEATHER_LOCATION_CACHE_STORAGE, { location, ts: Date.now() });
+                            break;
+                        }
                     }
-                }
-            } catch (_) {}
+                } catch (_) {}
+            }
         }
 
-        document.getElementById('weather-location').textContent = location.name;
+        const locationElement = document.getElementById('weather-location');
+        if (locationElement) locationElement.textContent = location.name;
+        const cacheKey = `${Number(location.lat).toFixed(3)}|${Number(location.lon).toFixed(3)}|${unit}`;
+        const cachedWeather = readSessionCache(WEATHER_CACHE_STORAGE);
+        if (cachedWeather?.key === cacheKey && cachedWeather.weather) {
+            renderWeather(cachedWeather.weather, unit);
+            if (cachedWeather.aqi) renderAqi(cachedWeather.aqi);
+            if (!force && Date.now() - Number(cachedWeather.ts || 0) < WEATHER_TTL_MS) return;
+        }
 
         try {
-            const [weatherResp, aqiResp] = await Promise.all([
-                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto`, { signal: AbortSignal.timeout(6000) }),
-                fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${location.lat}&longitude=${location.lon}&current=us_aqi`, { signal: AbortSignal.timeout(6000) })
+            const [weatherResult, aqiResult] = await Promise.allSettled([
+                fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=${unit}&timezone=auto`, {}, 6000),
+                fetchWithTimeout(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${location.lat}&longitude=${location.lon}&current=us_aqi`, {}, 6000)
             ]);
 
-            if (weatherResp.ok) {
-                const weatherData = await weatherResp.json();
-                renderWeather(weatherData);
+            let weatherData = null;
+            let aqiData = null;
+            const weatherResp = weatherResult.status === 'fulfilled' ? weatherResult.value : null;
+            const aqiResp = aqiResult.status === 'fulfilled' ? aqiResult.value : null;
+            if (weatherResp?.ok) {
+                weatherData = await weatherResp.json();
+                renderWeather(weatherData, unit);
             }
-            if (aqiResp.ok) {
-                const aqiData = await aqiResp.json();
+            if (aqiResp?.ok) {
+                aqiData = await aqiResp.json();
                 renderAqi(aqiData);
             }
+            if (!weatherData && !cachedWeather?.weather) throw new Error('Weather forecast unavailable');
+            if (weatherData) writeSessionCache(WEATHER_CACHE_STORAGE, { key: cacheKey, weather: weatherData, aqi: aqiData, ts: Date.now() });
         } catch (err) {
             console.error('Weather load error:', err);
-            document.getElementById('weather-temp').textContent = "Err";
-            document.getElementById('weather-aqi').textContent = "N/A";
+            if (!cachedWeather?.weather) {
+                document.getElementById('weather-temp').textContent = "Err";
+                document.getElementById('weather-aqi').textContent = "N/A";
+            }
         }
     }
 
@@ -3619,12 +3861,13 @@ Return ONLY a valid JSON object with two string keys:
         return 'Cloudy';
     }
 
-    function renderWeather(data) {
+    function renderWeather(data, unit = preferredWeatherUnit()) {
         const curr = data.current;
         const daily = data.daily;
         if (!curr || !daily) return;
+        const unitSymbol = unit === 'fahrenheit' ? '°F' : '°C';
 
-        document.getElementById('weather-temp').textContent = `${Math.round(curr.temperature_2m)}°C`;
+        document.getElementById('weather-temp').textContent = `${Math.round(curr.temperature_2m)}${unitSymbol}`;
         document.getElementById('weather-temp-icon').textContent = getWeatherIcon(curr.weather_code);
         document.getElementById('weather-temp-icon').title = getWeatherDesc(curr.weather_code);
 
@@ -3732,6 +3975,7 @@ Return ONLY a valid JSON object with two string keys:
                         ts = Math.floor(new Date(cleanDate).getTime() / 1000);
                     } catch (_) {}
                 }
+                if (!Number.isFinite(ts)) ts = Math.floor(Date.now() / 1000);
                 
                 let title = art.title || '';
                 let source = data.feed?.title || 'News Feed';
@@ -3756,11 +4000,11 @@ Return ONLY a valid JSON object with two string keys:
                 
                 return {
                     title: title,
-                    url: art.link,
+                    url: safeExternalUrl(art.link),
                     published_on: ts,
                     source: source
                 };
-            });
+            }).filter(article => article.url);
 
             // Sort by published_on descending (most recent first)
             newsCache[category].sort((a, b) => b.published_on - a.published_on);
@@ -3902,11 +4146,11 @@ Return ONLY a valid JSON object with two string keys:
         renderHabits();
     }
 
-    window.deleteHabit = function(habitId) {
+    function deleteHabit(habitId) {
         const habits = loadHabits().filter(x => x.id !== habitId);
         saveHabits(habits);
         renderHabits();
-    };
+    }
 
     function renderHabits() {
         const habits = loadHabits();
@@ -3918,6 +4162,7 @@ Return ONLY a valid JSON object with two string keys:
         if (habits.length === 0) {
             container.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No habits added. Add one below!</p>';
             document.getElementById('habit-progress-badge').textContent = 'No habits';
+            updateDailyBrief();
             return;
         }
 
@@ -3931,9 +4176,10 @@ Return ONLY a valid JSON object with two string keys:
             const nameCol = document.createElement('div');
             nameCol.className = 'col-span-5 text-left font-medium truncate flex items-center gap-2';
             nameCol.innerHTML = `
-                <button class="text-red-400 hover:text-red-300 font-bold text-xs cursor-pointer px-1 flex-shrink-0" onclick="deleteHabit('${h.id}')" title="Delete habit">✕</button>
+                <button class="habit-delete text-red-400 hover:text-red-300 font-bold text-xs cursor-pointer px-1 flex-shrink-0" type="button" title="Delete habit" aria-label="Delete ${escHtml(h.name)}">✕</button>
                 <span class="truncate">${escHtml(h.name)}</span>
             `;
+            nameCol.querySelector('.habit-delete')?.addEventListener('click', () => deleteHabit(h.id));
             row.appendChild(nameCol);
 
             if (h.history[todayStr]) completedToday++;
@@ -3948,6 +4194,8 @@ Return ONLY a valid JSON object with two string keys:
                 
                 const btn = document.createElement('button');
                 btn.className = `w-5 h-5 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200`;
+                btn.setAttribute('aria-label', `${isDone ? 'Clear' : 'Complete'} ${h.name} for ${dateKey}`);
+                btn.setAttribute('aria-pressed', String(isDone));
                 
                 if (isDone) {
                     btn.className += ` bg-green-500/20 border border-green-500 text-green-400`;
@@ -3972,6 +4220,7 @@ Return ONLY a valid JSON object with two string keys:
             const pct = Math.round((completedToday / habits.length) * 100);
             progressBadge.textContent = `${completedToday} of ${habits.length} completed today (${pct}%)`;
         }
+        updateDailyBrief();
     }
 
     function initHabitTracker() {
@@ -4020,6 +4269,17 @@ Return ONLY a valid JSON object with two string keys:
         } catch (_) {}
 
         let saveTimeout = null;
+        const saveNotes = () => {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            try {
+                localStorage.setItem(NOTES_STORAGE, textarea.value);
+                statusEl.textContent = 'Saved';
+                statusEl.classList.remove('text-brand-secondary');
+                statusEl.classList.add('text-gray-600');
+            } catch (_) {
+                statusEl.textContent = 'Error';
+            }
+        };
 
         textarea.addEventListener('input', () => {
             statusEl.textContent = 'Saving...';
@@ -4028,17 +4288,9 @@ Return ONLY a valid JSON object with two string keys:
 
             if (saveTimeout) clearTimeout(saveTimeout);
 
-            saveTimeout = setTimeout(() => {
-                try {
-                    localStorage.setItem(NOTES_STORAGE, textarea.value);
-                    statusEl.textContent = 'Saved';
-                    statusEl.classList.remove('text-brand-secondary');
-                    statusEl.classList.add('text-gray-600');
-                } catch (_) {
-                    statusEl.textContent = 'Error';
-                }
-            }, 800);
+            saveTimeout = setTimeout(saveNotes, 800);
         });
+        window.addEventListener('pagehide', saveNotes, { once: true });
     }
 
     // =========================================================
@@ -4792,7 +5044,7 @@ Return ONLY a valid JSON object with two string keys:
     ];
     let tokenAlertEditorToken = '';
     let tokenAlertPollTimer = null;
-    let tokenAlertMarketCache = { key: '', expiresAt: 0, pairsByToken: {} };
+    let tokenAlertMarketCache = { key: '', expiresAt: 0, pairsByToken: {}, promise: null };
 
     function loadTokenWatchlist() {
         try {
@@ -4844,23 +5096,39 @@ Return ONLY a valid JSON object with two string keys:
         if (!force && tokenAlertMarketCache.key === key && tokenAlertMarketCache.expiresAt > Date.now()) {
             return tokenAlertMarketCache.pairsByToken;
         }
+        if (tokenAlertMarketCache.key === key && tokenAlertMarketCache.promise) return tokenAlertMarketCache.promise;
 
-        const batches = [];
-        for (let index = 0; index < tokens.length; index += 30) batches.push(tokens.slice(index, index + 30));
-        const responses = await Promise.all(batches.map(async batch => {
-            const url = `https://api.dexscreener.com/latest/dex/tokens/${batch.map(encodeURIComponent).join(',')}`;
-            const response = await fetchWithTimeout(url, {}, 6000);
-            if (!response.ok) throw new Error(`DexScreener request failed (${response.status})`);
-            const payload = await response.json();
-            return payload?.pairs || [];
-        }));
-        const pairsByToken = mapWatchlistPairs(tokens, responses.flat());
+        const request = (async () => {
+            const batches = [];
+            for (let index = 0; index < tokens.length; index += 30) batches.push(tokens.slice(index, index + 30));
+            const responses = await Promise.all(batches.map(async batch => {
+                const url = `https://api.dexscreener.com/latest/dex/tokens/${batch.map(encodeURIComponent).join(',')}`;
+                const response = await fetchWithTimeout(url, {}, 6000);
+                if (!response.ok) throw new Error(`DexScreener request failed (${response.status})`);
+                const payload = await response.json();
+                return payload?.pairs || [];
+            }));
+            const pairsByToken = mapWatchlistPairs(tokens, responses.flat());
+            tokenAlertMarketCache = {
+                key,
+                expiresAt: Date.now() + TOKEN_ALERT_MARKET_CACHE_TTL_MS,
+                pairsByToken,
+                promise: null,
+            };
+            return pairsByToken;
+        })();
         tokenAlertMarketCache = {
             key,
-            expiresAt: Date.now() + TOKEN_ALERT_MARKET_CACHE_TTL_MS,
-            pairsByToken,
+            expiresAt: tokenAlertMarketCache.key === key ? tokenAlertMarketCache.expiresAt : 0,
+            pairsByToken: tokenAlertMarketCache.key === key ? tokenAlertMarketCache.pairsByToken : {},
+            promise: request,
         };
-        return pairsByToken;
+        try {
+            return await request;
+        } catch (error) {
+            if (tokenAlertMarketCache.promise === request) tokenAlertMarketCache.promise = null;
+            throw error;
+        }
     }
 
     function loadTokenAlertRules() {
@@ -4950,6 +5218,7 @@ Return ONLY a valid JSON object with two string keys:
         if (!rules.length) {
             listElement.innerHTML = '<p class="text-[10px] text-gray-600 text-center py-1">Use the bell beside a watched token to create an alert.</p>';
             renderTokenAlertHistory();
+            updateDailyBrief();
             return;
         }
 
@@ -4979,6 +5248,7 @@ Return ONLY a valid JSON object with two string keys:
             });
         });
         renderTokenAlertHistory();
+        updateDailyBrief();
     }
 
     function removeTokenAlerts(token) {
@@ -5904,33 +6174,134 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
+    // DAILY HOME BRIEF & ACTIVE-DATA REFRESH
+    // =========================================================
+    function getTodayHabitStats() {
+        const habits = loadHabits();
+        const today = getLocalDateKey(new Date());
+        return {
+            total: habits.length,
+            completed: habits.filter(habit => habit?.history?.[today]).length,
+        };
+    }
+
+    function updateDailyBrief() {
+        const dateElement = document.getElementById('daily-date');
+        if (!dateElement) return;
+        const now = new Date();
+        const hour = now.getHours();
+        const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+        dateElement.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        document.getElementById('daily-greeting').textContent = `${greeting}. Review the signal, size the risk, then protect your attention.`;
+
+        const connectionElement = document.getElementById('connection-status');
+        const online = navigator.onLine;
+        connectionElement.textContent = online ? 'Online' : 'Offline · cached data';
+        connectionElement.className = online
+            ? 'mini-badge bg-green-500/10 text-green-400 border border-green-500/20'
+            : 'mini-badge bg-yellow-500/10 text-yellow-300 border border-yellow-500/20';
+
+        const marketElement = document.getElementById('daily-market-tone');
+        const change = Number(latestMarketPulse?.change);
+        if (Number.isFinite(change)) {
+            marketElement.textContent = Math.abs(change) < 1
+                ? `SUI flat ${fmtPct(change)}`
+                : change > 0 ? `SUI firm ${fmtPct(change)}` : `SUI soft ${fmtPct(change)}`;
+            marketElement.className = `text-xs font-semibold truncate ${change >= 0 ? 'text-green-400' : 'text-red-400'}`;
+        } else {
+            marketElement.textContent = online ? 'Waiting for data' : 'Offline';
+            marketElement.className = 'text-xs font-semibold text-gray-400 truncate';
+        }
+
+        const habits = getTodayHabitStats();
+        document.getElementById('daily-habit-progress').textContent = habits.total
+            ? `${habits.completed}/${habits.total} complete`
+            : 'No routines';
+
+        const alertRules = loadTokenAlertRules();
+        const triggered = alertRules.filter(rule => rule.isTriggered).length;
+        const alertElement = document.getElementById('daily-alert-count');
+        alertElement.textContent = triggered ? `${triggered} triggered · ${alertRules.length} total` : `${alertRules.length} armed`;
+        alertElement.className = `text-xs font-semibold truncate ${triggered ? 'text-orange-300' : 'text-gray-300'}`;
+
+        const syncElement = document.getElementById('daily-sync-status');
+        if (syncElement && lastDataSyncAt) {
+            syncElement.textContent = `Synced ${new Date(lastDataSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
+    }
+
+    async function refreshActiveHomeData() {
+        const button = document.getElementById('refresh-home-btn');
+        const status = document.getElementById('daily-sync-status');
+        if (!button || !status) return;
+        if (!navigator.onLine) {
+            status.textContent = 'Offline · showing cache';
+            updateDailyBrief();
+            return;
+        }
+
+        button.disabled = true;
+        status.textContent = 'Refreshing…';
+        let resultMessage = '';
+        const tasks = [fetchMarketPulse({ force: true }), fetchTvl({ force: true })];
+
+        if (initializedWidgets.has('WidgetTokenTrends')) {
+            tokenAlertMarketCache.expiresAt = 0;
+            const trendingActive = document.getElementById('widget-token-trending-tab')?.classList.contains('active');
+            tasks.push(trendingActive ? renderWidgetTrending() : renderWidgetWatchlist());
+            tasks.push(checkTokenAlerts({ force: true }));
+        }
+        if (initializedWidgets.has('WidgetApyRadar')) tasks.push(renderWidgetApyRadar({ force: true }));
+        if (initializedWidgets.has('Weather')) tasks.push(initWeather({ force: true }));
+        if (initializedWidgets.has('NewsTerminal')) {
+            const activeNews = document.querySelector('.news-tab-btn.active')?.getAttribute('data-category') || 'sui';
+            newsCache[activeNews] = null;
+            tasks.push(loadNewsCategory(activeNews));
+        }
+        if (initializedWidgets.has('XFeed')) tasks.push(loadXFeed());
+        if (initializedWidgets.has('WhaleTracker')) tasks.push(loadWhaleFeed({ force: true }));
+        if (initializedWidgets.has('IntelDashboard')) {
+            dexCache = { pairs: null, ts: 0 };
+            ecosystemCache = { tokens: null, ts: 0 };
+            intelWatchlistCache.clear();
+            intelLoadedTabs.clear();
+            tasks.push(renderIntelTab(activeIntelTab(), { force: true }));
+        }
+
+        try {
+            const results = await Promise.allSettled(tasks);
+            const failures = results.filter(result => result.status === 'rejected').length;
+            lastDataSyncAt = Date.now();
+            resultMessage = failures ? `Updated with ${failures} unavailable` : 'All active data updated';
+        } finally {
+            button.disabled = false;
+            updateDailyBrief();
+            if (resultMessage) status.textContent = resultMessage;
+        }
+    }
+
+    function initDailyHome() {
+        restoreIntelTab();
+        const year = document.getElementById('current-year');
+        if (year) year.textContent = new Date().getFullYear();
+        document.querySelectorAll('[data-jump-target]').forEach(button => {
+            button.addEventListener('click', () => {
+                const target = document.getElementById(button.getAttribute('data-jump-target'));
+                const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+                target?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+            });
+        });
+        document.getElementById('refresh-home-btn')?.addEventListener('click', refreshActiveHomeData);
+        window.addEventListener('online', updateDailyBrief);
+        window.addEventListener('offline', updateDailyBrief);
+        updateDailyBrief();
+    }
+
+    // =========================================================
     // INIT
     // =========================================================
-    // 1. Eager Critical Initializations (Instant Load)
-    initWalletStandard();
-    initClock();
-    initNotes();
-    initHabitTracker();
-    initTradeDecisionLab();
-
-    runWidgetSafe('MarketPulse', initMarketPulse);
-
-    // 2. Initialize non-critical widgets only when they approach the viewport.
-    const deferInit = window.requestIdleCallback || (cb => setTimeout(cb, 100));
-    deferInit(() => {
-        initWhenVisible('token-trends-widget', 'WidgetTokenTrends', initWidgetTokenTrendsAndWatchlist);
-        initWhenVisible('apy-radar-widget', 'WidgetApyRadar', initWidgetApyRadar);
-        initWhenVisible('token-safety-sniffer-widget', 'TokenSafetySniffer', initTokenSafetySniffer);
-        initWhenVisible('tradingview-widget', 'TradingView', initTradingView);
-        initWhenVisible('weather-widget', 'Weather', initWeather);
-        initWhenVisible('news-widget', 'NewsTerminal', initNewsTerminal);
-        initWhenVisible('x-feed-widget', 'XFeed', initXFeed, '100px');
-        initWhenVisible('whale-tracker-widget', 'WhaleTracker', initWhaleTracker, '100px');
-        initWhenVisible('intel-dashboard', 'IntelDashboard', initIntelDashboard, '300px');
-    });
-
     // Auto-reconnect from persisted session (mirrors staking page behavior)
-    (async function autoReconnect() {
+    async function autoReconnect() {
         const session = loadPersistedSession();
         if (!session) return;
 
@@ -5991,7 +6362,45 @@ Return ONLY a valid JSON object with two string keys:
             // Only clear on auth/address validation failures (handled above).
             // Network errors from loadPortfolioData should not clear the session.
         }
-    })();
+    }
+
+    let analyzeInitialized = false;
+    function initializeAnalyzePage() {
+        if (analyzeInitialized) return;
+        analyzeInitialized = true;
+
+        // 1. Eager critical initialization after deferred dependencies are ready.
+        initWalletStandard();
+        initDailyHome();
+        initClock();
+        initNotes();
+        initHabitTracker();
+        initTradeDecisionLab();
+        runWidgetSafe('MarketPulse', initMarketPulse);
+
+        // 2. Initialize non-critical widgets only when they approach the viewport.
+        const deferInit = window.requestIdleCallback
+            ? callback => window.requestIdleCallback(callback, { timeout: 1000 })
+            : callback => setTimeout(callback, 100);
+        deferInit(() => {
+            initWhenVisible('token-trends-widget', 'WidgetTokenTrends', initWidgetTokenTrendsAndWatchlist);
+            initWhenVisible('apy-radar-widget', 'WidgetApyRadar', initWidgetApyRadar);
+            initWhenVisible('token-safety-sniffer-widget', 'TokenSafetySniffer', initTokenSafetySniffer);
+            initWhenVisible('tradingview-widget', 'TradingView', initTradingView);
+            initWhenVisible('weather-widget', 'Weather', initWeather);
+            initWhenVisible('news-widget', 'NewsTerminal', initNewsTerminal);
+            initWhenVisible('x-feed-widget', 'XFeed', initXFeed, '100px');
+            initWhenVisible('whale-tracker-widget', 'WhaleTracker', initWhaleTracker, '100px');
+            initWhenVisible('intel-dashboard', 'IntelDashboard', initIntelDashboard, '300px');
+        });
+        autoReconnect();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeAnalyzePage, { once: true });
+    } else {
+        initializeAnalyzePage();
+    }
     </script>
 </body>
 </html>

@@ -6,6 +6,15 @@
     const GATE_THRESHOLD = 5000000n * (10n ** 9n); // 5M CITY (9 decimals)
 
     const isToolsPage = window.location.pathname.includes('/tools');
+    const isAnalyzeLocalPreview = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname) &&
+        window.location.pathname.startsWith('/analyze') &&
+        new URLSearchParams(window.location.search).get('preview') === '1';
+
+    // Local-only preview keeps the production gate intact while allowing visual QA.
+    if (isAnalyzeLocalPreview) {
+        document.getElementById('tools-gate-style')?.remove();
+        return;
+    }
 
     // Immediately hide body for gated pages on page load
     let styleEl = null;
@@ -154,7 +163,27 @@
         }
     }
 
-    // Run initial check and then poll
+    // Run immediately, then poll only while the page is visible. Storage events
+    // keep wallet changes responsive without waking a hidden dashboard.
+    let sessionPollTimer = null;
+    function scheduleWalletCheck() {
+        clearTimeout(sessionPollTimer);
+        if (document.hidden) return;
+        sessionPollTimer = setTimeout(() => {
+            checkWalletSession();
+            scheduleWalletCheck();
+        }, 1500);
+    }
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) clearTimeout(sessionPollTimer);
+        else {
+            checkWalletSession();
+            scheduleWalletCheck();
+        }
+    });
+    window.addEventListener('storage', event => {
+        if (event.key === 'alphacity_wallet') checkWalletSession();
+    });
     checkWalletSession();
-    setInterval(checkWalletSession, 1500);
+    scheduleWalletCheck();
 })();
