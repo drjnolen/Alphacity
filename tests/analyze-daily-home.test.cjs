@@ -9,19 +9,25 @@ const gate = fs.readFileSync(path.join(root, 'shared', 'tools-gate.js'), 'utf8')
 
 test('Analyze defers shared dependencies without flashing gated content', () => {
     assert.match(html, /<style id="tools-gate-style">body \{ display: none !important; \}<\/style>/);
-    for (const asset of ['wallet-sync', 'sui-client', 'trade-alerts', 'trade-tools', 'alpha-signals', 'lp-tools', 'tools-gate']) {
+    for (const asset of ['wallet-sync', 'sui-client', 'trade-alerts', 'alpha-signals', 'lp-tools', 'tools-gate']) {
         assert.match(html, new RegExp(`<script defer src="/shared/${asset}\\.js(?:\\?v=\\d+)?"><\\/script>`));
     }
+    assert.doesNotMatch(html, /trade-tools\.js/);
     assert.match(html, /DOMContentLoaded', initializeAnalyzePage/);
 });
 
-test('Analyze has a daily brief with active refresh and long-page shortcuts', () => {
-    for (const id of ['daily-brief', 'daily-market-tone', 'daily-habit-progress', 'daily-alert-count', 'refresh-home-btn']) {
-        assert.match(html, new RegExp(`id="${id}"`));
+test('Analyze removes the retired Daily Brief and Trade Decision Lab code paths', () => {
+    for (const obsolete of ['daily-brief', 'trade-decision-lab', 'initDailyHome', 'initTradeDecisionLab', 'AlphaCityTradeTools', 'execution-planner-launch']) {
+        assert.doesNotMatch(html, new RegExp(obsolete));
     }
-    assert.match(html, /data-jump-target="trade-decision-lab"/);
-    assert.match(html, /data-jump-target="intel-dashboard"/);
-    assert.match(html, /async function refreshActiveHomeData/);
+});
+
+test('mobile columns prioritize middle widgets while desktop retains left-middle-right layout', () => {
+    assert.match(html, /id="analyze-middle-column" class="order-1 lg:order-2 lg:col-span-5/);
+    assert.match(html, /id="analyze-left-column" class="order-2 lg:order-1 lg:col-span-3/);
+    assert.match(html, /id="analyze-right-column" class="order-3 lg:order-3 lg:col-span-4/);
+    assert.ok(html.indexOf('id="market-pulse"') < html.indexOf('id="analyze-left-column"'));
+    assert.ok(html.indexOf('id="analyze-right-column"') < html.indexOf('id="intel-dashboard"'));
 });
 
 test('background refreshes sleep while hidden and resume when overdue', () => {
@@ -46,6 +52,11 @@ test('watchlist market loads are single-flight and external news links are proto
     assert.match(html, /function safeExternalUrl/);
     assert.match(html, /url: safeExternalUrl\(art\.link\)/);
     assert.match(html, /\.filter\(article => article\.url\)/);
+});
+
+test('enriched alerts derive volume and sell pressure from the existing pair snapshot', () => {
+    assert.match(html, /volumeH1: pair\.volume\?\.h1/);
+    assert.match(html, /sellPressureH1: flowH1 \? \(sellsH1 \/ flowH1\) \* 100 : null/);
 });
 
 test('intelligence tab choice persists and supports arrow-key navigation', () => {

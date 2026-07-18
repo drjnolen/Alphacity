@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" href="https://i.postimg.cc/9QgzZr7t/wd-1CLt-O-400x400.jpg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A daily SUI intelligence dashboard for portfolio monitoring, market research, trade planning, alerts, news, weather, habits, and notes.">
+    <meta name="description" content="A daily SUI intelligence dashboard for portfolio monitoring, market research, alerts, news, weather, habits, and notes.">
     <meta name="theme-color" content="#111827">
     <meta name="color-scheme" content="dark">
     <title>CITY Intelligence Terminal - Alpha City</title>
@@ -19,7 +19,6 @@
     <!-- SUI gRPC/GraphQL compatibility client -->
     <script defer src="/shared/sui-client.js"></script>
     <script defer src="/shared/trade-alerts.js"></script>
-    <script defer src="/shared/trade-tools.js"></script>
     <script defer src="/shared/alpha-signals.js"></script>
     <script defer src="/shared/lp-tools.js"></script>
     <!-- Gated tools access check -->
@@ -291,48 +290,8 @@
             </p>
         </div>
 
-        <!-- Daily brief and long-page navigation -->
-        <section id="daily-brief" class="glass-panel p-4 md:p-5 rounded-xl mb-6" aria-labelledby="daily-brief-title">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div class="min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <h2 id="daily-brief-title" class="text-sm font-semibold text-white">Daily Brief</h2>
-                        <span id="daily-date" class="text-[10px] text-gray-500 font-mono">—</span>
-                        <span id="connection-status" class="mini-badge bg-green-500/10 text-green-400 border border-green-500/20">Online</span>
-                    </div>
-                    <p id="daily-greeting" class="text-[11px] text-gray-500 mt-1">Preparing your dashboard…</p>
-                </div>
-                <div class="grid grid-cols-3 gap-2 min-w-0 lg:min-w-[420px]">
-                    <div class="rounded-lg bg-dark-bg/45 border border-gray-800/70 px-3 py-2 min-w-0">
-                        <div class="text-[9px] uppercase tracking-wider text-gray-600">Market tone</div>
-                        <div id="daily-market-tone" class="text-xs font-semibold text-gray-300 truncate">Waiting for data</div>
-                    </div>
-                    <div class="rounded-lg bg-dark-bg/45 border border-gray-800/70 px-3 py-2 min-w-0">
-                        <div class="text-[9px] uppercase tracking-wider text-gray-600">Routines</div>
-                        <div id="daily-habit-progress" class="text-xs font-semibold text-gray-300 truncate">—</div>
-                    </div>
-                    <div class="rounded-lg bg-dark-bg/45 border border-gray-800/70 px-3 py-2 min-w-0">
-                        <div class="text-[9px] uppercase tracking-wider text-gray-600">Trade alerts</div>
-                        <div id="daily-alert-count" class="text-xs font-semibold text-gray-300 truncate">—</div>
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-gray-800/70 overflow-x-auto pb-1" aria-label="Dashboard shortcuts">
-                <button type="button" data-jump-target="market-pulse" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Market</button>
-                <button type="button" data-jump-target="trade-decision-lab" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Trade Lab</button>
-                <button type="button" data-jump-target="portfolio-home" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Portfolio</button>
-                <button type="button" data-jump-target="token-trends-widget" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Watchlist</button>
-                <button type="button" data-jump-target="news-widget" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">News</button>
-                <button type="button" data-jump-target="notes-widget" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Notes</button>
-                <button type="button" data-jump-target="intel-dashboard" class="px-3 py-1.5 rounded-lg bg-dark-bg/60 border border-gray-800 text-[10px] text-gray-400 hover:text-white hover:border-brand-primary/50 whitespace-nowrap">Signals</button>
-                <span class="flex-1"></span>
-                <button id="refresh-home-btn" type="button" class="px-3 py-1.5 rounded-lg bg-brand-primary/10 border border-brand-primary/30 text-[10px] text-brand-primary hover:bg-brand-primary/20 whitespace-nowrap disabled:opacity-50">Refresh active data</button>
-                <span id="daily-sync-status" class="text-[9px] text-gray-600 font-mono whitespace-nowrap" aria-live="polite">Ready</span>
-            </div>
-        </section>
-
         <!-- Market Pulse Bar -->
-        <div id="market-pulse" class="glass-panel p-4 rounded-xl mb-8 scroll-mt-24">
+        <div id="market-pulse" class="glass-panel p-4 rounded-xl mb-8">
             <div class="flex items-center justify-between mb-2">
                 <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                     <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse-slow"></span>
@@ -364,115 +323,11 @@
             </div>
         </div>
 
-        <!-- Trade Decision Lab: on-demand execution and position planning -->
-        <section id="trade-decision-lab" class="glass-panel p-5 md:p-6 rounded-xl mb-8 scroll-mt-24">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-800/80 pb-4 mb-4">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-lg" aria-hidden="true">⚖️</span>
-                        <h2 class="text-sm font-semibold uppercase tracking-wider text-white">Trade Decision Lab</h2>
-                    </div>
-                    <p class="text-[11px] text-gray-500 mt-1">Compare SUI venues before entry, then size the trade from your actual risk budget.</p>
-                </div>
-                <span class="self-start sm:self-auto text-[9px] font-mono uppercase tracking-wider text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">On demand · 60s cache</span>
-            </div>
-
-            <div class="flex gap-2 mb-5" role="tablist" aria-label="Trade planning tools">
-                <button id="trade-lab-execution-tab" type="button" class="widget-tab-btn active" role="tab" aria-selected="true" aria-controls="trade-lab-execution-panel">Execution Planner</button>
-                <button id="trade-lab-position-tab" type="button" class="widget-tab-btn" role="tab" aria-selected="false" aria-controls="trade-lab-position-panel">Position Sizer</button>
-            </div>
-
-            <div id="trade-lab-execution-panel" role="tabpanel" aria-labelledby="trade-lab-execution-tab" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                    <label class="md:col-span-6 text-[10px] uppercase tracking-wider text-gray-500">
-                        SUI token type or package
-                        <input id="execution-token-input" type="text" value="0x2::sui::SUI" class="watchlist-input mt-1.5 text-xs font-mono" autocomplete="off" spellcheck="false" aria-describedby="execution-token-help">
-                    </label>
-                    <label class="md:col-span-2 text-[10px] uppercase tracking-wider text-gray-500">
-                        Order size
-                        <div class="relative mt-1.5">
-                            <span class="absolute left-3 top-2 text-xs text-gray-500">$</span>
-                            <input id="execution-size-input" type="number" value="1000" min="1" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal">
-                        </div>
-                    </label>
-                    <label class="md:col-span-2 text-[10px] uppercase tracking-wider text-gray-500">
-                        Impact budget
-                        <select id="execution-impact-input" class="watchlist-input mt-1.5 text-xs font-mono">
-                            <option value="0.5">0.5%</option>
-                            <option value="1" selected>1.0%</option>
-                            <option value="2">2.0%</option>
-                            <option value="3">3.0%</option>
-                        </select>
-                    </label>
-                    <button id="execution-analyze-btn" type="button" class="md:col-span-2 h-[38px] px-4 bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-wait text-white text-xs font-bold rounded-lg transition-colors">Analyze</button>
-                </div>
-                <p id="execution-token-help" class="text-[9px] text-gray-600">Uses one cached DexScreener request only when you click Analyze. Impact is a rough liquidity-based estimate; CLMM ticks, fees, routing, and live quotes can differ.</p>
-                <p id="execution-error" class="hidden text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" role="alert"></p>
-
-                <div id="execution-results" class="hidden space-y-4" aria-live="polite">
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
-                        <div class="pulse-stat"><div class="label">Deepest Venue</div><div class="value truncate" id="execution-best-venue">—</div></div>
-                        <div class="pulse-stat"><div class="label">Token Price</div><div class="value" id="execution-token-price">—</div></div>
-                        <div class="pulse-stat"><div class="label">Pool Liquidity</div><div class="value" id="execution-liquidity">—</div></div>
-                        <div class="pulse-stat"><div class="label">Est. Price Impact</div><div class="value" id="execution-impact">—</div></div>
-                        <div class="pulse-stat"><div class="label">Max at Budget</div><div class="value" id="execution-max-order">—</div></div>
-                    </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                        <div id="execution-signals" class="lg:col-span-1 space-y-2"></div>
-                        <div class="lg:col-span-2 bg-dark-bg/45 border border-gray-800/70 rounded-lg overflow-hidden">
-                            <div class="grid grid-cols-4 gap-2 px-3 py-2 text-[9px] uppercase tracking-wider text-gray-600 border-b border-gray-800/70">
-                                <span>Venue / Pair</span><span class="text-right">Price</span><span class="text-right">Liquidity</span><span class="text-right">1h Flow</span>
-                            </div>
-                            <div id="execution-pools-list" class="divide-y divide-gray-800/50 max-h-48 overflow-y-auto"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="trade-lab-position-panel" role="tabpanel" aria-labelledby="trade-lab-position-tab" class="hidden space-y-4">
-                <div class="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
-                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Account size
-                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-account-input" type="number" value="10000" min="1" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
-                    </label>
-                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Risk per trade
-                        <div class="relative mt-1.5"><input id="position-risk-input" type="number" value="1" min="0.01" max="100" step="0.1" class="watchlist-input text-xs font-mono pr-7" inputmode="decimal"><span class="absolute right-3 top-2 text-xs text-gray-500">%</span></div>
-                    </label>
-                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Direction
-                        <select id="position-direction-input" class="watchlist-input mt-1.5 text-xs font-mono"><option value="long">Long</option><option value="short">Short</option></select>
-                    </label>
-                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Entry price
-                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-entry-input" type="number" min="0" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
-                    </label>
-                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Stop price
-                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-stop-input" type="number" min="0" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
-                    </label>
-                    <label class="text-[10px] uppercase tracking-wider text-gray-500">Target price
-                        <div class="relative mt-1.5"><span class="absolute left-3 top-2 text-xs text-gray-500">$</span><input id="position-target-input" type="number" min="0" step="any" class="watchlist-input text-xs font-mono pl-6" inputmode="decimal"></div>
-                    </label>
-                </div>
-                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <button id="position-calculate-btn" type="button" class="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-bold rounded-lg transition-colors">Calculate Position</button>
-                    <span class="text-[9px] text-gray-600">Calculation stays in your browser and makes no API or RPC request.</span>
-                </div>
-                <p id="position-error" class="hidden text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" role="alert"></p>
-                <div id="position-results" class="hidden space-y-3" aria-live="polite">
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
-                        <div class="pulse-stat"><div class="label">Risk Budget</div><div class="value" id="position-risk-budget">—</div></div>
-                        <div class="pulse-stat"><div class="label">Position Units</div><div class="value" id="position-units">—</div></div>
-                        <div class="pulse-stat"><div class="label">Position Notional</div><div class="value" id="position-notional">—</div></div>
-                        <div class="pulse-stat"><div class="label">Stop Distance</div><div class="value" id="position-stop-distance">—</div></div>
-                        <div class="pulse-stat"><div class="label">Reward / Risk</div><div class="value" id="position-reward-risk">—</div></div>
-                    </div>
-                    <div id="position-guidance" class="text-[10px] rounded-lg border px-3 py-2"></div>
-                </div>
-            </div>
-        </section>
-
         <!-- Three-column layout -->
-        <div id="portfolio-home" class="grid grid-cols-1 lg:grid-cols-12 gap-8 scroll-mt-24">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
             <!-- ===== LEFT COLUMN: Portfolio & Notes ===== -->
-            <div class="lg:col-span-3 space-y-6">
+            <div id="analyze-left-column" class="order-2 lg:order-1 lg:col-span-3 space-y-6">
 
                 <!-- Connect prompt (shown before wallet connect) -->
                 <div id="connect-prompt" class="glass-panel p-8 rounded-xl text-center">
@@ -540,7 +395,7 @@
                 </div>
 
                 <!-- Trending & Watchlist Widget -->
-                <div id="token-trends-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4 scroll-mt-24">
+                <div id="token-trends-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800/80 pb-2">
                         <div class="flex gap-3">
                             <button id="widget-token-trending-tab" class="widget-tab-btn">
@@ -698,7 +553,7 @@
             </div>
 
             <!-- ===== MIDDLE COLUMN: Clock/Weather & News ===== -->
-            <div class="lg:col-span-5 space-y-6">
+            <div id="analyze-middle-column" class="order-1 lg:order-2 lg:col-span-5 space-y-6">
 
                 <!-- TradingView Chart -->
                 <div id="tradingview-widget" class="glass-panel deferred-widget p-4 rounded-xl flex flex-col space-y-2 h-[350px]">
@@ -713,7 +568,7 @@
                 </div>
 
                 <!-- Time & Weather Widget -->
-                <div id="weather-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4 scroll-mt-24">
+                <div id="weather-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
                         <div class="flex flex-col">
                             <div class="flex items-center gap-2">
@@ -746,7 +601,7 @@
                 </div>
 
                 <!-- News Terminal -->
-                <div id="news-widget" class="glass-panel deferred-widget p-5 rounded-xl flex flex-col space-y-4 scroll-mt-24">
+                <div id="news-widget" class="glass-panel deferred-widget p-5 rounded-xl flex flex-col space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📰</span> News Terminal
@@ -784,7 +639,7 @@
             </div>
 
             <!-- ===== RIGHT COLUMN: AI Copilot & Habit Tracker ===== -->
-            <div class="lg:col-span-4 space-y-6">
+            <div id="analyze-right-column" class="order-3 lg:order-3 lg:col-span-4 space-y-6">
 
                 <!-- Default / idle state -->
                 <div id="ai-idle" class="glass-panel p-6 rounded-xl text-center">
@@ -899,7 +754,7 @@
                 </div>
 
                 <!-- Habit Tracker Widget -->
-                <div id="habits-widget" class="glass-panel p-5 rounded-xl space-y-4 scroll-mt-24">
+                <div id="habits-widget" class="glass-panel p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>✅</span> Habit Tracker
@@ -936,7 +791,7 @@
                 </div>
 
                 <!-- Notes Widget -->
-                <div id="notes-widget" class="glass-panel p-5 rounded-xl space-y-3 scroll-mt-24">
+                <div id="notes-widget" class="glass-panel p-5 rounded-xl space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📝</span> Notes Terminal
@@ -1073,7 +928,7 @@
         </div>
 
         <!-- ===================== INTELLIGENCE DASHBOARD ===================== -->
-        <div id="intel-dashboard" class="deferred-widget mt-12 scroll-mt-24">
+        <div id="intel-dashboard" class="deferred-widget mt-12">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
                 <h2 class="text-2xl font-bold text-white flex items-center gap-3">
                     <span class="text-brand-secondary">⚡</span> Intelligence Dashboard
@@ -1716,8 +1571,6 @@
         }
     }
 
-    const initializedWidgets = new Set();
-
     function initWhenVisible(elementId, name, initializer, rootMargin = '200px') {
         const element = document.getElementById(elementId);
         if (!element) return;
@@ -1725,7 +1578,6 @@
         const start = () => {
             if (started) return;
             started = true;
-            initializedWidgets.add(name);
             runWidgetSafe(name, initializer);
         };
         if (!('IntersectionObserver' in window)) {
@@ -2844,8 +2696,6 @@ Return ONLY a valid JSON object with two string keys:
     let pulseTimer = null;
     let tvlTimer = null;
     let dexTimer   = null;
-    let latestMarketPulse = null;
-    let lastDataSyncAt = null;
     const intelWatchlistCache = new Map();
 
     function fmtUsd(n) {
@@ -2932,9 +2782,6 @@ Return ONLY a valid JSON object with two string keys:
         if (mcapEl) mcapEl.textContent = fmtUsd(marketCap);
         if (updEl) updEl.textContent = `${source} ${new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         if (Number.isFinite(price)) latestSuiPriceUsd = price;
-        latestMarketPulse = { price, change, volume, marketCap, timestamp };
-        lastDataSyncAt = Math.max(Number(lastDataSyncAt || 0), Number(timestamp || 0));
-        updateDailyBrief();
     }
 
     async function fetchMarketPulse({ force = false } = {}) {
@@ -2955,7 +2802,6 @@ Return ONLY a valid JSON object with two string keys:
             if (!sui || !Number.isFinite(Number(sui.usd))) throw new Error('Market pulse response was incomplete');
             const ts = Date.now();
             writeSessionCache(MARKET_PULSE_CACHE_STORAGE, { sui, ts });
-            lastDataSyncAt = ts;
             applyMarketPulse(sui, ts);
             return sui;
         } catch (error) {
@@ -3167,11 +3013,6 @@ Return ONLY a valid JSON object with two string keys:
         return `<span class="mini-badge border ${classes[signal.tier] || classes.weak}" title="Relative setup score">S${signal.score}</span>`;
     }
 
-    function executionPlannerAction(p, label = '⚖') {
-        const token = p?.baseToken?.address;
-        return token ? `<button type="button" class="execution-planner-launch text-gray-500 hover:text-brand-secondary text-[10px]" data-token="${escHtml(token)}" title="Open in Execution Planner">${label}</button>` : '';
-    }
-
     function renderTokenRow(signal) {
         const p = signal.pair;
         const metrics = signal.metrics;
@@ -3186,7 +3027,7 @@ Return ONLY a valid JSON object with two string keys:
                         ${pairLabel(p)}
                         ${signalTierBadge(signal)}
                         <span class="mini-badge bg-gray-800 text-gray-400">${escHtml(p.dexId || '—')}</span>
-                        ${pairLink(p)} ${executionPlannerAction(p)}
+                        ${pairLink(p)}
                     </div>
                     <div class="text-[9px] text-gray-600 mt-0.5 truncate" title="${escHtml([...signal.reasons, ...signal.risks].join(' · '))}">${escHtml(signal.reasons[0] || signal.risks[0] || buyShare)}</div>
                 </div>
@@ -3214,7 +3055,7 @@ Return ONLY a valid JSON object with two string keys:
         return `
             <div class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs">
                 <div class="min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} ${signalTierBadge(signal)} ${pairLink(p)} ${executionPlannerAction(p)}</div>
+                    <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} ${signalTierBadge(signal)} ${pairLink(p)}</div>
                     <div class="text-[9px] text-gray-600 mt-0.5">${fmtUsd(metrics.liquidityUsd)} liquidity · ${metrics.buySharePct === null ? 'no flow' : metrics.buySharePct.toFixed(0) + '% buys'}</div>
                 </div>
                 <div class="flex items-center gap-4">
@@ -3249,7 +3090,7 @@ Return ONLY a valid JSON object with two string keys:
         return `
             <div class="token-row">
                 <div class="min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} <span class="mini-badge bg-gray-800 text-gray-400">${escHtml(p.dexId || '—')}</span> ${pairLink(p)} ${executionPlannerAction(p, '⚖ Plan')}</div>
+                    <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} <span class="mini-badge bg-gray-800 text-gray-400">${escHtml(p.dexId || '—')}</span> ${pairLink(p)}</div>
                     <div class="text-[9px] text-gray-600 mt-0.5 truncate" title="${escHtml(context)}">${escHtml(context || 'No dominant factor')}</div>
                 </div>
                 <div class="text-right">${signalTierBadge(signal)}<span class="block text-[9px] text-gray-600 mt-0.5 capitalize">${signal.tier}</span></div>
@@ -3277,7 +3118,6 @@ Return ONLY a valid JSON object with two string keys:
                 <div class="token-row token-row-header">
                     <div>Setup / context</div><div class="text-right">Signal</div><div class="text-right">1h</div><div class="text-right hide-mobile">Velocity / Flow</div><div class="text-right hide-mobile">Liquidity</div>
                 </div>` + ranked.map(renderSignalRow).join('');
-            attachExecutionLauncherHandlers(el);
         } catch (_) {
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to build the signal radar.</p>';
         }
@@ -3304,7 +3144,6 @@ Return ONLY a valid JSON object with two string keys:
                 return;
             }
             el.innerHTML = renderTableHeader() + sorted.map(renderTokenRow).join('');
-            attachExecutionLauncherHandlers(el);
         } catch (_) {
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load trending data.</p>';
         }
@@ -3330,8 +3169,6 @@ Return ONLY a valid JSON object with two string keys:
             losersEl.innerHTML = losers.length
                 ? losers.map(renderMoverRow).join('')
                 : '<p class="text-xs text-gray-500 py-4 text-center">No data.</p>';
-            attachExecutionLauncherHandlers(gainersEl);
-            attachExecutionLauncherHandlers(losersEl);
         } catch (_) {
             gainersEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load data.</p>';
             losersEl.innerHTML  = '<p class="text-xs text-red-400 py-4 text-center">Failed to load data.</p>';
@@ -3370,7 +3207,7 @@ Return ONLY a valid JSON object with two string keys:
                     return `
                     <div class="token-row">
                         <div class="min-w-0">
-                            <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} <span class="mini-badge bg-green-900/30 text-green-400 border border-green-800/30">NEW</span> ${pairLink(p)} ${executionPlannerAction(p, '⚖ Plan')}</div>
+                            <div class="flex items-center gap-2 flex-wrap">${pairLabel(p)} <span class="mini-badge bg-green-900/30 text-green-400 border border-green-800/30">NEW</span> ${pairLink(p)}</div>
                             <div class="text-[9px] text-gray-600 mt-0.5 truncate" title="${escHtml(item.risks.join(' · '))}">${escHtml(item.risks[0] || `${metrics.buySharePct === null ? 'No' : metrics.buySharePct.toFixed(0) + '% buy'} transaction share`)}</div>
                         </div>
                         <div class="text-right"><span class="mini-badge border ${gradeClass}">${item.grade} · ${item.score}</span></div>
@@ -3379,7 +3216,6 @@ Return ONLY a valid JSON object with two string keys:
                         <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(metrics.liquidityUsd)}</div>
                     </div>`;
                 }).join('');
-            attachExecutionLauncherHandlers(el);
         } catch (_) {
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load new pools.</p>';
         }
@@ -3405,13 +3241,12 @@ Return ONLY a valid JSON object with two string keys:
                 <div class="token-row token-row-header"><div>Token</div><div class="text-right">Displayed Gap</div><div class="text-right">Low Venue</div><div class="text-right hide-mobile">High Venue</div><div class="text-right hide-mobile">Min Liquidity</div></div>` +
                 dislocations.map(item => `
                     <div class="token-row">
-                        <div class="flex items-center gap-2 flex-wrap"><span class="text-white font-medium">${escHtml(item.symbol)}</span><span class="mini-badge border ${confidenceClasses[item.confidence]}">${item.confidence}</span>${executionPlannerAction(item.lowPool, '⚖ Plan')}</div>
+                        <div class="flex items-center gap-2 flex-wrap"><span class="text-white font-medium">${escHtml(item.symbol)}</span><span class="mini-badge border ${confidenceClasses[item.confidence]}">${item.confidence}</span></div>
                         <div class="text-right font-mono text-yellow-300"><span class="block font-semibold">${item.spreadPct.toFixed(2)}%</span><span class="text-[9px] text-gray-600">${item.transactionsH1} tx 1h</span></div>
                         <div class="text-right font-mono"><span class="block text-green-300">${fmtPrice(item.lowPool.priceUsd)}</span><span class="text-[9px] text-gray-600">${escHtml(String(item.lowPool.dexId || '—'))} ${pairLink(item.lowPool)}</span></div>
                         <div class="text-right font-mono hide-mobile"><span class="block text-red-300">${fmtPrice(item.highPool.priceUsd)}</span><span class="text-[9px] text-gray-600">${escHtml(String(item.highPool.dexId || '—'))} ${pairLink(item.highPool)}</span></div>
                         <div class="text-right text-dark-text-secondary font-mono hide-mobile">${fmtUsd(item.minimumLiquidityUsd)}</div>
                     </div>`).join('');
-            attachExecutionLauncherHandlers(el);
         } catch (_) {
             el.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to compare venue prices.</p>';
         }
@@ -4162,7 +3997,6 @@ Return ONLY a valid JSON object with two string keys:
         if (habits.length === 0) {
             container.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No habits added. Add one below!</p>';
             document.getElementById('habit-progress-badge').textContent = 'No habits';
-            updateDailyBrief();
             return;
         }
 
@@ -4220,7 +4054,6 @@ Return ONLY a valid JSON object with two string keys:
             const pct = Math.round((completedToday / habits.length) * 100);
             progressBadge.textContent = `${completedToday} of ${habits.length} completed today (${pct}%)`;
         }
-        updateDailyBrief();
     }
 
     function initHabitTracker() {
@@ -4773,261 +4606,6 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
-    // TRADE DECISION LAB
-    // =========================================================
-    const EXECUTION_CACHE_TTL_MS = 60_000;
-    const executionPairCache = new Map();
-
-    function setTradeLabTab(tabName) {
-        const executionActive = tabName === 'execution';
-        const executionTab = document.getElementById('trade-lab-execution-tab');
-        const positionTab = document.getElementById('trade-lab-position-tab');
-        const executionPanel = document.getElementById('trade-lab-execution-panel');
-        const positionPanel = document.getElementById('trade-lab-position-panel');
-        if (!executionTab || !positionTab || !executionPanel || !positionPanel) return;
-
-        executionTab.classList.toggle('active', executionActive);
-        positionTab.classList.toggle('active', !executionActive);
-        executionTab.setAttribute('aria-selected', String(executionActive));
-        positionTab.setAttribute('aria-selected', String(!executionActive));
-        executionPanel.classList.toggle('hidden', !executionActive);
-        positionPanel.classList.toggle('hidden', executionActive);
-    }
-
-    function matchesExecutionToken(token, pairToken) {
-        return window.AlphaCityTradeAlerts?.tokenMatchesPairAddress(token, pairToken) || false;
-    }
-
-    async function fetchExecutionPairs(token, { force = false } = {}) {
-        const key = String(token || '').trim().toLowerCase();
-        const cached = executionPairCache.get(key);
-        if (!force && cached?.pairs && cached.expiresAt > Date.now()) return cached.pairs;
-        if (cached?.promise) return cached.promise;
-
-        const request = (async () => {
-            const endpoint = token.includes('::')
-                ? `https://api.dexscreener.com/token-pairs/v1/sui/${encodeURIComponent(token)}`
-                : `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(token)}`;
-            const response = await fetchWithTimeout(endpoint, {}, 6500);
-            if (!response.ok) throw new Error(`Market lookup failed (${response.status}). Please try again.`);
-            const payload = await response.json();
-            const seen = new Set();
-            const pairs = (Array.isArray(payload) ? payload : (payload?.pairs || []))
-                .filter(pair => pair?.chainId === 'sui' && matchesExecutionToken(token, pair.baseToken?.address))
-                .filter(pair => {
-                    const pairId = String(pair?.pairAddress || '');
-                    if (!pairId || seen.has(pairId)) return false;
-                    seen.add(pairId);
-                    return true;
-                });
-            executionPairCache.set(key, { pairs, expiresAt: Date.now() + EXECUTION_CACHE_TTL_MS, promise: null });
-            return pairs;
-        })();
-
-        executionPairCache.set(key, { pairs: cached?.pairs || null, expiresAt: cached?.expiresAt || 0, promise: request });
-        try {
-            return await request;
-        } catch (error) {
-            executionPairCache.delete(key);
-            throw error;
-        }
-    }
-
-    function executionSignal(tone, label, value, detail) {
-        const styles = {
-            good: 'text-green-300 bg-green-500/10 border-green-500/20',
-            warning: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/20',
-            danger: 'text-red-300 bg-red-500/10 border-red-500/20',
-            neutral: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
-        };
-        return `
-            <div class="rounded-lg border p-3 ${styles[tone] || styles.neutral}">
-                <div class="flex items-center justify-between gap-2">
-                    <span class="text-[9px] uppercase tracking-wider opacity-75">${escHtml(label)}</span>
-                    <span class="text-xs font-bold font-mono">${escHtml(value)}</span>
-                </div>
-                <p class="text-[9px] mt-1 opacity-70 leading-relaxed">${escHtml(detail)}</p>
-            </div>`;
-    }
-
-    function renderExecutionResults(result) {
-        const best = result.bestPool;
-        const dexName = String(best.dexId || 'Unknown').toUpperCase();
-        const impactTone = result.impactPct <= result.impactBudgetPct ? 'text-green-400' : 'text-red-400';
-        const setText = (id, value) => {
-            const element = document.getElementById(id);
-            if (element) element.textContent = value;
-        };
-        setText('execution-best-venue', dexName);
-        setText('execution-token-price', fmtPrice(best.priceUsd));
-        setText('execution-liquidity', fmtUsd(best.liquidity?.usd));
-        setText('execution-impact', `${result.impactPct.toFixed(2)}%`);
-        setText('execution-max-order', fmtUsd(result.maxTradeUsd));
-        const impactElement = document.getElementById('execution-impact');
-        if (impactElement) impactElement.className = `value ${impactTone}`;
-
-        const entryInput = document.getElementById('position-entry-input');
-        if (entryInput && !entryInput.value) entryInput.value = Number(best.priceUsd).toPrecision(8);
-
-        const impactOk = result.impactPct <= result.impactBudgetPct;
-        const spreadTone = result.priceSpreadPct <= 0.5 ? 'good' : result.priceSpreadPct <= 2 ? 'warning' : 'danger';
-        const hasFlow = result.transactionsH1 >= 10 && result.sellSharePct !== null;
-        const flowTone = !hasFlow ? 'neutral' : result.sellSharePct >= 65 ? 'danger' : result.buySharePct >= 65 ? 'good' : 'neutral';
-        const flowValue = hasFlow ? `${result.buySharePct.toFixed(0)}% buys` : 'Low sample';
-        document.getElementById('execution-signals').innerHTML = [
-            executionSignal(
-                impactOk ? 'good' : 'danger',
-                'Pool impact estimate',
-                impactOk ? 'Within budget' : 'Over budget',
-                impactOk ? `Estimated below your ${result.impactBudgetPct}% budget.` : `Reduce toward ${fmtUsd(result.maxTradeUsd)} or request an aggregator quote.`,
-            ),
-            executionSignal(
-                spreadTone,
-                'Displayed venue spread',
-                `${result.priceSpreadPct.toFixed(2)}%`,
-                result.priceSpreadPct <= 0.5 ? 'Pool prices are closely aligned.' : 'Compare a live quote; prices may be stale or fragmented.',
-            ),
-            executionSignal(
-                flowTone,
-                'Deepest-pool 1h flow',
-                flowValue,
-                hasFlow ? `${result.transactionsH1} swaps sampled; ${result.sellSharePct.toFixed(0)}% sells.` : 'Fewer than 10 swaps; directional flow is inconclusive.',
-            ),
-        ].join('');
-
-        const poolsList = document.getElementById('execution-pools-list');
-        poolsList.innerHTML = result.ranked.slice(0, 6).map((pair, index) => {
-            const buys = Number(pair.txns?.h1?.buys || 0);
-            const sells = Number(pair.txns?.h1?.sells || 0);
-            const total = buys + sells;
-            const buyPct = total ? Math.round((buys / total) * 100) : null;
-            const pairName = `${pair.baseToken?.symbol || '?'} / ${pair.quoteToken?.symbol || '?'}`;
-            const venue = String(pair.dexId || 'Unknown').toUpperCase();
-            const safeUrl = typeof pair.url === 'string' && pair.url.startsWith('https://') ? pair.url : '';
-            const label = `<span class="text-white font-semibold">${escHtml(venue)}</span><span class="text-gray-600 ml-1">${escHtml(pairName)}</span>`;
-            return `
-                <div class="grid grid-cols-4 gap-2 items-center px-3 py-2 text-[10px] ${index === 0 ? 'bg-brand-primary/5' : ''}">
-                    <div class="truncate">${safeUrl ? `<a href="${escHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="hover:text-blue-300" title="Open DexScreener">${label} ↗</a>` : label}</div>
-                    <span class="text-right text-white font-mono">${fmtPrice(pair.priceUsd)}</span>
-                    <span class="text-right text-dark-text-secondary font-mono">${fmtUsd(pair.liquidity?.usd)}</span>
-                    <span class="text-right font-mono ${buyPct === null ? 'text-gray-600' : buyPct >= 60 ? 'text-green-400' : buyPct <= 40 ? 'text-red-400' : 'text-gray-400'}">${buyPct === null ? '—' : `${buyPct}% B`}</span>
-                </div>`;
-        }).join('');
-        document.getElementById('execution-results')?.classList.remove('hidden');
-    }
-
-    async function runExecutionAnalysis() {
-        const button = document.getElementById('execution-analyze-btn');
-        const tokenInput = document.getElementById('execution-token-input');
-        const sizeInput = document.getElementById('execution-size-input');
-        const impactInput = document.getElementById('execution-impact-input');
-        const errorElement = document.getElementById('execution-error');
-        const token = tokenInput?.value.trim() || '';
-        const validToken = /^(0x[0-9a-fA-F]+)(::[a-zA-Z0-9_]+::[a-zA-Z0-9_]+)?$/.test(token);
-        if (!button || !errorElement) return;
-
-        errorElement.classList.add('hidden');
-        document.getElementById('execution-results')?.classList.add('hidden');
-        if (!validToken) {
-            errorElement.textContent = 'Enter a valid SUI coin type or package address.';
-            errorElement.classList.remove('hidden');
-            return;
-        }
-
-        button.disabled = true;
-        const originalText = button.textContent;
-        button.textContent = 'Analyzing…';
-        try {
-            const pairs = await fetchExecutionPairs(token);
-            const result = window.AlphaCityTradeTools?.analyzeExecution(pairs, {
-                tradeUsd: sizeInput?.value,
-                impactBudgetPct: impactInput?.value,
-            });
-            if (!result) throw new Error('Trade planning tools are unavailable. Refresh and try again.');
-            renderExecutionResults(result);
-        } catch (error) {
-            errorElement.textContent = error.message || 'Unable to analyze execution right now.';
-            errorElement.classList.remove('hidden');
-        } finally {
-            button.disabled = false;
-            button.textContent = originalText;
-        }
-    }
-
-    function calculatePositionPlan() {
-        const errorElement = document.getElementById('position-error');
-        const resultsElement = document.getElementById('position-results');
-        if (!errorElement || !resultsElement) return;
-        errorElement.classList.add('hidden');
-        resultsElement.classList.add('hidden');
-        try {
-            const plan = window.AlphaCityTradeTools?.buildPositionPlan({
-                accountUsd: document.getElementById('position-account-input')?.value,
-                riskPct: document.getElementById('position-risk-input')?.value,
-                direction: document.getElementById('position-direction-input')?.value,
-                entry: document.getElementById('position-entry-input')?.value,
-                stop: document.getElementById('position-stop-input')?.value,
-                target: document.getElementById('position-target-input')?.value,
-            });
-            if (!plan) throw new Error('Position sizing tools are unavailable. Refresh and try again.');
-            document.getElementById('position-risk-budget').textContent = fmtUsd(plan.riskBudgetUsd);
-            document.getElementById('position-units').textContent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(plan.units);
-            document.getElementById('position-notional').textContent = fmtUsd(plan.notionalUsd);
-            document.getElementById('position-stop-distance').textContent = `${plan.stopDistancePct.toFixed(2)}%`;
-            document.getElementById('position-reward-risk').textContent = `${plan.rewardRisk.toFixed(2)}R`;
-
-            const guidance = document.getElementById('position-guidance');
-            const strongReward = plan.rewardRisk >= 2;
-            const capitalWarning = plan.capitalMultiple > 1.01;
-            guidance.className = strongReward && !capitalWarning
-                ? 'text-[10px] rounded-lg border px-3 py-2 text-green-300 bg-green-500/10 border-green-500/20'
-                : 'text-[10px] rounded-lg border px-3 py-2 text-yellow-300 bg-yellow-500/10 border-yellow-500/20';
-            const notes = [
-                `A stop fill at ${fmtPrice(plan.stop)} risks approximately ${fmtUsd(plan.riskBudgetUsd)} before fees and slippage.`,
-                plan.rewardRisk >= 2 ? `The target offers ${plan.rewardRisk.toFixed(2)} units of reward per unit risk.` : `The target offers only ${plan.rewardRisk.toFixed(2)} units of reward per unit risk.`,
-            ];
-            if (capitalWarning) notes.push(`The risk-sized notional is ${plan.capitalMultiple.toFixed(2)}× account value, so spot capital or leverage limits may require a smaller position.`);
-            guidance.textContent = notes.join(' ');
-            resultsElement.classList.remove('hidden');
-        } catch (error) {
-            errorElement.textContent = error.message || 'Unable to calculate that position.';
-            errorElement.classList.remove('hidden');
-        }
-    }
-
-    function openExecutionPlannerForToken(token) {
-        const input = document.getElementById('execution-token-input');
-        if (!input || !token) return;
-        input.value = token;
-        setTradeLabTab('execution');
-        document.getElementById('trade-decision-lab')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        runExecutionAnalysis();
-    }
-
-    function attachExecutionLauncherHandlers(root = document) {
-        root.querySelectorAll('.execution-planner-launch').forEach(button => {
-            button.addEventListener('click', () => openExecutionPlannerForToken(button.getAttribute('data-token')));
-        });
-    }
-
-    function initTradeDecisionLab() {
-        document.getElementById('trade-lab-execution-tab')?.addEventListener('click', () => setTradeLabTab('execution'));
-        document.getElementById('trade-lab-position-tab')?.addEventListener('click', () => setTradeLabTab('position'));
-        document.getElementById('execution-analyze-btn')?.addEventListener('click', runExecutionAnalysis);
-        document.getElementById('position-calculate-btn')?.addEventListener('click', calculatePositionPlan);
-        ['execution-token-input', 'execution-size-input'].forEach(id => {
-            document.getElementById(id)?.addEventListener('keydown', event => {
-                if (event.key === 'Enter') runExecutionAnalysis();
-            });
-        });
-        ['position-entry-input', 'position-stop-input', 'position-target-input'].forEach(id => {
-            document.getElementById(id)?.addEventListener('keydown', event => {
-                if (event.key === 'Enter') calculatePositionPlan();
-            });
-        });
-    }
-
-    // =========================================================
     // WIDGET: TOKEN TRENDS & WATCHLIST
     // =========================================================
     const TOKEN_WATCHLIST_STORAGE = 'ac_token_watchlist';
@@ -5218,7 +4796,6 @@ Return ONLY a valid JSON object with two string keys:
         if (!rules.length) {
             listElement.innerHTML = '<p class="text-[10px] text-gray-600 text-center py-1">Use the bell beside a watched token to create an alert.</p>';
             renderTokenAlertHistory();
-            updateDailyBrief();
             return;
         }
 
@@ -5248,7 +4825,6 @@ Return ONLY a valid JSON object with two string keys:
             });
         });
         renderTokenAlertHistory();
-        updateDailyBrief();
     }
 
     function removeTokenAlerts(token) {
@@ -5529,15 +5105,12 @@ Return ONLY a valid JSON object with two string keys:
                 const changeClass = pctClass(change);
                 const changeFormatted = fmtPct(change);
                 const viewUrl = p.url ? escHtml(p.url) : '#';
-                const tokenAddress = escHtml(p.baseToken?.address || '');
-
                 return `
                 <div class="flex items-center justify-between py-1.5 border-b border-gray-800/40 last:border-0 text-xs">
                     <div class="flex flex-col min-w-0">
                         <div class="flex items-center gap-1.5">
                             <span class="text-white font-semibold truncate">${baseSymbol}</span>
                             ${p.url ? `<a href="${viewUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 text-[10px]" title="View Chart">↗</a>` : ''}
-                            ${tokenAddress ? `<button type="button" class="execution-planner-launch text-gray-500 hover:text-brand-secondary text-[10px]" data-token="${tokenAddress}" title="Analyze execution" aria-label="Analyze ${baseSymbol} execution">⚖</button>` : ''}
                         </div>
                         <span class="text-[10px] text-gray-500 font-mono">${dexName}</span>
                     </div>
@@ -5547,7 +5120,6 @@ Return ONLY a valid JSON object with two string keys:
                     </div>
                 </div>`;
             }).join('');
-            attachExecutionLauncherHandlers(listEl);
         } catch (_) {
             listEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load trends.</p>';
         }
@@ -5591,14 +5163,12 @@ Return ONLY a valid JSON object with two string keys:
                             <div class="text-white font-mono font-semibold">${priceStr}</div>
                             <div class="font-mono text-[10px] ${changeClass}">${changeFormatted}</div>
                         </div>
-                        <button type="button" class="execution-planner-launch text-gray-500 hover:text-brand-secondary text-xs transition-colors cursor-pointer" data-token="${escHtml(addr)}" title="Analyze execution" aria-label="Analyze ${baseSymbol} execution">⚖</button>
                         <button type="button" class="text-gray-500 hover:text-orange-300 text-xs transition-colors cursor-pointer widget-wl-alert" data-addr="${escHtml(addr)}" title="Create trade alert" aria-label="Create ${baseSymbol} trade alert">🔔</button>
                         <button class="text-gray-500 hover:text-red-400 text-sm transition-colors cursor-pointer widget-wl-remove" data-addr="${escHtml(addr)}" title="Remove">✕</button>
                     </div>
                 </div>`;
             }).join('');
 
-            attachExecutionLauncherHandlers(listEl);
             document.querySelectorAll('.widget-wl-alert').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const addr = btn.getAttribute('data-addr');
@@ -6174,127 +5744,12 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     // =========================================================
-    // DAILY HOME BRIEF & ACTIVE-DATA REFRESH
+    // PAGE PREFERENCES
     // =========================================================
-    function getTodayHabitStats() {
-        const habits = loadHabits();
-        const today = getLocalDateKey(new Date());
-        return {
-            total: habits.length,
-            completed: habits.filter(habit => habit?.history?.[today]).length,
-        };
-    }
-
-    function updateDailyBrief() {
-        const dateElement = document.getElementById('daily-date');
-        if (!dateElement) return;
-        const now = new Date();
-        const hour = now.getHours();
-        const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-        dateElement.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-        document.getElementById('daily-greeting').textContent = `${greeting}. Review the signal, size the risk, then protect your attention.`;
-
-        const connectionElement = document.getElementById('connection-status');
-        const online = navigator.onLine;
-        connectionElement.textContent = online ? 'Online' : 'Offline · cached data';
-        connectionElement.className = online
-            ? 'mini-badge bg-green-500/10 text-green-400 border border-green-500/20'
-            : 'mini-badge bg-yellow-500/10 text-yellow-300 border border-yellow-500/20';
-
-        const marketElement = document.getElementById('daily-market-tone');
-        const change = Number(latestMarketPulse?.change);
-        if (Number.isFinite(change)) {
-            marketElement.textContent = Math.abs(change) < 1
-                ? `SUI flat ${fmtPct(change)}`
-                : change > 0 ? `SUI firm ${fmtPct(change)}` : `SUI soft ${fmtPct(change)}`;
-            marketElement.className = `text-xs font-semibold truncate ${change >= 0 ? 'text-green-400' : 'text-red-400'}`;
-        } else {
-            marketElement.textContent = online ? 'Waiting for data' : 'Offline';
-            marketElement.className = 'text-xs font-semibold text-gray-400 truncate';
-        }
-
-        const habits = getTodayHabitStats();
-        document.getElementById('daily-habit-progress').textContent = habits.total
-            ? `${habits.completed}/${habits.total} complete`
-            : 'No routines';
-
-        const alertRules = loadTokenAlertRules();
-        const triggered = alertRules.filter(rule => rule.isTriggered).length;
-        const alertElement = document.getElementById('daily-alert-count');
-        alertElement.textContent = triggered ? `${triggered} triggered · ${alertRules.length} total` : `${alertRules.length} armed`;
-        alertElement.className = `text-xs font-semibold truncate ${triggered ? 'text-orange-300' : 'text-gray-300'}`;
-
-        const syncElement = document.getElementById('daily-sync-status');
-        if (syncElement && lastDataSyncAt) {
-            syncElement.textContent = `Synced ${new Date(lastDataSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        }
-    }
-
-    async function refreshActiveHomeData() {
-        const button = document.getElementById('refresh-home-btn');
-        const status = document.getElementById('daily-sync-status');
-        if (!button || !status) return;
-        if (!navigator.onLine) {
-            status.textContent = 'Offline · showing cache';
-            updateDailyBrief();
-            return;
-        }
-
-        button.disabled = true;
-        status.textContent = 'Refreshing…';
-        let resultMessage = '';
-        const tasks = [fetchMarketPulse({ force: true }), fetchTvl({ force: true })];
-
-        if (initializedWidgets.has('WidgetTokenTrends')) {
-            tokenAlertMarketCache.expiresAt = 0;
-            const trendingActive = document.getElementById('widget-token-trending-tab')?.classList.contains('active');
-            tasks.push(trendingActive ? renderWidgetTrending() : renderWidgetWatchlist());
-            tasks.push(checkTokenAlerts({ force: true }));
-        }
-        if (initializedWidgets.has('WidgetApyRadar')) tasks.push(renderWidgetApyRadar({ force: true }));
-        if (initializedWidgets.has('Weather')) tasks.push(initWeather({ force: true }));
-        if (initializedWidgets.has('NewsTerminal')) {
-            const activeNews = document.querySelector('.news-tab-btn.active')?.getAttribute('data-category') || 'sui';
-            newsCache[activeNews] = null;
-            tasks.push(loadNewsCategory(activeNews));
-        }
-        if (initializedWidgets.has('XFeed')) tasks.push(loadXFeed());
-        if (initializedWidgets.has('WhaleTracker')) tasks.push(loadWhaleFeed({ force: true }));
-        if (initializedWidgets.has('IntelDashboard')) {
-            dexCache = { pairs: null, ts: 0 };
-            ecosystemCache = { tokens: null, ts: 0 };
-            intelWatchlistCache.clear();
-            intelLoadedTabs.clear();
-            tasks.push(renderIntelTab(activeIntelTab(), { force: true }));
-        }
-
-        try {
-            const results = await Promise.allSettled(tasks);
-            const failures = results.filter(result => result.status === 'rejected').length;
-            lastDataSyncAt = Date.now();
-            resultMessage = failures ? `Updated with ${failures} unavailable` : 'All active data updated';
-        } finally {
-            button.disabled = false;
-            updateDailyBrief();
-            if (resultMessage) status.textContent = resultMessage;
-        }
-    }
-
-    function initDailyHome() {
+    function initAnalyzePreferences() {
         restoreIntelTab();
         const year = document.getElementById('current-year');
         if (year) year.textContent = new Date().getFullYear();
-        document.querySelectorAll('[data-jump-target]').forEach(button => {
-            button.addEventListener('click', () => {
-                const target = document.getElementById(button.getAttribute('data-jump-target'));
-                const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-                target?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-            });
-        });
-        document.getElementById('refresh-home-btn')?.addEventListener('click', refreshActiveHomeData);
-        window.addEventListener('online', updateDailyBrief);
-        window.addEventListener('offline', updateDailyBrief);
-        updateDailyBrief();
     }
 
     // =========================================================
@@ -6371,11 +5826,10 @@ Return ONLY a valid JSON object with two string keys:
 
         // 1. Eager critical initialization after deferred dependencies are ready.
         initWalletStandard();
-        initDailyHome();
+        initAnalyzePreferences();
         initClock();
         initNotes();
         initHabitTracker();
-        initTradeDecisionLab();
         runWidgetSafe('MarketPulse', initMarketPulse);
 
         // 2. Initialize non-critical widgets only when they approach the viewport.
