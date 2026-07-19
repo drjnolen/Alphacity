@@ -1,8 +1,8 @@
 (function initializeCitizensPreview(global) {
     'use strict';
 
-    // Canonical slots, specialties, rarities, passives, charges, and abilities mirror
-    // https://github.com/drjnolen/GuildVenture/blob/main/item_traits.py.
+    // Slots, rarities, passives, charges, and abilities mirror GuildVenture's item_traits.py.
+    // Its Blockchain specialty is presented as Mercantile in the Alpha City interface.
     const SLOT_ORDER = ['cranial', 'chassis', 'equipment', 'mobility', 'companion'];
     const SLOT_META = {
         cranial: { label: 'Cranial', icon: '🧠' },
@@ -12,26 +12,35 @@
         companion: { label: 'Companion', icon: '🐾' },
     };
     const SPECIALTY_META = {
-        Umbral: { color: '#a78bfa', tint: 'rgba(167,139,250,.12)', damageType: 'Umbral' },
-        Blockchain: { color: '#38bdf8', tint: 'rgba(56,189,248,.12)', damageType: 'Mercantile' },
-        Kinetic: { color: '#fb7185', tint: 'rgba(251,113,133,.12)', damageType: 'Kinetic' },
-        Enertech: { color: '#facc15', tint: 'rgba(250,204,21,.12)', damageType: 'Enertech' },
-        Archon: { color: '#f59e0b', tint: 'rgba(245,158,11,.12)', damageType: 'Archon' },
-        Neural: { color: '#e879f9', tint: 'rgba(232,121,249,.12)', damageType: 'Neural' },
-        Mechanical: { color: '#94a3b8', tint: 'rgba(148,163,184,.12)', damageType: 'Mechanical' },
+        Umbral: { color: '#DC143C', tint: 'rgba(220,20,60,.12)', damageType: 'Umbral' },
+        Mercantile: { color: '#A855F7', tint: 'rgba(168,85,247,.12)', damageType: 'Mercantile' },
+        Kinetic: { color: '#D7A06E', tint: 'rgba(215,160,110,.12)', damageType: 'Kinetic' },
+        Enertech: { color: '#E9FF32', tint: 'rgba(233,255,50,.10)', damageType: 'Enertech' },
+        Archon: { color: '#FBBF24', tint: 'rgba(251,191,36,.12)', damageType: 'Archon' },
+        Neural: { color: '#FF8A1F', tint: 'rgba(255,138,31,.12)', damageType: 'Neural' },
+        Mechanical: { color: '#94A3B8', tint: 'rgba(148,163,184,.12)', damageType: 'Mechanical' },
+    };
+    const FACTION_META = {
+        Glitchborn: SPECIALTY_META.Umbral,
+        Chainbreaker: SPECIALTY_META.Kinetic,
+        Coinbroker: SPECIALTY_META.Mercantile,
+        Nodewalker: SPECIALTY_META.Enertech,
+        Neuralife: SPECIALTY_META.Neural,
+        Singularity: SPECIALTY_META.Mechanical,
+        Overlord: SPECIALTY_META.Archon,
     };
     const RARITY_META = {
-        'Salvage': { damageBonus: 5, stakeBoost: 1, charges: 1, color: '#d1d5db' },
-        'Gutter-Tech': { damageBonus: 10, stakeBoost: 2, charges: 1, color: '#4ade80' },
-        'Street Mod': { damageBonus: 15, stakeBoost: 3, charges: 2, color: '#60a5fa' },
-        'Black Market': { damageBonus: 25, stakeBoost: 5, charges: 2, color: '#c084fc' },
-        'Node-Forged': { damageBonus: 40, stakeBoost: 8, charges: 3, color: '#facc15' },
-        'Peerless': { damageBonus: 60, stakeBoost: 12, charges: 4, color: '#fb7185' },
+        'Salvage': { damageBonus: 5, stakeBoost: 1, charges: 1, color: '#9CA3AF' },
+        'Gutter-Tech': { damageBonus: 10, stakeBoost: 2, charges: 1, color: '#9CA3AF' },
+        'Street Mod': { damageBonus: 15, stakeBoost: 3, charges: 2, color: '#9CA3AF' },
+        'Black Market': { damageBonus: 25, stakeBoost: 5, charges: 2, color: '#9CA3AF' },
+        'Node-Forged': { damageBonus: 40, stakeBoost: 8, charges: 3, color: '#9CA3AF' },
+        'Peerless': { damageBonus: 60, stakeBoost: 12, charges: 4, color: '#9CA3AF' },
     };
     const ABILITY_CATALOG = {
         cranial: {
             Umbral: ['Shadow Whisper', '8 Umbral damage', 'Project dark thoughts into the target’s mind.'],
-            Blockchain: ['Market Insight', '+15 to next roll', 'Analyze enemy weakness through financial data patterns.'],
+            Mercantile: ['Market Insight', '+15 to next roll', 'Analyze enemy weakness through financial data patterns.'],
             Kinetic: ['Neural Overcharge', '10 Kinetic damage', 'Amplify combat reflexes for a devastating strike.'],
             Enertech: ['Synaptic Surge', '9 Enertech damage', 'Channel raw energy through a neural implant.'],
             Archon: ['Command Protocol', '7 Archon damage', 'Assert dominance with an authoritative mental command.'],
@@ -40,7 +49,7 @@
         },
         chassis: {
             Umbral: ['Shadow Shroud', 'Heal 12 HP', 'Envelop yourself in darkness and regenerate.'],
-            Blockchain: ['Economic Shield', 'Heal party 6 HP', 'Redistribute damage through market algorithms.'],
+            Mercantile: ['Economic Shield', 'Heal party 6 HP', 'Redistribute damage through market algorithms.'],
             Kinetic: ['Impact Absorb', 'Heal 14 HP', 'Convert incoming kinetic energy into healing power.'],
             Enertech: ['Energy Barrier', 'Heal 11 HP', 'Project a protective field that restores HP.'],
             Archon: ['Authority Aura', 'Heal 10 HP', 'A commanding presence bolsters your defenses.'],
@@ -49,7 +58,7 @@
         },
         equipment: {
             Umbral: ['Void Grenade', '12 Umbral damage', 'Detonate a grenade into consuming darkness.'],
-            Blockchain: ['Crypto Bomb', '11 Mercantile damage', 'Crash enemy financial systems.'],
+            Mercantile: ['Crypto Bomb', '11 Mercantile damage', 'Crash enemy financial systems.'],
             Kinetic: ['Concussion Charge', '14 Kinetic damage', 'Detonate a powerful kinetic blast.'],
             Enertech: ['Plasma Launcher', '13 Enertech damage', 'Fire a concentrated plasma bolt.'],
             Archon: ['Sanction Device', '10 Archon damage', 'Activate an Overlord-sanctioned punishment protocol.'],
@@ -58,7 +67,7 @@
         },
         mobility: {
             Umbral: ['Shadow Step', '9 Umbral damage', 'Phase through shadows and strike unexpectedly.'],
-            Blockchain: ['Market Momentum', '+18 to next roll', 'Ride economic data waves into the next action.'],
+            Mercantile: ['Market Momentum', '+18 to next roll', 'Ride economic data waves into the next action.'],
             Kinetic: ['Velocity Strike', '11 Kinetic damage', 'Build speed for a devastating impact.'],
             Enertech: ['Energy Dash', '10 Enertech damage', 'Surge forward in a burst of energy.'],
             Archon: ['Executive Retreat', 'Heal 8 HP', 'Tactical repositioning restores composure.'],
@@ -67,7 +76,7 @@
         },
         companion: {
             Umbral: ['Shadow Bite', '11 Umbral damage', 'A shadow-beast companion lunges at the target.'],
-            Blockchain: ['Broker Bot Attack', '10 Mercantile damage', 'A financial drone executes a hostile takeover.'],
+            Mercantile: ['Broker Bot Attack', '10 Mercantile damage', 'A financial drone executes a hostile takeover.'],
             Kinetic: ['Combat Drone Strike', '13 Kinetic damage', 'A combat drone delivers a punishing blow.'],
             Enertech: ['Energy Familiar', '12 Enertech damage', 'An energy construct blasts the target.'],
             Archon: ['Enforcer Summon', '9 Archon damage', 'A personal enforcer delivers punishment.'],
@@ -111,18 +120,15 @@
     ];
     const CITIZENS = [
         {
-            id: 'eira-0142', name: 'Eira Voss #0142', faction: 'Nodewalker', alignment: 'Underground', trait: 'Blockchain-mystic · Technology +1',
-            colors: ['#1d4ed8', '#0f172a'],
-            loadout: { cranial: 'cranial-blockchain', chassis: 'chassis-neural', equipment: 'equipment-mechanical', mobility: 'mobility-blockchain', companion: 'companion-blockchain' },
+            id: 'citizen-0142', name: 'Citizen #0142', faction: 'Nodewalker', alignment: 'Underground', trait: 'Ledger-mystic · Technology +1',
+            loadout: { cranial: 'cranial-enertech', chassis: 'chassis-enertech', equipment: 'equipment-enertech', mobility: 'mobility-enertech', companion: 'companion-enertech' },
         },
         {
-            id: 'mako-0871', name: 'Mako Raze #0871', faction: 'Chainbreaker', alignment: 'Underground', trait: 'Augmented warrior · Strength +1',
-            colors: ['#c2410c', '#1c1917'],
+            id: 'citizen-0871', name: 'Citizen #0871', faction: 'Chainbreaker', alignment: 'Underground', trait: 'Augmented warrior · Strength +1',
             loadout: { cranial: 'cranial-kinetic', chassis: 'chassis-kinetic', equipment: 'equipment-kinetic', mobility: 'mobility-kinetic', companion: 'companion-kinetic' },
         },
         {
-            id: 'cassian-2036', name: 'Cassian Vale #2036', faction: 'Overlord', alignment: 'Overcity', trait: 'Dynastic scion · Communication +1',
-            colors: ['#a16207', '#111827'],
+            id: 'citizen-2036', name: 'Citizen #2036', faction: 'Overlord', alignment: 'Overcity', trait: 'Dynastic scion · Communication +1',
             loadout: { cranial: 'cranial-archon', chassis: 'chassis-archon', equipment: 'equipment-archon', mobility: 'mobility-archon', companion: 'companion-archon' },
         },
     ];
@@ -131,6 +137,7 @@
         citizenId: CITIZENS[0].id,
         activeSlot: 'cranial',
         checkpointDays: 30,
+        rendered: false,
         loadouts: Object.fromEntries(CITIZENS.map((citizen) => [citizen.id, { ...citizen.loadout }])),
     };
 
@@ -158,7 +165,7 @@
         const mixedSetBonus = Object.keys(specialtyCounts).length >= 3 ? 4 : 0;
         setBonus += mixedSetBonus;
         const factionEventBonus = context.faction === 'Nodewalker' ? 5 : 0;
-        const eventBonus = (specialtyCounts.Blockchain || 0) * 3 + factionEventBonus;
+        const eventBonus = (specialtyCounts.Mercantile || 0) * 3 + factionEventBonus;
         const totalBonus = equipmentBonus + setBonus + eventBonus;
         return {
             items,
@@ -174,9 +181,9 @@
     }
 
     function recipeProgress(loadout) {
-        return Number(loadout.cranial === 'cranial-blockchain')
+        return Number(loadout.cranial === 'cranial-mercantile')
             + Number(loadout.equipment === 'equipment-mechanical')
-            + Number(loadout.companion === 'companion-blockchain');
+            + Number(loadout.companion === 'companion-mercantile');
     }
 
     function escapeHtml(value) {
@@ -201,32 +208,30 @@
         if (!roster) return;
         roster.innerHTML = CITIZENS.map((citizen, index) => {
             const selected = citizen.id === state.citizenId;
+            const faction = FACTION_META[citizen.faction];
             return `
-                <button type="button" class="citizen-selector flex w-full items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/55 p-2.5 text-left transition hover:border-gray-600" role="option" aria-selected="${selected}" data-citizen-id="${escapeHtml(citizen.id)}">
-                    <span class="citizen-portrait h-12 w-12 shrink-0 rounded-lg border border-white/10" style="--portrait-from:${citizen.colors[0]};--portrait-to:${citizen.colors[1]};"></span>
+                <button type="button" class="citizen-selector flex w-full items-center gap-3 rounded-xl border border-gray-700 bg-dark-card p-3 text-left hover:border-gray-500" role="option" aria-selected="${selected}" data-citizen-id="${escapeHtml(citizen.id)}">
                     <span class="min-w-0">
                         <span class="block truncate text-sm font-bold text-white">${escapeHtml(citizen.name)}</span>
-                        <span class="mt-0.5 block truncate text-[11px] text-gray-500">${escapeHtml(citizen.faction)} · ${escapeHtml(citizen.alignment)}</span>
+                        <span class="mt-0.5 block truncate text-[11px]"><span style="color:${faction.color}">${escapeHtml(citizen.faction)}</span><span class="text-gray-500"> · ${escapeHtml(citizen.alignment)}</span></span>
                     </span>
                     <span class="ml-auto font-mono text-[10px] text-gray-600">0${index + 1}</span>
                 </button>`;
         }).join('');
+    }
 
-        roster.querySelectorAll('[data-citizen-id]').forEach((button) => {
-            button.addEventListener('click', () => {
-                state.citizenId = button.dataset.citizenId;
-                renderAll();
-            });
+    function updateRosterSelection() {
+        element('citizen-roster').querySelectorAll('[data-citizen-id]').forEach((button) => {
+            button.setAttribute('aria-selected', String(button.dataset.citizenId === state.citizenId));
         });
     }
 
     function renderCitizen() {
         const citizen = activeCitizen();
-        const portrait = element('active-citizen-portrait');
-        portrait.style.setProperty('--portrait-from', citizen.colors[0]);
-        portrait.style.setProperty('--portrait-to', citizen.colors[1]);
+        const faction = FACTION_META[citizen.faction];
         element('active-citizen-name').textContent = citizen.name;
         element('active-citizen-faction').textContent = citizen.faction;
+        element('active-citizen-faction').style.color = faction.color;
         element('active-citizen-trait').textContent = citizen.trait;
         element('citizen-roster-index').textContent = String(CITIZENS.findIndex((item) => item.id === citizen.id) + 1);
     }
@@ -239,7 +244,7 @@
             const item = getItem(slot, loadout[slot]);
             const specialty = item ? SPECIALTY_META[item.specialty] : null;
             return `
-                <button type="button" class="equipment-slot min-h-24 rounded-xl border border-gray-700 bg-gray-900/65 p-3 text-left transition hover:border-gray-500" aria-pressed="${state.activeSlot === slot}" data-slot="${slot}">
+                <button type="button" class="equipment-slot min-h-24 rounded-xl border border-gray-700 bg-dark-card p-3 text-left hover:border-gray-500" aria-pressed="${state.activeSlot === slot}" data-slot="${slot}">
                     <span class="flex items-center justify-between">
                         <span class="text-lg text-gray-500">${meta.icon}</span>
                         <span class="text-[9px] font-bold uppercase tracking-[0.13em] text-gray-600">${meta.label}</span>
@@ -250,13 +255,6 @@
         }).join('');
         const equipped = materializeLoadout(loadout).length;
         element('loadout-completion').textContent = `${equipped} / 5 equipped`;
-        slotContainer.querySelectorAll('[data-slot]').forEach((button) => {
-            button.addEventListener('click', () => {
-                state.activeSlot = button.dataset.slot;
-                renderSlots();
-                renderInventory();
-            });
-        });
     }
 
     function renderInventory() {
@@ -269,7 +267,7 @@
             const selected = item ? selectedItemId === item.id : !selectedItemId;
             if (!item) {
                 return `
-                    <button type="button" class="equipment-option min-h-28 rounded-xl border border-dashed border-gray-700 bg-gray-900/35 p-3 text-left transition hover:border-gray-500" aria-pressed="${selected}" data-item-id="">
+                    <button type="button" class="equipment-option min-h-28 rounded-xl border border-dashed border-gray-700 bg-dark-card p-3 text-left hover:border-gray-500" aria-pressed="${selected}" data-item-id="">
                         <span class="text-lg text-gray-600">＋</span>
                         <span class="mt-3 block text-sm font-bold text-gray-300">Unequip slot</span>
                         <span class="mt-1 block text-[11px] text-gray-600">Return NFT to inventory</span>
@@ -278,24 +276,16 @@
             const specialty = SPECIALTY_META[item.specialty];
             const rarity = RARITY_META[item.rarity];
             return `
-                <button type="button" class="equipment-option min-h-36 rounded-xl border border-gray-700 bg-gray-900/55 p-3 text-left transition hover:border-gray-500" aria-pressed="${selected}" data-item-id="${escapeHtml(item.id)}" title="${escapeHtml(item.description)}">
+                <button type="button" class="equipment-option min-h-36 rounded-xl border border-gray-700 bg-dark-card p-3 text-left hover:border-gray-500" aria-pressed="${selected}" data-item-id="${escapeHtml(item.id)}" title="${escapeHtml(item.description)}">
                     <span class="flex items-center justify-between gap-2">
                         <span class="rounded-md px-2 py-1 text-[10px] font-bold" style="color:${specialty.color};background:${specialty.tint}">${escapeHtml(item.specialty)}</span>
                         <span class="text-[10px] font-semibold" style="color:${rarity.color}">${escapeHtml(item.rarity)}</span>
                     </span>
                     <span class="mt-3 block text-sm font-bold text-white">${escapeHtml(item.name)}</span>
                     <span class="mt-1 block text-[11px] text-gray-500">${escapeHtml(item.trait)}</span>
-                    <span class="mt-3 flex items-center justify-between border-t border-gray-800 pt-2 text-[10px]"><span class="text-gray-500">+${item.damageBonus}% ${escapeHtml(item.damageType)} · ${item.charges} charge${item.charges === 1 ? '' : 's'}</span><span class="font-mono font-bold text-green-400">+${item.boost}% stake</span></span>
+                    <span class="mt-3 flex items-center justify-between border-t border-gray-800 pt-2 text-[10px]"><span class="text-gray-500">+${item.damageBonus}% <span style="color:${specialty.color}">${escapeHtml(item.damageType)}</span> · ${item.charges} charge${item.charges === 1 ? '' : 's'}</span><span class="font-mono font-bold text-brand-primary">+${item.boost}% stake</span></span>
                 </button>`;
         }).join('');
-        inventory.querySelectorAll('[data-item-id]').forEach((button) => {
-            button.addEventListener('click', () => {
-                state.loadouts[state.citizenId][slot] = button.dataset.itemId || null;
-                renderSlots();
-                renderInventory();
-                renderBonuses();
-            });
-        });
     }
 
     function renderBonuses() {
@@ -317,8 +307,8 @@
             synergies.push({ label: `${specialty} ${tier}`, color: SPECIALTY_META[specialty].color });
         });
         if (bonuses.mixedSetBonus) synergies.push({ label: 'Cross-specialty field rig', color: '#60a5fa' });
-        if (bonuses.specialtyCounts.Blockchain) synergies.push({ label: `Relay · ${bonuses.specialtyCounts.Blockchain} Blockchain signal${bonuses.specialtyCounts.Blockchain === 1 ? '' : 's'}`, color: '#38bdf8' });
-        if (bonuses.factionEventBonus) synergies.push({ label: 'Oracle’s Relay · Nodewalker resonance', color: '#c084fc' });
+        if (bonuses.specialtyCounts.Mercantile) synergies.push({ label: `Relay · ${bonuses.specialtyCounts.Mercantile} Mercantile signal${bonuses.specialtyCounts.Mercantile === 1 ? '' : 's'}`, color: SPECIALTY_META.Mercantile.color });
+        if (bonuses.factionEventBonus) synergies.push({ label: 'Oracle’s Relay · Nodewalker resonance', color: FACTION_META.Nodewalker.color });
         element('active-synergies').innerHTML = synergies.length
             ? synergies.map((synergy) => `<div class="flex items-center gap-2 text-[11px] text-gray-300"><span class="h-1.5 w-1.5 rounded-full" style="background:${synergy.color}"></span>${escapeHtml(synergy.label)}</div>`).join('')
             : '<p class="text-[11px] text-gray-600">Equip matching or mixed sets to activate a bonus.</p>';
@@ -327,15 +317,16 @@
     function renderCheckpoints() {
         const options = element('checkpoint-options');
         options.innerHTML = CHECKPOINTS.map((checkpoint) => `
-            <button type="button" class="checkpoint-option rounded-xl border border-gray-700 bg-gray-900/55 p-3 text-left transition hover:border-gray-500" aria-pressed="${checkpoint.days === state.checkpointDays}" data-checkpoint-days="${checkpoint.days}">
+            <button type="button" class="checkpoint-option rounded-xl border border-gray-700 bg-dark-card p-3 text-left hover:border-gray-500" aria-pressed="${checkpoint.days === state.checkpointDays}" data-checkpoint-days="${checkpoint.days}">
                 <span class="block text-sm font-black text-white">${checkpoint.days} days</span>
                 <span class="mt-1 block text-[10px] text-gray-500">+${checkpoint.quality} quality · +${checkpoint.rarity}% odds</span>
             </button>`).join('');
-        options.querySelectorAll('[data-checkpoint-days]').forEach((button) => {
-            button.addEventListener('click', () => {
-                state.checkpointDays = Number(button.dataset.checkpointDays);
-                renderCheckpoints();
-            });
+        updateCheckpointSelection();
+    }
+
+    function updateCheckpointSelection() {
+        element('checkpoint-options').querySelectorAll('[data-checkpoint-days]').forEach((button) => {
+            button.setAttribute('aria-pressed', String(Number(button.dataset.checkpointDays) === state.checkpointDays));
         });
         const active = CHECKPOINTS.find((checkpoint) => checkpoint.days === state.checkpointDays) || CHECKPOINTS[0];
         element('checkpoint-days').textContent = `${active.days} days`;
@@ -351,24 +342,71 @@
         renderInventory();
         renderBonuses();
         renderCheckpoints();
+        state.rendered = true;
+    }
+
+    function renderCharacterState() {
+        updateRosterSelection();
+        renderCitizen();
+        renderSlots();
+        renderInventory();
+        renderBonuses();
+    }
+
+    function ensureRendered() {
+        if (!state.rendered) renderAll();
+    }
+
+    function scheduleIdleHydration() {
+        const hydrate = () => ensureRendered();
+        if (typeof global.requestIdleCallback === 'function') global.requestIdleCallback(hydrate);
+        else global.setTimeout(hydrate, 750);
+    }
+
+    function delegate(containerId, selector, handler) {
+        const container = element(containerId);
+        if (!container) return;
+        container.addEventListener('click', (event) => {
+            const target = event.target.closest(selector);
+            if (target && container.contains(target)) handler(target);
+        });
     }
 
     function setCitizensMode(enabled) {
-        const primary = element('staking-primary-column');
-        const sidebar = element('staking-sidebar');
-        if (!primary || !sidebar) return;
-        primary.classList.toggle('lg:col-span-2', !enabled);
-        primary.classList.toggle('lg:col-span-3', enabled);
-        sidebar.classList.toggle('hidden', enabled);
+        const layout = element('staking-layout');
+        if (layout) layout.classList.toggle('citizens-mode', enabled);
     }
 
     function init() {
         if (!element('nft-view')) return;
-        renderAll();
+        delegate('citizen-roster', '[data-citizen-id]', (button) => {
+            if (button.dataset.citizenId === state.citizenId) return;
+            state.citizenId = button.dataset.citizenId;
+            renderCharacterState();
+        });
+        delegate('equipment-slots', '[data-slot]', (button) => {
+            state.activeSlot = button.dataset.slot;
+            renderSlots();
+            renderInventory();
+        });
+        delegate('equipment-inventory', '[data-item-id]', (button) => {
+            state.loadouts[state.citizenId][state.activeSlot] = button.dataset.itemId || null;
+            renderSlots();
+            renderInventory();
+            renderBonuses();
+        });
+        delegate('checkpoint-options', '[data-checkpoint-days]', (button) => {
+            state.checkpointDays = Number(button.dataset.checkpointDays);
+            updateCheckpointSelection();
+        });
         const tokenSwitch = element('switch-token');
         const citizenSwitch = element('switch-nft');
         if (tokenSwitch) tokenSwitch.addEventListener('click', () => setCitizensMode(false));
-        if (citizenSwitch) citizenSwitch.addEventListener('click', () => setCitizensMode(true));
+        if (citizenSwitch) citizenSwitch.addEventListener('click', () => {
+            ensureRendered();
+            setCitizensMode(true);
+        });
+        scheduleIdleHydration();
     }
 
     global.AlphaCityCitizensPreview = Object.freeze({
