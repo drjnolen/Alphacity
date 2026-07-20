@@ -14,11 +14,16 @@ const preview = context.window.AlphaCityCitizensPreview;
 test('Citizens tab is explicitly presented as a non-operational preview', () => {
     assert.match(html, /id="nft-view"[^>]*data-preview-only/);
     assert.match(html, /Coming soon/i);
-    assert.match(html, /GuildVenture trait model/);
-    assert.match(html, /No wallet actions enabled/);
+    assert.doesNotMatch(html, /GuildVenture trait model/);
     assert.match(html, /id="stake-nft-btn"[^>]*disabled[^>]*aria-disabled="true"/);
     assert.match(html, /No NFTs are moved, nested, staked, or approved/);
     assert.doesNotMatch(source, /signAndExecute|AlphaCitySui|walletAdapter/);
+});
+
+test('Step 3 limits the equipment preview while retaining the unequip control', () => {
+    assert.match(source, /const INVENTORY_PREVIEW_LIMIT = 3/);
+    assert.match(source, /\.slice\(0, INVENTORY_PREVIEW_LIMIT\)/);
+    assert.match(source, /const options = \[null, \.\.\.previewItems\]/);
 });
 
 test('Citizens preview exposes all five swappable equipment slots and strategy surfaces', () => {
