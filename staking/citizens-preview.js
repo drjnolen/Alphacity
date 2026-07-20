@@ -92,6 +92,7 @@
         companion: ['Node-Forged', 'Black Market', 'Peerless', 'Street Mod', 'Black Market', 'Node-Forged', 'Gutter-Tech'],
     };
     const SPECIALTIES = Object.keys(SPECIALTY_META);
+    const INVENTORY_PREVIEW_LIMIT = 3;
     const ITEMS = Object.fromEntries(SLOT_ORDER.map((slot) => [
         slot,
         SPECIALTIES.map((specialty, index) => {
@@ -261,7 +262,12 @@
         const slot = state.activeSlot;
         const selectedItemId = state.loadouts[state.citizenId][slot];
         element('active-slot-label').textContent = SLOT_META[slot].label;
-        const options = [null, ...ITEMS[slot]];
+        const selectedItem = getItem(slot, selectedItemId);
+        const previewItems = [
+            ...(selectedItem ? [selectedItem] : []),
+            ...ITEMS[slot].filter((item) => item.id !== selectedItemId),
+        ].slice(0, INVENTORY_PREVIEW_LIMIT);
+        const options = [null, ...previewItems];
         const inventory = element('equipment-inventory');
         inventory.innerHTML = options.map((item) => {
             const selected = item ? selectedItemId === item.id : !selectedItemId;
