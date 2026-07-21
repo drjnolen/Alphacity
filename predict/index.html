@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="description" content="A private Alpha City testnet preview for exploring DeepBook Predict markets.">
+    <title>Predict Arcade Preview — Alpha City</title>
+    <link rel="icon" type="image/jpeg" href="https://i.postimg.cc/9QgzZr7t/wd-1CLt-O-400x400.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/predict/styles.css">
+    <script src="/shared/wallet-sync.js" defer></script>
+    <script src="/shared/wallet-connector.js" defer></script>
+    <script src="/shared/predict-arcade.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <div class="shell header-inner">
+            <a class="brand-lockup" href="/" aria-label="Alpha City home">
+                <span class="brand-mark" aria-hidden="true">AC</span>
+                <span class="brand-name">Alpha<span> City</span></span>
+                <span class="route-label">/ Predict</span>
+            </a>
+            <div class="header-actions">
+                <span class="preview-chip"><span class="status-dot"></span>Private draft</span>
+                <span class="network-chip"><span class="status-dot"></span>Sui testnet</span>
+                <button id="connect-wallet-btn" class="wallet-button" type="button">Connect Wallet</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="shell hero" aria-labelledby="hero-title">
+            <div>
+                <p class="eyebrow">DeepBook Predict × Alpha City</p>
+                <h1 id="hero-title">Call the market.<br><span>Claim your alpha.</span></h1>
+                <p class="hero-copy">
+                    Take a side on crypto price outcomes, sharpen your signal, and push your district up the citywide leaderboard. This private draft uses paper positions while DeepBook Predict advances toward mainnet.
+                </p>
+                <div class="hero-actions">
+                    <a class="primary-button" href="#arcade">Enter the arcade <span aria-hidden="true">↓</span></a>
+                    <a class="secondary-button" href="#how-it-works">How it works</a>
+                </div>
+                <p class="hero-note">PREVIEW ONLY · SIMULATED QUOTES · NO FUNDS MOVE · NO ONCHAIN CREDIT IS AWARDED</p>
+            </div>
+            <aside class="hero-signal" aria-label="Featured market preview">
+                <div class="signal-head">
+                    <span>Featured signal</span>
+                    <span id="hero-countdown">06:00:00</span>
+                </div>
+                <div class="signal-main">
+                    <div class="signal-symbol">SUI / USDC · ABOVE $3.250</div>
+                    <div class="signal-value" id="hero-probability">46<span>% UP</span></div>
+                    <div class="signal-bar" aria-hidden="true"><span id="hero-signal-bar"></span></div>
+                </div>
+                <div class="signal-foot">
+                    <div>Round volume<strong>$184.3K</strong></div>
+                    <div>Oracle<strong>Block Scholes preview</strong></div>
+                </div>
+            </aside>
+        </section>
+
+        <section class="shell stat-strip" aria-label="Arcade preview statistics">
+            <div class="strip-stat"><div class="strip-label">Open markets</div><div class="strip-value" id="open-market-count">7</div></div>
+            <div class="strip-stat"><div class="strip-label">Paper volume</div><div class="strip-value" id="paper-volume">$3.67M</div></div>
+            <div class="strip-stat"><div class="strip-label">Signal operators</div><div class="strip-value" id="operator-count">16,304</div></div>
+            <div class="strip-stat"><div class="strip-label">Fastest settlement</div><div class="strip-value positive">~390ms target</div></div>
+        </section>
+
+        <section id="arcade" class="shell app-frame" aria-labelledby="arcade-title">
+            <div class="app-toolbar">
+                <div class="view-tabs" role="tablist" aria-label="Predict arcade views">
+                    <button id="tab-markets" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="view-markets" data-view="markets">Market deck</button>
+                    <button id="tab-districts" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="view-districts" data-view="districts">District war</button>
+                    <button id="tab-positions" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="view-positions" data-view="positions">Paper positions <span id="position-count">0</span></button>
+                </div>
+                <div class="mode-status"><span class="status-dot"></span><strong>Simulation mode</strong><span>Onchain execution locked</span></div>
+            </div>
+
+            <div id="view-markets" class="arcade-view" role="tabpanel" aria-labelledby="tab-markets">
+                <div class="market-grid">
+                    <aside class="market-sidebar" aria-label="Prediction markets">
+                        <div class="panel-head">
+                            <div class="panel-kicker">Market explorer</div>
+                            <h2 id="arcade-title" class="panel-title">Choose your signal</h2>
+                            <label class="search-wrap">
+                                <span class="search-glyph" aria-hidden="true">⌕</span>
+                                <span class="sr-only">Search markets</span>
+                                <input id="market-search" class="search-input" type="search" placeholder="Search asset or strike" autocomplete="off">
+                            </label>
+                            <div class="filters" aria-label="Filter by asset">
+                                <button class="filter-button active" type="button" data-filter-kind="asset" data-filter="ALL">All</button>
+                                <button class="filter-button" type="button" data-filter-kind="asset" data-filter="SUI">SUI</button>
+                                <button class="filter-button" type="button" data-filter-kind="asset" data-filter="BTC">BTC</button>
+                                <button class="filter-button" type="button" data-filter-kind="asset" data-filter="DEEP">DEEP</button>
+                            </div>
+                            <div class="filters" aria-label="Filter by cadence">
+                                <button class="filter-button active" type="button" data-filter-kind="cadence" data-filter="ALL">Any expiry</button>
+                                <button class="filter-button" type="button" data-filter-kind="cadence" data-filter="1D">Daily</button>
+                                <button class="filter-button" type="button" data-filter-kind="cadence" data-filter="7D">Weekly</button>
+                            </div>
+                        </div>
+                        <div id="market-list" class="market-list"></div>
+                    </aside>
+
+                    <article class="market-stage" aria-live="polite">
+                        <div class="stage-head">
+                            <div class="market-ident">
+                                <span id="selected-asset-badge" class="asset-badge" style="--asset-accent:#72a7ff">SUI</span>
+                                <div>
+                                    <h2 id="selected-question">Will SUI trade above $3.250 at expiry?</h2>
+                                    <p id="selected-market-meta">Quick round · DeepBook Predict testnet</p>
+                                </div>
+                            </div>
+                            <div class="countdown-box"><span>Closes in</span><strong id="selected-countdown">06:00:00</strong></div>
+                        </div>
+                        <div class="probability-stage">
+                            <div class="probability-label">Market-implied chance of UP</div>
+                            <div class="probability-number"><span id="selected-probability">46</span><small>%</small></div>
+                            <p class="probability-caption" id="selected-caption">The preview market currently prices a 46% chance that SUI closes above the strike.</p>
+                            <div id="probability-split" class="probability-split" style="--up-width:46%">
+                                <div class="split-up"><span id="split-up-label">UP 46¢</span></div>
+                                <div class="split-down"><span id="split-down-label">DOWN 54¢</span></div>
+                            </div>
+                            <div class="chart" aria-label="Illustrative probability history; not live market data">
+                                <div class="chart-line" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                                <div class="chart-axis">Illustrative probability path · 24H</div>
+                            </div>
+                        </div>
+                        <div class="market-metrics">
+                            <div class="market-metric"><span>Reference spot</span><strong id="metric-spot">$3.184</strong></div>
+                            <div class="market-metric"><span>Paper volume</span><strong id="metric-volume">$184.3K</strong></div>
+                            <div class="market-metric"><span>Operators</span><strong id="metric-participants">1,248</strong></div>
+                            <div class="market-metric"><span>Oracle</span><strong id="metric-oracle">Block Scholes preview</strong></div>
+                        </div>
+                    </article>
+
+                    <aside class="order-ticket" aria-label="Paper position ticket">
+                        <div class="ticket-inner">
+                            <div class="ticket-title-row"><h3>Build position</h3><span class="micro-chip">Paper</span></div>
+                            <div class="direction-switch" aria-label="Choose direction">
+                                <button class="direction-button active" type="button" data-direction="UP">UP <span id="up-button-price">46¢ contract</span></button>
+                                <button class="direction-button" type="button" data-direction="DOWN">DOWN <span id="down-button-price">54¢ contract</span></button>
+                            </div>
+                            <label class="field-label" for="position-amount">Paper stake <span>Max 10,000</span></label>
+                            <div class="amount-wrap">
+                                <input id="position-amount" class="amount-input" type="number" min="1" max="10000" step="1" value="100" inputmode="decimal">
+                                <span class="amount-unit">USDC</span>
+                            </div>
+                            <div class="quick-amounts" aria-label="Quick paper stake amounts">
+                                <button class="quick-amount" type="button" data-amount="25">$25</button>
+                                <button class="quick-amount active" type="button" data-amount="100">$100</button>
+                                <button class="quick-amount" type="button" data-amount="500">$500</button>
+                                <button class="quick-amount" type="button" data-amount="1000">$1K</button>
+                            </div>
+                            <div class="quote-box" aria-live="polite">
+                                <div class="quote-row"><span>Entry probability</span><strong id="quote-probability">46.0%</strong></div>
+                                <div class="quote-row"><span>Estimated contracts</span><strong id="quote-shares">217.39</strong></div>
+                                <div class="quote-row"><span>Platform fee</span><strong>$0.00 · preview</strong></div>
+                                <div class="quote-row payout"><span>Potential payout</span><strong id="quote-payout">$217.39</strong></div>
+                                <div class="quote-row"><span>Potential profit</span><strong id="quote-profit">+$117.39 · 117.4%</strong></div>
+                            </div>
+                            <button id="place-position-btn" class="primary-button place-position" type="button">Place paper UP position</button>
+                            <p class="ticket-disclosure"><strong>No transaction will be signed.</strong> This stores a simulated position only in this browser.</p>
+                            <div class="ticket-actions">
+                                <button id="share-signal-btn" class="quiet-button" type="button">Share signal</button>
+                                <button id="open-positions-btn" class="quiet-button" type="button">View ledger</button>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+
+            <div id="view-districts" class="arcade-view district-view" role="tabpanel" aria-labelledby="tab-districts" hidden>
+                <div class="view-heading">
+                    <div>
+                        <div class="section-kicker">Season zero · simulated standings</div>
+                        <h2>Every signal moves the city.</h2>
+                        <p>Districts rank on paper-market participation and forecast precision. Connect a wallet to reveal your deterministic Alpha City assignment.</p>
+                    </div>
+                    <button id="district-connect-btn" class="secondary-button" type="button">Connect to reveal district</button>
+                </div>
+                <div class="district-layout">
+                    <div class="district-board">
+                        <div class="board-header"><span>Rank</span><span>District</span><span>War power</span><span>Accuracy</span><span>Signals</span></div>
+                        <div id="district-rows"></div>
+                    </div>
+                    <aside class="mission-panel">
+                        <div id="identity-card" class="identity-card">
+                            <span>Your assignment</span>
+                            <strong id="identity-district">Unassigned</strong>
+                            <p id="identity-copy">Connect a Sui wallet to identify your district. No token balance is required for this preview.</p>
+                        </div>
+                        <h3 class="mission-title">Citizen Credit missions</h3>
+                        <div class="mission">
+                            <div class="mission-head"><strong>Transmit first signal</strong><span id="mission-first-label">0 / 1</span></div>
+                            <div class="mission-progress"><span id="mission-first-bar" style="width:0%"></span></div>
+                        </div>
+                        <div class="mission">
+                            <div class="mission-head"><strong>Scout three markets</strong><span id="mission-scout-label">0 / 3</span></div>
+                            <div class="mission-progress"><span id="mission-scout-bar" style="width:0%"></span></div>
+                        </div>
+                        <div class="mission">
+                            <div class="mission-head"><strong>SUI signal specialist</strong><span id="mission-sui-label">0 / 3</span></div>
+                            <div class="mission-progress"><span id="mission-sui-bar" style="width:0%"></span></div>
+                        </div>
+                        <div class="credits-total"><span>Preview credits earned</span><strong id="preview-credits">0 CC</strong></div>
+                    </aside>
+                </div>
+            </div>
+
+            <div id="view-positions" class="arcade-view positions-view" role="tabpanel" aria-labelledby="tab-positions" hidden>
+                <div class="view-heading">
+                    <div>
+                        <div class="section-kicker">Local paper ledger</div>
+                        <h2>Your open calls.</h2>
+                        <p>Positions are stored only on this device under the active wallet identity. They are not synced, transferable, or submitted to DeepBook.</p>
+                    </div>
+                    <button id="clear-positions-btn" class="secondary-button" type="button">Clear paper ledger</button>
+                </div>
+                <div class="positions-panel">
+                    <div id="positions-empty" class="position-empty">
+                        <strong>No calls on the board yet.</strong>
+                        <p>Choose a market, take UP or DOWN, and place a paper position to test the full arcade loop.</p>
+                    </div>
+                    <table id="positions-table" class="positions-table" hidden>
+                        <thead><tr><th>Market</th><th>Side</th><th>Stake</th><th>Entry</th><th>Potential payout</th><th>Closes</th><th>Status</th></tr></thead>
+                        <tbody id="positions-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="how-it-works" class="shell below-fold" aria-labelledby="how-heading">
+            <div class="below-heading">
+                <div class="section-kicker">Arcade loop</div>
+                <h2 id="how-heading">A professional primitive, dressed like a game.</h2>
+                <p>The first draft keeps the financial mechanics legible while making discovery, conviction, and community competition feel native to Alpha City.</p>
+            </div>
+            <div class="info-grid">
+                <article class="info-card"><span class="info-number">01 / DISCOVER</span><h3>Read the probability</h3><p>Each binary market asks whether an asset will finish above a strike at a fixed time. A 46¢ UP contract represents roughly 46% market-implied odds in this preview.</p></article>
+                <article class="info-card"><span class="info-number">02 / CHOOSE</span><h3>Take UP or DOWN</h3><p>Select your direction and size. The ticket translates probability into estimated contracts, potential payout, profit, and ROI before any future wallet prompt.</p></article>
+                <article class="info-card"><span class="info-number">03 / COMPETE</span><h3>Strengthen your district</h3><p>Eligible activity can power district standings, forecast streaks, missions, and non-transferable Citizen Credits without using CITY as prediction collateral.</p></article>
+            </div>
+
+            <div class="readiness">
+                <div class="below-heading">
+                    <div class="section-kicker">Integration readiness</div>
+                    <h2>Built for a clean handoff to DeepBook.</h2>
+                    <p>The interface separates market data, quote math, identity, and the paper ledger so live testnet reads and transaction construction can replace fixtures without redesigning the product.</p>
+                </div>
+                <div class="readiness-list" aria-label="Predict integration readiness">
+                    <div class="readiness-row"><span>Shared Alpha City wallet identity</span><strong class="ready">Ready</strong></div>
+                    <div class="readiness-row"><span>Responsive market discovery and ticket</span><strong class="ready">Ready</strong></div>
+                    <div class="readiness-row"><span>DeepBook Predict market/indexer feed</span><strong class="preview">Awaiting stable API</strong></div>
+                    <div class="readiness-row"><span>Testnet transaction construction</span><strong class="preview">Locked</strong></div>
+                    <div class="readiness-row"><span>Onchain Citizen Credit policy</span><strong class="preview">Design review</strong></div>
+                </div>
+            </div>
+
+            <div class="roadmap-grid" aria-label="Predict arcade roadmap">
+                <article class="roadmap-card"><span class="roadmap-state">Now · draft</span><h3>Paper arcade</h3><p>Full discovery, quoting, local positions, district identity, missions, and responsive product framing.</p></article>
+                <article class="roadmap-card"><span class="roadmap-state">Next · testnet</span><h3>Live Predict adapter</h3><p>Replace fixtures with official market objects, quotes, expiries, oracle state, and wallet transaction previews.</p></article>
+                <article class="roadmap-card"><span class="roadmap-state">Then · mainnet</span><h3>Revenue routing</h3><p>Enable supported positions, receipts, responsible limits, jurisdiction controls, and integration revenue accounting.</p></article>
+                <article class="roadmap-card"><span class="roadmap-state">Expansion</span><h3>District seasons</h3><p>Add accuracy scoring, sponsored rounds, share cards, CITY membership benefits, and bounded Citizen Credit rewards.</p></article>
+            </div>
+
+            <div class="risk-note">
+                <strong>Preview and risk notice:</strong> All prices, probabilities, volumes, operators, standings, and rewards on this page are illustrative. Nothing here is financial advice, an offer, or a live market. Production binary options may be restricted in some jurisdictions and can result in the complete loss of a position. Mainnet launch requires legal, oracle, market-integrity, responsible-use, and DeepBook integration review.
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="shell footer-inner">
+            <div><strong>Alpha City Predict</strong> · private product draft · <span id="current-year">2026</span></div>
+            <div class="footer-links"><a href="/">Alpha City</a><a href="https://www.deepbook.tech/builder-hub" target="_blank" rel="noopener noreferrer">DeepBook builders</a><a href="https://blog.sui.io/introducing-deepbook-predict/" target="_blank" rel="noopener noreferrer">About Predict</a></div>
+        </div>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+    window.addEventListener('DOMContentLoaded', () => {
+        'use strict';
+
+        const Arcade = window.AlphaCityPredictArcade;
+        const WalletConnector = window.AlphaCityWalletConnector;
+        if (!Arcade || !WalletConnector) {
+            document.getElementById('toast').textContent = 'Predict preview failed to initialize. Refresh the page and try again.';
+            document.getElementById('toast').classList.add('show', 'error');
+            return;
+        }
+
+        const dom = Object.fromEntries([
+            'connect-wallet-btn', 'district-connect-btn', 'market-search', 'market-list', 'selected-asset-badge',
+            'selected-question', 'selected-market-meta', 'selected-countdown', 'selected-probability', 'selected-caption',
+            'probability-split', 'split-up-label', 'split-down-label', 'metric-spot', 'metric-volume',
+            'metric-participants', 'metric-oracle', 'up-button-price', 'down-button-price', 'position-amount',
+            'quote-probability', 'quote-shares', 'quote-payout', 'quote-profit', 'place-position-btn',
+            'share-signal-btn', 'open-positions-btn', 'position-count', 'district-rows', 'identity-card',
+            'identity-district', 'identity-copy', 'mission-first-label', 'mission-first-bar', 'mission-scout-label',
+            'mission-scout-bar', 'mission-sui-label', 'mission-sui-bar', 'preview-credits', 'positions-empty',
+            'positions-table', 'positions-body', 'clear-positions-btn', 'toast', 'hero-countdown',
+            'hero-probability', 'hero-signal-bar', 'open-market-count', 'paper-volume', 'operator-count', 'current-year',
+        ].map((id) => [id, document.getElementById(id)]));
+
+        const state = {
+            markets: Arcade.makeDemoMarkets(),
+            selectedMarketId: 'sui-quick-325',
+            direction: 'UP',
+            asset: 'ALL',
+            cadence: 'ALL',
+            search: '',
+            address: null,
+            positions: [],
+            activeView: 'markets',
+        };
+
+        const districtFixtures = [
+            { key: 'relay', power: 94, accuracy: 61.8, signals: 3280 },
+            { key: 'bazaar', power: 88, accuracy: 59.4, signals: 3412 },
+            { key: 'deep-ledger', power: 83, accuracy: 63.1, signals: 2548 },
+            { key: 'glass-crown', power: 75, accuracy: 57.2, signals: 2920 },
+            { key: 'foundry', power: 69, accuracy: 55.9, signals: 2241 },
+            { key: 'neon-court', power: 64, accuracy: 58.6, signals: 1905 },
+            { key: 'hollows', power: 58, accuracy: 54.1, signals: 1844 },
+            { key: 'meridian', power: 51, accuracy: 56.7, signals: 1430 },
+            { key: 'undercroft', power: 43, accuracy: 52.8, signals: 1091 },
+        ];
+
+        function selectedMarket() {
+            return state.markets.find((market) => market.id === state.selectedMarketId) || state.markets[0];
+        }
+
+        function formatMoney(value, digits = 2) {
+            return Number(value).toLocaleString(undefined, {
+                style: 'currency', currency: 'USD', minimumFractionDigits: digits, maximumFractionDigits: digits,
+            });
+        }
+
+        function formatCompact(value) {
+            return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 2 }).format(Number(value));
+        }
+
+        function formatSpot(market) {
+            const digits = Arcade.ASSET_META[market.symbol]?.decimals ?? 2;
+            return formatMoney(market.spot, digits);
+        }
+
+        function showToast(message, tone = '') {
+            dom.toast.textContent = message;
+            dom.toast.className = `toast${tone ? ` ${tone}` : ''}`;
+            requestAnimationFrame(() => dom.toast.classList.add('show'));
+            clearTimeout(showToast.timer);
+            showToast.timer = setTimeout(() => dom.toast.classList.remove('show'), 3400);
+        }
+
+        function createElement(tag, className, text) {
+            const element = document.createElement(tag);
+            if (className) element.className = className;
+            if (text !== undefined) element.textContent = text;
+            return element;
+        }
+
+        function loadPositions() {
+            try {
+                const raw = localStorage.getItem(Arcade.positionStorageKey(state.address));
+                const parsed = raw ? JSON.parse(raw) : [];
+                state.positions = Array.isArray(parsed) ? parsed.filter((position) => position?.id && position?.marketId) : [];
+            } catch (_) {
+                state.positions = [];
+            }
+        }
+
+        function savePositions() {
+            localStorage.setItem(Arcade.positionStorageKey(state.address), JSON.stringify(state.positions.slice(0, 100)));
+        }
+
+        function renderGlobalStats() {
+            const volume = state.markets.reduce((sum, market) => sum + market.volume, 0);
+            const operators = state.markets.reduce((sum, market) => sum + market.participants, 0);
+            dom['open-market-count'].textContent = String(state.markets.length);
+            dom['paper-volume'].textContent = `$${formatCompact(volume)}`;
+            dom['operator-count'].textContent = operators.toLocaleString();
+        }
+
+        function renderMarketList() {
+            const list = Arcade.filterMarkets(state.markets, {
+                asset: state.asset,
+                cadence: state.cadence,
+                search: state.search,
+            });
+            dom['market-list'].replaceChildren();
+            if (!list.length) {
+                dom['market-list'].append(createElement('div', 'empty-state', 'No open preview markets match those filters.'));
+                return;
+            }
+            list.forEach((market) => {
+                const button = createElement('button', `market-row${market.id === state.selectedMarketId ? ' active' : ''}`);
+                button.type = 'button';
+                button.dataset.marketId = market.id;
+                button.setAttribute('aria-pressed', market.id === state.selectedMarketId ? 'true' : 'false');
+                const badge = createElement('span', 'asset-badge', market.symbol);
+                badge.style.setProperty('--asset-accent', market.accent);
+                const copy = createElement('span');
+                copy.append(
+                    createElement('span', 'market-row-title', `Above ${Arcade.formatStrike(market)}`),
+                    createElement('span', 'market-row-meta', `${market.cadence} · ${Arcade.formatCountdown(market.expiry)}`),
+                );
+                const odds = createElement('span', 'market-row-odds');
+                odds.append(createElement('strong', '', `${Math.round(market.probabilityUp * 100)}%`), createElement('span', '', 'Chance'));
+                button.append(badge, copy, odds);
+                button.addEventListener('click', () => {
+                    state.selectedMarketId = market.id;
+                    renderMarketList();
+                    renderSelectedMarket();
+                });
+                dom['market-list'].append(button);
+            });
+        }
+
+        function renderSelectedMarket() {
+            const market = selectedMarket();
+            const upPercent = Math.round(market.probabilityUp * 100);
+            const downPercent = 100 - upPercent;
+            dom['selected-asset-badge'].textContent = market.symbol;
+            dom['selected-asset-badge'].style.setProperty('--asset-accent', market.accent);
+            dom['selected-question'].textContent = `Will ${market.symbol} trade above ${Arcade.formatStrike(market)} at expiry?`;
+            dom['selected-market-meta'].textContent = `${market.theme} · ${market.settlement}`;
+            dom['selected-countdown'].textContent = Arcade.formatCountdown(market.expiry);
+            dom['selected-probability'].textContent = String(upPercent);
+            dom['selected-caption'].textContent = `The preview market currently prices a ${upPercent}% chance that ${market.symbol} closes above the strike.`;
+            dom['probability-split'].style.setProperty('--up-width', `${upPercent}%`);
+            dom['split-up-label'].textContent = `UP ${upPercent}¢`;
+            dom['split-down-label'].textContent = `DOWN ${downPercent}¢`;
+            dom['metric-spot'].textContent = formatSpot(market);
+            dom['metric-volume'].textContent = `$${formatCompact(market.volume)}`;
+            dom['metric-participants'].textContent = market.participants.toLocaleString();
+            dom['metric-oracle'].textContent = market.oracle;
+            dom['up-button-price'].textContent = `${upPercent}¢ contract`;
+            dom['down-button-price'].textContent = `${downPercent}¢ contract`;
+            updateQuote();
+        }
+
+        function updateQuote() {
+            const market = selectedMarket();
+            const amount = Number(dom['position-amount'].value);
+            let quote;
+            try {
+                quote = Arcade.quotePosition(market, state.direction, amount);
+            } catch (error) {
+                dom['quote-probability'].textContent = '—';
+                dom['quote-shares'].textContent = '—';
+                dom['quote-payout'].textContent = '—';
+                dom['quote-profit'].textContent = error.message;
+                return;
+            }
+            dom['quote-probability'].textContent = `${(quote.probability * 100).toFixed(1)}%`;
+            dom['quote-shares'].textContent = quote.shares.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            dom['quote-payout'].textContent = formatMoney(quote.payout);
+            dom['quote-profit'].textContent = `+${formatMoney(quote.profit)} · ${quote.roi.toFixed(1)}%`;
+            dom['place-position-btn'].textContent = `Place paper ${state.direction} position`;
+        }
+
+        function renderDirection() {
+            document.querySelectorAll('[data-direction]').forEach((button) => {
+                button.classList.toggle('active', button.dataset.direction === state.direction);
+                button.setAttribute('aria-pressed', button.dataset.direction === state.direction ? 'true' : 'false');
+            });
+            updateQuote();
+        }
+
+        function renderDistricts() {
+            const mine = Arcade.districtForAddress(state.address);
+            const progress = Arcade.missionProgress(state.positions);
+            dom['district-rows'].replaceChildren();
+            districtFixtures.forEach((fixture, index) => {
+                const district = Arcade.DISTRICTS.find((item) => item.key === fixture.key);
+                const isMine = mine?.key === fixture.key;
+                const row = createElement('div', `district-row${isMine ? ' mine' : ''}`);
+                row.style.setProperty('--district-accent', district.accent);
+                const rank = createElement('span', 'district-rank', String(index + 1).padStart(2, '0'));
+                const name = createElement('span', 'district-name');
+                name.append(createElement('strong', '', `${district.name}${isMine ? ' · YOU' : ''}`), createElement('span', '', district.zone));
+                const meter = createElement('span', 'district-meter');
+                const fill = createElement('span');
+                fill.style.width = `${fixture.power}%`;
+                meter.append(fill);
+                row.append(
+                    rank,
+                    name,
+                    meter,
+                    createElement('span', 'district-number', `${fixture.accuracy.toFixed(1)}%`),
+                    createElement('span', 'district-number', fixture.signals.toLocaleString()),
+                );
+                dom['district-rows'].append(row);
+            });
+
+            dom['identity-card'].style.setProperty('--district-accent', mine?.accent || '#f7d365');
+            dom['identity-district'].textContent = mine?.name || 'Unassigned';
+            dom['identity-copy'].textContent = mine
+                ? `${mine.zone} operative. Your paper calls are counted locally for the preview mission loop.`
+                : 'Connect a Sui wallet to identify your district. No token balance is required for this preview.';
+            dom['district-connect-btn'].textContent = state.address ? `Assigned: ${mine.name}` : 'Connect to reveal district';
+
+            dom['mission-first-label'].textContent = `${progress.firstSignal} / 1`;
+            dom['mission-first-bar'].style.width = `${progress.firstSignal * 100}%`;
+            dom['mission-scout-label'].textContent = `${progress.marketScout} / 3`;
+            dom['mission-scout-bar'].style.width = `${(progress.marketScout / 3) * 100}%`;
+            dom['mission-sui-label'].textContent = `${progress.suiSpecialist} / 3`;
+            dom['mission-sui-bar'].style.width = `${(progress.suiSpecialist / 3) * 100}%`;
+            dom['preview-credits'].textContent = `${progress.credits} CC`;
+        }
+
+        function renderPositions() {
+            dom['position-count'].textContent = String(state.positions.length);
+            const hasPositions = state.positions.length > 0;
+            dom['positions-empty'].hidden = hasPositions;
+            dom['positions-table'].hidden = !hasPositions;
+            dom['positions-body'].replaceChildren();
+            state.positions.slice().reverse().forEach((position) => {
+                const market = state.markets.find((item) => item.id === position.marketId);
+                const row = document.createElement('tr');
+                const marketCell = document.createElement('td');
+                marketCell.append(createElement('strong', '', `${position.symbol} above ${market ? Arcade.formatStrike(market) : formatMoney(position.strike)}`));
+                const side = createElement('td', position.direction === 'UP' ? 'side-up' : 'side-down', position.direction);
+                const stake = createElement('td', '', formatMoney(position.stake));
+                const entry = createElement('td', '', `${(position.probability * 100).toFixed(1)}¢`);
+                const payout = createElement('td', '', formatMoney(position.payout));
+                const closes = createElement('td', 'position-countdown', Arcade.formatCountdown(position.expiry));
+                closes.dataset.expiry = String(position.expiry);
+                const statusCell = document.createElement('td');
+                statusCell.append(createElement('span', 'status-open', '● OPEN'));
+                row.append(marketCell, side, stake, entry, payout, closes, statusCell);
+                dom['positions-body'].append(row);
+            });
+            renderDistricts();
+        }
+
+        function switchView(view) {
+            state.activeView = view;
+            document.querySelectorAll('[data-view]').forEach((button) => {
+                const selected = button.dataset.view === view;
+                button.setAttribute('aria-selected', selected ? 'true' : 'false');
+                button.tabIndex = selected ? 0 : -1;
+            });
+            document.querySelectorAll('.arcade-view').forEach((panel) => {
+                panel.hidden = panel.id !== `view-${view}`;
+            });
+            if (view === 'districts') renderDistricts();
+            if (view === 'positions') renderPositions();
+        }
+
+        function placePaperPosition() {
+            try {
+                const position = Arcade.createPaperPosition(
+                    selectedMarket(), state.direction, dom['position-amount'].value, state.address,
+                );
+                state.positions.push(position);
+                savePositions();
+                renderPositions();
+                showToast(`${position.symbol} ${position.direction} paper position added to your local ledger.`, 'success');
+            } catch (error) {
+                showToast(error.message || 'Unable to create the paper position.', 'error');
+            }
+        }
+
+        async function shareSignal() {
+            const text = Arcade.buildShareText(selectedMarket(), state.direction);
+            try {
+                if (navigator.share) {
+                    await navigator.share({ title: 'Alpha City Predict signal', text, url: window.location.href });
+                    showToast('Signal shared.', 'success');
+                    return;
+                }
+                await navigator.clipboard.writeText(`${text} · ${window.location.href}`);
+                showToast('Signal copied to clipboard.', 'success');
+            } catch (error) {
+                if (error?.name !== 'AbortError') showToast('Sharing is not available in this browser.', 'error');
+            }
+        }
+
+        function tickCountdowns() {
+            const market = selectedMarket();
+            dom['selected-countdown'].textContent = Arcade.formatCountdown(market.expiry);
+            const heroMarket = state.markets[0];
+            dom['hero-countdown'].textContent = Arcade.formatCountdown(heroMarket.expiry);
+            document.querySelectorAll('.market-row').forEach((button) => {
+                const item = state.markets.find((candidate) => candidate.id === button.dataset.marketId);
+                const meta = button.querySelector('.market-row-meta');
+                if (item && meta) meta.textContent = `${item.cadence} · ${Arcade.formatCountdown(item.expiry)}`;
+            });
+            document.querySelectorAll('.position-countdown').forEach((element) => {
+                element.textContent = Arcade.formatCountdown(Number(element.dataset.expiry));
+            });
+        }
+
+        function nudgePreviewOdds() {
+            if (document.hidden) return;
+            state.markets = state.markets.map((market, index) => ({
+                ...market,
+                probabilityUp: Arcade.clamp(market.probabilityUp + (index % 2 ? -0.002 : 0.002), 0.06, 0.94),
+            }));
+            const featured = state.markets[0];
+            const probability = Math.round(featured.probabilityUp * 100);
+            dom['hero-probability'].replaceChildren(document.createTextNode(String(probability)), createElement('span', '', '% UP'));
+            dom['hero-signal-bar'].style.width = `${probability}%`;
+            document.querySelectorAll('.market-row').forEach((button) => {
+                const market = state.markets.find((candidate) => candidate.id === button.dataset.marketId);
+                const odds = button.querySelector('.market-row-odds strong');
+                if (market && odds) odds.textContent = `${Math.round(market.probabilityUp * 100)}%`;
+            });
+            renderSelectedMarket();
+        }
+
+        const tabButtons = [...document.querySelectorAll('[data-view]')];
+        tabButtons.forEach((button, index) => {
+            button.addEventListener('click', () => switchView(button.dataset.view));
+            button.addEventListener('keydown', (event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                let nextIndex = index;
+                if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+                if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabButtons.length;
+                if (event.key === 'Home') nextIndex = 0;
+                if (event.key === 'End') nextIndex = tabButtons.length - 1;
+                const next = tabButtons[nextIndex];
+                switchView(next.dataset.view);
+                next.focus();
+            });
+        });
+        document.querySelectorAll('[data-direction]').forEach((button) => button.addEventListener('click', () => {
+            state.direction = button.dataset.direction;
+            renderDirection();
+        }));
+        document.querySelectorAll('[data-amount]').forEach((button) => button.addEventListener('click', () => {
+            dom['position-amount'].value = button.dataset.amount;
+            document.querySelectorAll('[data-amount]').forEach((candidate) => candidate.classList.toggle('active', candidate === button));
+            updateQuote();
+        }));
+        document.querySelectorAll('[data-filter-kind]').forEach((button) => button.addEventListener('click', () => {
+            const kind = button.dataset.filterKind;
+            state[kind] = button.dataset.filter;
+            document.querySelectorAll(`[data-filter-kind="${kind}"]`).forEach((candidate) => candidate.classList.toggle('active', candidate === button));
+            renderMarketList();
+        }));
+        dom['market-search'].addEventListener('input', () => {
+            state.search = dom['market-search'].value;
+            renderMarketList();
+        });
+        dom['position-amount'].addEventListener('input', () => {
+            document.querySelectorAll('[data-amount]').forEach((button) => button.classList.remove('active'));
+            updateQuote();
+        });
+        dom['place-position-btn'].addEventListener('click', placePaperPosition);
+        dom['share-signal-btn'].addEventListener('click', shareSignal);
+        dom['open-positions-btn'].addEventListener('click', () => switchView('positions'));
+        dom['district-connect-btn'].addEventListener('click', () => {
+            if (state.address) showToast(`Wallet assigned to ${Arcade.districtForAddress(state.address).name}.`, 'success');
+            else wallet.connect().catch((error) => showToast(error.message, 'error'));
+        });
+        dom['clear-positions-btn'].addEventListener('click', () => {
+            if (!state.positions.length) return showToast('The paper ledger is already empty.');
+            if (!window.confirm('Clear all paper positions for this local identity?')) return;
+            state.positions = [];
+            savePositions();
+            renderPositions();
+            showToast('Paper ledger cleared.');
+        });
+
+        const wallet = WalletConnector.create({
+            button: dom['connect-wallet-btn'],
+            onChange: (session) => {
+                state.address = session?.address || null;
+                loadPositions();
+                renderPositions();
+            },
+        });
+
+        loadPositions();
+        renderGlobalStats();
+        renderMarketList();
+        renderSelectedMarket();
+        renderDirection();
+        renderPositions();
+        tickCountdowns();
+        dom['current-year'].textContent = String(new Date().getFullYear());
+        setInterval(() => { if (!document.hidden) tickCountdowns(); }, 1000);
+        setInterval(nudgePreviewOdds, 8000);
+    }, { once: true });
+    </script>
+</body>
+</html>
