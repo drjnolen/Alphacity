@@ -9,6 +9,10 @@ const {
     metricValue,
     verifyScheduleConfig,
     matchOracleSigners,
+    effectSucceeded,
+    waitForFinality,
+    nestedByteVectors,
+    safeObservationTimestamp,
     querySchedules,
 } = require('../scripts/sluice-relayer.js');
 const { normalizeAddress, normalizeCoinType, canonicalTriggerConfig } = require('../shared/sluice-core.cjs');
@@ -50,6 +54,39 @@ test('threshold signing requires enough schedule-indexed oracle keys', () => {
     const matches = matchOracleSigners(keys, 2, [keyB, keyA]);
     assert.deepEqual(matches.map(match => match.index), [0, 1]);
     assert.throws(() => matchOracleSigners(keys, 2, [keyA]), /controls 1 of 2/);
+});
+
+test('GraphQL base64 oracle vectors decode to the raw signing keys', () => {
+    const key = new Ed25519Keypair();
+    const raw = key.getPublicKey().toRawBytes();
+    const encoded = Buffer.from(raw).toString('base64');
+    const decoded = nestedByteVectors([encoded]);
+    assert.deepEqual(decoded, [Array.from(raw)]);
+    assert.equal(matchOracleSigners(decoded, 1, [key]).length, 1);
+});
+
+test('observation timestamps tolerate a runner clock ahead of Sui consensus', () => {
+    assert.equal(safeObservationTimestamp(100_000n), 70_000n);
+    assert.equal(safeObservationTimestamp(20_000n), 0n);
+});
+
+test('current gRPC transaction results report success through the nested transaction status', () => {
+    assert.equal(effectSucceeded({ $kind: 'Transaction', Transaction: { status: { success: true } } }), true);
+    assert.equal(effectSucceeded({ $kind: 'FailedTransaction', FailedTransaction: { status: { success: false } } }), false);
+    assert.equal(effectSucceeded({ effects: { status: { status: 'success' } } }), true);
+});
+
+test('successive submissions wait for the prior gas-object version to finalize', async () => {
+    const calls = [];
+    const client = {
+        waitForTransaction: async input => calls.push(input),
+    };
+    const digest = await waitForFinality(client, {
+        $kind: 'Transaction',
+        Transaction: { digest: 'canary-digest', status: { success: true } },
+    });
+    assert.equal(digest, 'canary-digest');
+    assert.deepEqual(calls, [{ digest: 'canary-digest' }]);
 });
 
 test('schedule discovery paginates GraphQL instead of truncating at 50', async () => {

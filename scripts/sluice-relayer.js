@@ -18,6 +18,7 @@ const {
 const CLOCK_ID = '0x6';
 const DEFAULT_GRAPHQL = 'https://graphql.mainnet.sui.io/graphql';
 const DEFAULT_GRPC = 'https://fullnode.mainnet.sui.io:443';
+const OBSERVATION_CLOCK_SKEW_MS = 30_000n;
 
 function requiredEnvironment(name) {
     const value = String(process.env[name] || '').trim();
@@ -44,6 +45,12 @@ function byteVector(value) {
     if (value?.fields) return byteVector(value.fields);
     if (typeof value === 'string' && /^0x[0-9a-f]*$/i.test(value)) {
         return (value.slice(2).match(/../g) || []).map(byte => parseInt(byte, 16));
+    }
+    if (typeof value === 'string') {
+        const encoded = value.trim();
+        if (encoded.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) {
+            return Array.from(Buffer.from(encoded, 'base64'));
+        }
     }
     return [];
 }
@@ -172,11 +179,35 @@ function matchOracleSigners(schedulePublicKeys, threshold, keypairs) {
 }
 
 function effectSucceeded(result) {
-    const status = result?.effects?.status;
+    if (result?.$kind === 'FailedTransaction') return false;
+    const transaction = result?.Transaction || result?.FailedTransaction || result;
+    const status = transaction?.status || transaction?.effects?.status;
     if (typeof status?.success === 'boolean') return status.success;
     if (typeof status === 'string') return status.toLowerCase() === 'success';
     if (typeof status?.status === 'string') return status.status.toLowerCase() === 'success';
     return false;
+}
+
+function transactionDigest(result) {
+    return result?.Transaction?.digest || result?.FailedTransaction?.digest || result?.digest || '';
+}
+
+async function waitForFinality(client, result) {
+    const digest = transactionDigest(result);
+    if (!digest) throw new Error('Successful transaction returned no digest');
+    if (typeof client?.waitForTransaction === 'function') {
+        await client.waitForTransaction({ digest });
+    } else if (typeof client?.core?.waitForTransaction === 'function') {
+        await client.core.waitForTransaction({ digest });
+    } else {
+        throw new Error('Sui client cannot wait for transaction finality');
+    }
+    return digest;
+}
+
+function safeObservationTimestamp(localNowMs = BigInt(Date.now())) {
+    const timestamp = BigInt(localNowMs);
+    return timestamp > OBSERVATION_CLOCK_SKEW_MS ? timestamp - OBSERVATION_CLOCK_SKEW_MS : 0n;
 }
 
 async function submitObservation({ client, gasKeypair, packageId, schedule, schedulePublicKeys, threshold, oracleKeypairs, observedValue, nowMs }) {
@@ -208,9 +239,12 @@ async function submitObservation({ client, gasKeypair, packageId, schedule, sche
             tx.object(CLOCK_ID),
         ],
     });
-    const result = await gasKeypair.signAndExecuteTransaction({ transaction: tx, client });
-    if (!effectSucceeded(result)) throw new Error(`Observation transaction failed: ${JSON.stringify(result.effects?.status || {})}`);
-    return result.digest;
+    const result = await gasKeypair.signAndExecuteTransaction({ transaction: tx, client, include: { effects: true } });
+    if (!effectSucceeded(result)) {
+        const transaction = result?.Transaction || result?.FailedTransaction || result;
+        throw new Error(`Observation transaction failed: ${JSON.stringify(transaction?.status || transaction?.effects?.status || {})}`);
+    }
+    return waitForFinality(client, result);
 }
 
 async function resolveExpired({ client, gasKeypair, packageId, schedule }) {
@@ -220,9 +254,12 @@ async function resolveExpired({ client, gasKeypair, packageId, schedule }) {
         typeArguments: [schedule.coinType],
         arguments: [tx.object(schedule.id), tx.object(CLOCK_ID)],
     });
-    const result = await gasKeypair.signAndExecuteTransaction({ transaction: tx, client });
-    if (!effectSucceeded(result)) throw new Error(`Expiry transaction failed: ${JSON.stringify(result.effects?.status || {})}`);
-    return result.digest;
+    const result = await gasKeypair.signAndExecuteTransaction({ transaction: tx, client, include: { effects: true } });
+    if (!effectSucceeded(result)) {
+        const transaction = result?.Transaction || result?.FailedTransaction || result;
+        throw new Error(`Expiry transaction failed: ${JSON.stringify(transaction?.status || transaction?.effects?.status || {})}`);
+    }
+    return waitForFinality(client, result);
 }
 
 async function run(options = {}) {
@@ -251,7 +288,7 @@ async function run(options = {}) {
         if (schedule.status !== 0 || schedule.triggerKind === TRIGGERS.TIME) continue;
         pending += 1;
         try {
-            const nowMs = BigInt(Date.now());
+            const nowMs = safeObservationTimestamp();
             if (schedule.triggerDeadlineMs > 0n && nowMs >= schedule.triggerDeadlineMs) {
                 if (dryRun) console.log(`[dry-run] ${schedule.id} would resolve its expired fallback`);
                 else {
@@ -301,12 +338,16 @@ if (require.main === module) {
 
 module.exports = {
     keypairFromSecret,
+    nestedByteVectors,
     querySchedules,
     selectPrimaryPair,
     metricValue,
     fetchObservation,
     verifyScheduleConfig,
     matchOracleSigners,
+    effectSucceeded,
+    waitForFinality,
+    safeObservationTimestamp,
     submitObservation,
     run,
 };
