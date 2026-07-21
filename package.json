@@ -7,7 +7,8 @@
     "build:paylink": "esbuild shared/paylink-client-source.js --bundle --minify --format=iife --global-name=AlphaCityPaylinkBundle --platform=browser --target=es2022 --outfile=shared/paylink-client.js",
     "build:paylink-request": "esbuild shared/paylink-request-source.js --bundle --minify --format=iife --global-name=AlphaCityPaylinkRequestBundle --platform=browser --target=es2022 --outfile=shared/paylink-request.js",
     "build:sui": "esbuild shared/sui-client-source.js --bundle --minify --format=iife --global-name=AlphaCitySuiBundle --platform=browser --target=es2022 --outfile=shared/sui-client.js",
-    "build": "npm run build:sui && npm run build:paylink && npm run build:paylink-request && npm run build:css && npm run build:paylink-css",
+    "build:sluice": "esbuild sluice/app-source.js --bundle --minify --format=iife --global-name=AlphaCitySluiceBundle --platform=browser --target=es2022 --outfile=sluice/app.js",
+    "build": "npm run build:sui && npm run build:paylink && npm run build:paylink-request && npm run build:sluice && npm run build:css && npm run build:paylink-css",
     "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {

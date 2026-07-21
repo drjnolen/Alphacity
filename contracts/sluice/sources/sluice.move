@@ -11,7 +11,6 @@ module sluice::sluice {
     const ENotAuthorized: u64 = 0;
     const EInvalidTimeline: u64 = 1;
     const ENoTokensVested: u64 = 2;
-    const EAlreadyActive: u64 = 3;
     const EInvalidMilestoneState: u64 = 4;
     const EInvalidSignature: u64 = 5;
 

@@ -40,6 +40,15 @@ jobs:
           npm ci
           npm run build
 
+      - name: Generate public Sluice V2 runtime config
+        env:
+          SLUICE_NETWORK: mainnet
+          SLUICE_V2_PACKAGE_ADDRESS: ${{ vars.SLUICE_V2_PACKAGE_ADDRESS }}
+          SLUICE_LEGACY_PACKAGE_ADDRESS: ${{ vars.SLUICE_LEGACY_PACKAGE_ADDRESS }}
+          SLUICE_ORACLE_PUBLIC_KEYS: ${{ vars.SLUICE_ORACLE_PUBLIC_KEYS }}
+          SLUICE_ORACLE_THRESHOLD: ${{ vars.SLUICE_ORACLE_THRESHOLD }}
+        run: node scripts/build-sluice-config.js
+
       - name: Install Wrangler
         run: npm install --global wrangler@4
 

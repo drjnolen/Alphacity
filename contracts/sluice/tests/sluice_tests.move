@@ -48,7 +48,7 @@ module sluice::sluice_tests {
 
         // 1. Create a dummy public key (32 bytes of 0x01)
         let mut pubkey = vector[];
-        let mut i = 0;
+        let mut i: u64 = 0;
         while (i < 32) {
             vector::push_back(&mut pubkey, 1);
             i = i + 1;
@@ -91,7 +91,7 @@ module sluice::sluice_tests {
 
             // Create a dummy signature (64 bytes of 0x02)
             let mut dummy_signature = vector[];
-            let mut j = 0;
+            let mut j: u64 = 0;
             while (j < 64) {
                 vector::push_back(&mut dummy_signature, 2);
                 j = j + 1;
