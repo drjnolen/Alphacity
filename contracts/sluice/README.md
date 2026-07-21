@@ -31,7 +31,9 @@ sui client upgrade contracts/sluice `
   --json
 ```
 
-The final July 20, 2026 dry-run succeeded on mainnet with Sui CLI 1.75.2. It estimated a net balance change of `0.075371540 SUI`; no transaction was submitted.
+The final July 20, 2026 dry-run succeeded on mainnet with Sui CLI 1.75.2. It estimated a net balance change of `0.075371540 SUI`.
+
+V2 was published as package `0xa95f0f0860baab092b26a8f19190ccd0c11f07d76513a8c32a5dcc0fd7f47b91` on July 21, 2026. Upgrade transaction `BtLrmTMmuuSRHDZC5rowaYKEtXPHoqnqYdSuoKpBRbuk` succeeded and charged `0.074393420 SUI`.
 
 ## Mainnet rollout
 
@@ -43,7 +45,7 @@ The final July 20, 2026 dry-run succeeded on mainnet with Sui CLI 1.75.2. It est
 
    A one-key policy is the no-cost operational baseline. For a genuinely independent threshold policy, generate keys on separately operated systems and never colocate all private keys in one GitHub secret.
 
-2. Upgrade package V1 with the recorded UpgradeCap. This is irreversible and spends mainnet gas, so review the final commit and dry-run immediately beforehand:
+2. Upgrade package V1 with the recorded UpgradeCap. This was completed on July 21, 2026; retain the command below for auditing future upgrades:
 
    ```powershell
    sui client upgrade contracts/sluice `
