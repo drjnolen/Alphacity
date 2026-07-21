@@ -36,14 +36,13 @@ const CONFIG = { ...DEFAULT_CONFIG, ...(window.SLUICE_CONFIG || {}) };
 
 const state = {
     address: null,
-    account: null,
-    wallet: null,
     schedules: [],
     metadata: new Map(),
     filter: 'all',
     claim: null,
     gate: null,
 };
+let walletConnector = null;
 
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -74,162 +73,22 @@ function rpc(method, params) {
     return window.AlphaCitySui.rpc(method, params);
 }
 
-function initWalletStandard() {
-    const registered = new Set();
-    const api = Object.freeze({ register: (...wallets) => wallets.forEach(wallet => registered.add(wallet)) });
-    window.addEventListener('wallet-standard:register-wallet', event => event.detail(api));
-    class AppReadyEvent extends Event {
-        constructor() {
-            super('wallet-standard:app-ready', { bubbles: false, cancelable: false, composed: false });
-            this.detail = api;
-        }
-    }
-    window.dispatchEvent(new AppReadyEvent());
-    state.registeredWallets = registered;
-}
-
-function discoverWallets() {
-    const output = [];
-    const seen = new Set();
-    for (const wallet of (state.registeredWallets || [])) {
-        if ((wallet.chains || []).some(chain => String(chain).startsWith('sui:')) && !seen.has(wallet.name)) {
-            seen.add(wallet.name);
-            output.push({ source: 'standard', name: wallet.name, wallet });
-        }
-    }
-    const legacy = [
-        ['Slush', window.slush?.sui || window.slush],
-        ['Sui Wallet', window.suiWallet],
-        ['Martian', window.martian?.sui || window.martian],
-        ['Ethos', window.ethos?.sui || window.ethos],
-    ];
-    for (const [name, provider] of legacy) {
-        if (provider && !seen.has(name)) output.push({ source: 'legacy', name, provider });
-    }
-    return output;
-}
-
-function chooseWallet(wallets) {
-    if (wallets.length === 1) return Promise.resolve(wallets[0]);
-    return new Promise(resolve => {
-        const modal = $('wallet-modal');
-        const list = $('wallet-list');
-        list.replaceChildren();
-        wallets.forEach(wallet => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'wallet-choice';
-            button.textContent = wallet.name;
-            button.addEventListener('click', () => {
-                modal.close();
-                resolve(wallet);
-            }, { once: true });
-            list.append(button);
-        });
-        modal.addEventListener('cancel', () => resolve(null), { once: true });
-        modal.showModal();
-    });
-}
-
-async function connectWallet(preferredName = null, silent = false) {
-    let wallets = discoverWallets();
-    if (!wallets.length) {
-        await sleep(700);
-        wallets = discoverWallets();
-    }
-    if (!wallets.length) throw new Error('No Sui wallet extension was found');
-    const entry = preferredName
-        ? wallets.find(item => item.name === preferredName)
-        : await chooseWallet(wallets);
-    if (!entry) return;
-
-    let accounts = [];
-    if (entry.source === 'standard') {
-        const feature = entry.wallet.features?.['standard:connect'];
-        if (!feature) throw new Error(`${entry.name} does not expose Wallet Standard connect`);
-        try {
-            const result = await feature.connect(silent ? { silent: true } : undefined);
-            accounts = result?.accounts || entry.wallet.accounts || [];
-        } catch (error) {
-            if (silent) return;
-            throw error;
-        }
-    } else {
-        if (typeof entry.provider.connect === 'function') await entry.provider.connect();
-        const raw = typeof entry.provider.getAccounts === 'function'
-            ? await entry.provider.getAccounts()
-            : [];
-        accounts = (raw || []).map(account => typeof account === 'string' ? { address: account } : account);
-    }
-    const compatible = accounts.filter(account => !account.chains || account.chains.includes('sui:mainnet'));
-    const account = (compatible.length ? compatible : accounts)[0];
-    if (!account?.address) throw new Error('The wallet did not return a Sui account');
-
-    state.address = normalizeAddress(account.address);
-    state.account = account;
-    state.wallet = entry;
-    localStorage.setItem('ac_sluice_provider', entry.name);
-    localStorage.setItem('ac_sluice_account', state.address);
-    localStorage.setItem('alphacity_wallet', JSON.stringify({ walletName: entry.name, address: state.address }));
-    $('wallet-label').textContent = shortAddress(state.address);
-    $('connect-wallet').dataset.connected = 'true';
-    await Promise.all([refreshSchedules(), refreshGate()]);
-    renderClaimPanel();
-}
-
-function disconnectWallet() {
-    state.address = null;
-    state.account = null;
-    state.wallet = null;
+function handleWalletChange(session) {
+    state.address = session?.address ? normalizeAddress(session.address) : null;
     state.gate = null;
-    for (const key of ['ac_sluice_provider', 'ac_sluice_account', 'alphacity_wallet']) localStorage.removeItem(key);
-    $('wallet-label').textContent = 'Connect wallet';
-    $('connect-wallet').dataset.connected = 'false';
     renderSchedules();
     renderGate();
     renderClaimPanel();
-}
-
-async function restoreWallet() {
-    const provider = localStorage.getItem('ac_sluice_provider');
-    if (!provider) return;
-    try { await connectWallet(provider, true); } catch (error) { console.warn('Sluice wallet restore failed:', error); }
+    if (!state.address) return;
+    Promise.all([refreshSchedules(), refreshGate()])
+        .then(renderClaimPanel)
+        .catch(error => showStatus(error.message, 'error'));
 }
 
 async function signAndExecute(tx) {
-    if (!state.wallet || !state.address) throw new Error('Connect a wallet first');
+    if (!walletConnector || !state.address) throw new Error('Connect a wallet first');
     tx.setSender(state.address);
-    let result;
-    if (state.wallet.source === 'standard') {
-        const currentAccounts = state.wallet.wallet.accounts || [];
-        const account = currentAccounts.find(item => sameAddress(item.address, state.address)) || state.account;
-        const modern = state.wallet.wallet.features?.['sui:signAndExecuteTransaction'];
-        const legacy = state.wallet.wallet.features?.['sui:signAndExecuteTransactionBlock'];
-        if (modern) {
-            result = await modern.signAndExecuteTransaction({ transaction: tx, account, chain: 'sui:mainnet' });
-        } else if (legacy) {
-            result = await legacy.signAndExecuteTransactionBlock({
-                transactionBlock: tx,
-                account,
-                chain: 'sui:mainnet',
-                options: { showEffects: true, showEvents: true, showObjectChanges: true },
-            });
-        } else {
-            throw new Error('This wallet cannot sign Sui transactions');
-        }
-    } else {
-        const provider = state.wallet.provider;
-        if (typeof provider.signAndExecuteTransaction === 'function') {
-            result = await provider.signAndExecuteTransaction({ transaction: tx });
-        } else if (typeof provider.signAndExecuteTransactionBlock === 'function') {
-            result = await provider.signAndExecuteTransactionBlock({
-                transactionBlock: tx,
-                options: { showEffects: true, showEvents: true, showObjectChanges: true },
-            });
-        } else {
-            throw new Error('This wallet cannot sign Sui transactions');
-        }
-    }
+    const result = await walletConnector.signAndExecuteTransaction(tx);
     const status = result?.effects?.status?.status || result?.effects?.status;
     if (String(status || '').toLowerCase() === 'failure') {
         throw new Error(result.effects?.status?.error || 'The transaction failed on-chain');
@@ -873,17 +732,17 @@ function setDefaultDates() {
 }
 
 async function init() {
-    initWalletStandard();
     setDefaultDates();
     toggleTriggerFields();
     toggleRecipient();
     loadClaimPayload();
     renderGate();
-    $('create-form').addEventListener('submit', event => createSchedule(event).catch(error => showStatus(error.message, 'error')));
-    $('connect-wallet').addEventListener('click', () => {
-        if (state.address) disconnectWallet();
-        else connectWallet().catch(error => showStatus(error.message, 'error'));
+    if (!window.AlphaCityWalletConnector) throw new Error('The shared wallet connector did not load');
+    walletConnector = window.AlphaCityWalletConnector.create({
+        button: $('connect-wallet'),
+        onChange: handleWalletChange,
     });
+    $('create-form').addEventListener('submit', event => createSchedule(event).catch(error => showStatus(error.message, 'error')));
     $('refresh-schedules').addEventListener('click', refreshSchedules);
     $('schedule-filter').addEventListener('change', event => { state.filter = event.target.value; renderSchedules(); });
     $('trigger-kind').addEventListener('change', toggleTriggerFields);
@@ -902,7 +761,6 @@ async function init() {
     });
     $('close-claim-modal').addEventListener('click', () => $('claim-modal').close());
     await refreshSchedules();
-    await restoreWallet();
 }
 
 document.addEventListener('DOMContentLoaded', () => init().catch(error => showStatus(error.message, 'error')));
