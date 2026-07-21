@@ -105,6 +105,18 @@
                 if (provider.switchAccount) await provider.switchAccount(address);
                 else if (provider.selectAccount) await provider.selectAccount(address);
             },
+            async signAndExecuteTransaction(transaction) {
+                if (provider.signAndExecuteTransaction) {
+                    return provider.signAndExecuteTransaction({ transaction });
+                }
+                if (provider.signAndExecuteTransactionBlock) {
+                    return provider.signAndExecuteTransactionBlock({
+                        transactionBlock: transaction,
+                        options: { showEffects: true, showEvents: true, showObjectChanges: true },
+                    });
+                }
+                throw new Error(`${name} cannot sign Sui transactions.`);
+            },
             subscribe(callback) {
                 if (typeof provider.on !== 'function') return () => {};
                 const disposers = [];
@@ -132,6 +144,8 @@
     function standardAdapter(wallet) {
         const connectFeature = wallet.features?.['standard:connect'];
         const disconnectFeature = wallet.features?.['standard:disconnect'];
+        const modernSignFeature = wallet.features?.['sui:signAndExecuteTransaction'];
+        const legacySignFeature = wallet.features?.['sui:signAndExecuteTransactionBlock'];
         let connectedAccounts = [];
         let selectedAccount = null;
         return {
@@ -160,11 +174,33 @@
                 selectedAccount = [...connectedAccounts, ...(wallet.accounts || [])]
                     .find((account) => account.address === address) || selectedAccount;
             },
+            async signAndExecuteTransaction(transaction) {
+                const account = selectedAccount || [...connectedAccounts, ...(wallet.accounts || [])]
+                    .find((candidate) => !candidate.chains?.length || candidate.chains.includes(SUI_CHAIN));
+                if (!account) throw new Error(`${wallet.name} returned no Sui account.`);
+                if (modernSignFeature?.signAndExecuteTransaction) {
+                    return modernSignFeature.signAndExecuteTransaction({ transaction, account, chain: SUI_CHAIN });
+                }
+                if (legacySignFeature?.signAndExecuteTransactionBlock) {
+                    return legacySignFeature.signAndExecuteTransactionBlock({
+                        transactionBlock: transaction,
+                        account,
+                        chain: SUI_CHAIN,
+                        options: { showEffects: true, showEvents: true, showObjectChanges: true },
+                    });
+                }
+                throw new Error(`${wallet.name} cannot sign Sui transactions.`);
+            },
             subscribe(callback) {
                 const eventsFeature = wallet.features?.['standard:events'];
                 if (typeof eventsFeature?.on !== 'function') return () => {};
                 const unsubscribe = eventsFeature.on('change', ({ accounts } = {}) => {
                     connectedAccounts = accounts || wallet.accounts || [];
+                    const availableAccounts = connectedAccounts
+                        .filter((account) => !account?.chains?.length || account.chains.includes(SUI_CHAIN));
+                    selectedAccount = availableAccounts.find((account) => account.address === selectedAccount?.address)
+                        || availableAccounts[0]
+                        || null;
                     callback(suiAccountAddresses(connectedAccounts));
                 });
                 return typeof unsubscribe === 'function' ? unsubscribe : () => {};
@@ -465,6 +501,14 @@
             if (action === 'disconnect') await disconnect();
         }
 
+        async function signAndExecuteTransaction(transaction) {
+            if (!adapter || !address) throw new Error('Connect a wallet first.');
+            if (typeof adapter.signAndExecuteTransaction !== 'function') {
+                throw new Error(`${walletName || 'This wallet'} cannot sign Sui transactions.`);
+            }
+            return adapter.signAndExecuteTransaction(transaction);
+        }
+
         button.addEventListener('click', () => {
             const action = address ? walletOptions() : connect();
             action.catch((error) => {
@@ -487,7 +531,14 @@
             onChange(null);
         }
 
-        return Object.freeze({ connect, disconnect, switchAccount, walletOptions, getSession: session });
+        return Object.freeze({
+            connect,
+            disconnect,
+            switchAccount,
+            walletOptions,
+            signAndExecuteTransaction,
+            getSession: session,
+        });
     }
 
     root.AlphaCityWalletConnector = Object.freeze({ create: createConnector, shortAddress });

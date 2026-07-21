@@ -8,10 +8,12 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://fullnode.mainnet.sui.io https://graphql.mainnet.sui.io https://sui-mainnet.mystenlabs.com https://api.dexscreener.com; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>Sluice V2 · Alpha City</title>
     <link rel="icon" href="/favicon.png">
-    <link rel="stylesheet" href="/sluice/sluice.css?v=3">
+    <link rel="stylesheet" href="/sluice/sluice.css?v=4">
     <script src="/shared/sui-client.js"></script>
     <script src="/sluice/config.js"></script>
-    <script src="/sluice/app.js?v=2" defer></script>
+    <script src="/shared/wallet-sync.js" defer></script>
+    <script src="/shared/wallet-connector.js" defer></script>
+    <script src="/sluice/app.js?v=3" defer></script>
 </head>
 <body>
     <header class="site-header">
@@ -22,8 +24,9 @@
         <nav aria-label="Primary navigation">
             <a href="/tools/">Tools</a>
             <a href="/analyze/">Analyze</a>
-            <button id="connect-wallet" type="button" data-connected="false">
-                <span id="wallet-label">Connect wallet</span>
+            <button id="connect-wallet" class="bg-brand-primary" type="button">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 0 010-2z" clip-rule="evenodd" /></svg>
+                <span>Connect Wallet</span>
             </button>
         </nav>
     </header>
@@ -192,15 +195,6 @@
         <span>Alpha City Sluice · Sui mainnet</span>
         <span>Contract-enforced continuity · Public claims · No custody</span>
     </footer>
-
-    <dialog id="wallet-modal" class="modal">
-        <form method="dialog" class="modal-card">
-            <p class="eyebrow">Wallet Standard</p>
-            <h2>Select a Sui wallet</h2>
-            <div id="wallet-list" class="wallet-list"></div>
-            <button class="button secondary full" value="cancel">Cancel</button>
-        </form>
-    </dialog>
 
     <dialog id="claim-modal" class="modal">
         <div class="modal-card">
