@@ -2,33 +2,40 @@ name: Sluice Vesting Relayer Bot
 
 on:
   schedule:
-    # Runs every 15 minutes
-    - cron: '*/15 * * * *'
+    # Offset from the top of the hour to reduce GitHub-hosted cron congestion.
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
     # Allows manual triggering from the GitHub Actions tab
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: sluice-v2-relayer
+  cancel-in-progress: false
 
 jobs:
   run-relayer:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          # Fetch full history so we can commit/push back to the main branch
-          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
 
-      - name: Run Sluice Relayer Script
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Submit signed V2 observations on-chain
         env:
-          SLUICE_ORACLE_PRIVATE_KEY: ${{ secrets.SLUICE_ORACLE_PRIVATE_KEY }}
-          SLUICE_PACKAGE_ADDRESS: ${{ secrets.SLUICE_PACKAGE_ADDRESS }}
-        run: |
-          node scripts/sluice-relayer.js
+          SLUICE_V2_PACKAGE_ADDRESS: ${{ vars.SLUICE_V2_PACKAGE_ADDRESS }}
+          SLUICE_ORACLE_PRIVATE_KEYS: ${{ secrets.SLUICE_ORACLE_PRIVATE_KEYS }}
+          SLUICE_RELAYER_PRIVATE_KEY: ${{ secrets.SLUICE_RELAYER_PRIVATE_KEY }}
+          SUI_GRAPHQL_URL: ${{ vars.SUI_GRAPHQL_URL }}
+          SUI_GRPC_URL: ${{ vars.SUI_GRPC_URL }}
+        run: node scripts/sluice-relayer.js
