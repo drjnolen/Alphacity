@@ -11,7 +11,7 @@ const Arcade = require(path.join(root, 'shared', 'predict-arcade.js'));
 
 test('the hidden Predict route is noindex and absent from existing navigation surfaces', () => {
     assert.match(html, /name="robots" content="noindex,nofollow,noarchive,nosnippet"/);
-    assert.match(html, /Private draft/);
+    assert.match(html, /Testnet Preview/);
     for (const relative of ['index.html', 'tools/index.html', 'analyze/index.html', 'staking/index.html', 'districts/index.html']) {
         const source = fs.readFileSync(path.join(root, relative), 'utf8');
         assert.doesNotMatch(source, /href=["']\/predict\/?["']/, `${relative} unexpectedly links to Predict`);
@@ -25,6 +25,17 @@ test('the preview loads shared wallet identity before the arcade controller', ()
     assert.ok(sync > 0 && sync < connector && connector < arcade);
     assert.match(html, /id="connect-wallet-btn"/);
     assert.match(html, /WalletConnector\.create/);
+});
+
+test('the Predict draft uses the established Alpha City visual system', () => {
+    assert.match(html, /family=Inter:wght@400;500;600;700/);
+    assert.doesNotMatch(html, /Space\+Grotesk|IBM\+Plex\+Mono/);
+    assert.match(html, /class="header-link" href="\/">Back to Home/);
+    assert.match(html, /class="header-link district-link" href="\/districts\/">Districts/);
+    assert.match(css, /--bg:\s*#111827/i);
+    assert.match(css, /--panel:\s*#1f2937/i);
+    assert.match(css, /--blue:\s*#3b82f6/i);
+    assert.match(css, /font-family:\s*Inter, system-ui, sans-serif/);
 });
 
 test('the draft exposes the complete paper arcade loop and clear safety states', () => {

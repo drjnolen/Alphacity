@@ -10,7 +10,7 @@
     <link rel="icon" type="image/jpeg" href="https://i.postimg.cc/9QgzZr7t/wd-1CLt-O-400x400.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/predict/styles.css">
     <script src="/shared/wallet-sync.js" defer></script>
     <script src="/shared/wallet-connector.js" defer></script>
@@ -20,13 +20,13 @@
     <header class="site-header">
         <div class="shell header-inner">
             <a class="brand-lockup" href="/" aria-label="Alpha City home">
-                <span class="brand-mark" aria-hidden="true">AC</span>
                 <span class="brand-name">Alpha<span> City</span></span>
-                <span class="route-label">/ Predict</span>
+                <span class="route-label">Predict Preview</span>
             </a>
             <div class="header-actions">
-                <span class="preview-chip"><span class="status-dot"></span>Private draft</span>
-                <span class="network-chip"><span class="status-dot"></span>Sui testnet</span>
+                <a class="header-link" href="/">Back to Home</a>
+                <a class="header-link district-link" href="/districts/">Districts</a>
+                <span class="preview-chip"><span class="status-dot"></span>Testnet Preview</span>
                 <button id="connect-wallet-btn" class="wallet-button" type="button">Connect Wallet</button>
             </div>
         </div>
@@ -35,7 +35,7 @@
     <main>
         <section class="shell hero" aria-labelledby="hero-title">
             <div>
-                <p class="eyebrow">DeepBook Predict × Alpha City</p>
+                <p class="eyebrow"><span class="status-dot"></span>DeepBook Predict × Alpha City</p>
                 <h1 id="hero-title">Call the market.<br><span>Claim your alpha.</span></h1>
                 <p class="hero-copy">
                     Take a side on crypto price outcomes, sharpen your signal, and push your district up the citywide leaderboard. This private draft uses paper positions while DeepBook Predict advances toward mainnet.
@@ -44,7 +44,7 @@
                     <a class="primary-button" href="#arcade">Enter the arcade <span aria-hidden="true">↓</span></a>
                     <a class="secondary-button" href="#how-it-works">How it works</a>
                 </div>
-                <p class="hero-note">PREVIEW ONLY · SIMULATED QUOTES · NO FUNDS MOVE · NO ONCHAIN CREDIT IS AWARDED</p>
+                <p class="hero-note"><strong>Preview only.</strong> Simulated quotes · no funds move · no onchain credit is awarded.</p>
             </div>
             <aside class="hero-signal" aria-label="Featured market preview">
                 <div class="signal-head">
