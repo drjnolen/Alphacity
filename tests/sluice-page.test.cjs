@@ -8,6 +8,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'sluice', 'index.html'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'sluice', 'app-source.js'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'sluice', 'sluice.css'), 'utf8');
 
 test('Sluice is public for viewing and claims, with creation gated in-app', () => {
     assert.doesNotMatch(html, /tools-gate\.js/);
@@ -21,6 +22,17 @@ test('Sluice uses locally bundled SDK code and runtime config', () => {
     assert.match(html, /\/sluice\/config\.js/);
     assert.match(html, /\/sluice\/app\.js/);
     assert.doesNotMatch(html, /esm\.sh|cdn\.tailwindcss\.com/);
+});
+
+test('Sluice uses the established Alpha City visual system', () => {
+    assert.match(css, /--bg:\s*#111827/i);
+    assert.match(css, /--panel:\s*#1f2937/i);
+    assert.match(css, /--blue:\s*#3b82f6/i);
+    assert.match(css, /--yellow:\s*#facc15/i);
+    assert.match(css, /font-family:\s*Inter,/i);
+    assert.match(css, /min-height:\s*80px/i);
+    assert.match(html, /Alpha\s*<em>City<\/em>/);
+    assert.match(html, /sluice\.css\?v=3/);
 });
 
 test('claim credentials are fragment-only and legacy query keys are immediately scrubbed', () => {

@@ -4,9 +4,9 @@
 
 [published.mainnet]
 chain-id = "35834a8a"
-published-at = "0x7c7ca3da6bad849a02d9f888b2f8cab40d507b2c01bbcab3f2d816334c17aa07"
+published-at = "0xa95f0f0860baab092b26a8f19190ccd0c11f07d76513a8c32a5dcc0fd7f47b91"
 original-id = "0x7c7ca3da6bad849a02d9f888b2f8cab40d507b2c01bbcab3f2d816334c17aa07"
-version = 1
-toolchain-version = "1.72.5"
+version = 2
+toolchain-version = "1.75.2"
 build-config = { flavor = "sui", edition = "2024" }
 upgrade-capability = "0x5be9024298c5ec6af3d128550c3c858f2188b19e7875a6cfbd239ffe966250c7"
