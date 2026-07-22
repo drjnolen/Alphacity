@@ -9,7 +9,10 @@
     "build:sui": "esbuild shared/sui-client-source.js --bundle --minify --format=iife --global-name=AlphaCitySuiBundle --platform=browser --target=es2022 --outfile=shared/sui-client.js",
     "build:sluice": "esbuild sluice/app-source.js --bundle --minify --format=iife --global-name=AlphaCitySluiceBundle --platform=browser --target=es2022 --outfile=sluice/app.js",
     "build:alchemy": "esbuild alchemy/app-source.js --bundle --minify --format=iife --global-name=AlphaCityAlchemyBundle --platform=browser --target=es2022 --outfile=alchemy/app.js",
-    "build": "npm run build:sui && npm run build:paylink && npm run build:paylink-request && npm run build:sluice && npm run build:alchemy && npm run build:css && npm run build:paylink-css",
+    "build:launchpad": "esbuild launchpad/app-source.js --bundle --minify --format=iife --global-name=AlphaCityLaunchpadBundle --platform=browser --target=es2022 --outfile=launchpad/app.js",
+    "launchpad:prepare": "node scripts/launchpad-project.cjs prepare",
+    "launchpad:validate": "node scripts/launchpad-project.cjs validate",
+    "build": "npm run build:sui && npm run build:paylink && npm run build:paylink-request && npm run build:sluice && npm run build:alchemy && npm run build:launchpad && npm run build:css && npm run build:paylink-css",
     "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {

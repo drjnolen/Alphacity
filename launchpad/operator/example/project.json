@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "example-collection",
+  "name": "Example Collection",
+  "creatorName": "Example Studio",
+  "creatorAddress": "0x0000000000000000000000000000000000000000000000000000000000000001",
+  "headline": "A curated collection launching through Alpha City.",
+  "description": "Replace this text with the project's collection story and relevant disclosures.",
+  "website": "https://example.com",
+  "twitter": "https://x.com/example",
+  "heroFile": "hero.png",
+  "mediaBaseUrl": "https://cdn.example.com/example-collection",
+  "royaltyBps": 500,
+  "platformFeeBps": 500,
+  "maxPerTx": 5,
+  "reveal": { "mode": "instant" },
+  "stages": [
+    {
+      "name": "Public Mint",
+      "priceSui": "1",
+      "startTime": "2026-08-01T18:00:00Z",
+      "endTime": "2026-08-03T18:00:00Z",
+      "walletLimit": 5,
+      "allocation": 0,
+      "allowlistOnly": false,
+      "allowlist": []
+    }
+  ]
+}

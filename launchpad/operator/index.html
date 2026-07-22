@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Launch Operator | Alpha City</title>
+    <link rel="icon" type="image/jpeg" href="https://i.postimg.cc/9QgzZr7t/wd-1CLt-O-400x400.jpg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: {
+            'brand-primary': '#3B82F6', 'brand-primary-hover': '#60A5FA', 'brand-secondary': '#FACC15',
+            'dark-bg': '#111827', 'dark-card': '#1F2937', 'dark-text': '#E5E7EB', 'dark-text-secondary': '#9CA3AF'
+        }, boxShadow: { glow: '0 0 0 1px rgba(59,130,246,.18), 0 24px 60px rgba(15,23,42,.45)' } } } };
+    </script>
+    <style>
+        body { background: radial-gradient(circle at 12% 0%, rgba(59,130,246,.18), transparent 34%), linear-gradient(180deg,#111827 0%,#0b1120 100%); }
+        .glass-panel { background: rgba(31,41,55,.82); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.06); }
+        .field { width: 100%; border-radius: .75rem; border: 1px solid #374151; background: rgba(17,24,39,.8); padding: .75rem .875rem; color: white; outline: none; }
+        .field:focus { border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+        .drop-zone { border: 1px dashed #4B5563; transition: border-color .2s, background-color .2s; }
+        .drop-zone:hover { border-color: #3B82F6; background: rgba(59,130,246,.06); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background:#1F2937; } ::-webkit-scrollbar-thumb { background:#4B5563; border-radius:4px; }
+    </style>
+</head>
+<body class="min-h-screen font-sans text-dark-text antialiased">
+    <header class="sticky top-0 z-40 border-b border-white/5 bg-dark-bg/85 backdrop-blur-md">
+        <nav class="container mx-auto flex min-h-20 items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+            <div class="flex items-center gap-4">
+                <a href="/" class="text-2xl font-bold text-white">Alpha<span class="text-brand-secondary"> City</span></a>
+                <span class="hidden rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[.2em] text-blue-300 sm:inline-flex">Launch operator</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="/launchpad/" class="hidden text-sm text-dark-text-secondary hover:text-white sm:block">View launchpad</a>
+                <button id="connect-wallet-btn" type="button" class="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 font-medium text-white shadow-lg shadow-blue-500/20 transition hover:bg-brand-primary-hover">Connect Wallet</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 py-10 sm:px-6 lg:px-8">
+        <section class="mb-8 max-w-4xl">
+            <p class="text-xs font-semibold uppercase tracking-[.26em] text-brand-secondary">Managed launch workflow</p>
+            <h1 class="mt-3 text-4xl font-extrabold text-white md:text-5xl">Prepare a collection without a creator dashboard.</h1>
+            <p class="mt-4 max-w-3xl text-lg leading-8 text-dark-text-secondary">Load the project's preferences, metadata CSV, and media folder. This workspace validates the package and exports the normalized bundle AlphaCity uses to publish the collection.</p>
+        </section>
+
+        <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div class="space-y-8">
+                <section class="rounded-3xl p-6 shadow-glow glass-panel md:p-8">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div><p class="text-xs font-semibold uppercase tracking-[.22em] text-blue-300">01 · Preferences</p><h2 class="mt-2 text-2xl font-bold text-white">Project and payout details</h2></div>
+                        <label class="cursor-pointer rounded-xl border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:border-blue-400 hover:text-white">Import JSON<input id="manifest-file" type="file" accept="application/json,.json" class="hidden"></label>
+                    </div>
+                    <div class="mt-6 grid gap-5 md:grid-cols-2">
+                        <label class="text-sm font-medium text-gray-200">Collection name<input id="name" class="field mt-2" placeholder="Citizens" autocomplete="off"></label>
+                        <label class="text-sm font-medium text-gray-200">Collection slug<input id="slug" class="field mt-2" placeholder="citizens" autocomplete="off"></label>
+                        <label class="text-sm font-medium text-gray-200 md:col-span-2">Creator payout address<input id="creator-address" class="field mt-2 font-mono text-sm" placeholder="0x…" autocomplete="off" spellcheck="false"></label>
+                        <label class="text-sm font-medium text-gray-200">Creator or studio name<input id="creator-name" class="field mt-2" placeholder="Project team"></label>
+                        <label class="text-sm font-medium text-gray-200">Hero filename<input id="hero-file" class="field mt-2" placeholder="hero.png"></label>
+                        <label class="text-sm font-medium text-gray-200 md:col-span-2">Headline<input id="headline" class="field mt-2" placeholder="A short, specific launch headline"></label>
+                        <label class="text-sm font-medium text-gray-200 md:col-span-2">Description<textarea id="description" rows="4" class="field mt-2 resize-y" placeholder="Collection story, utility, and relevant disclosures"></textarea></label>
+                        <label class="text-sm font-medium text-gray-200">Website<input id="website" class="field mt-2" type="url" placeholder="https://"></label>
+                        <label class="text-sm font-medium text-gray-200">X / Twitter<input id="twitter" class="field mt-2" type="url" placeholder="https://x.com/"></label>
+                        <label class="text-sm font-medium text-gray-200">Royalty metadata (basis points)<input id="royalty-bps" class="field mt-2" type="number" min="0" max="10000" step="1" value="500"><span class="mt-2 block text-xs font-normal leading-5 text-dark-text-secondary">Displayed with each NFT; enforcement depends on the marketplace.</span></label>
+                        <label class="text-sm font-medium text-gray-200">AlphaCity fee (basis points)<input id="platform-fee-bps" class="field mt-2" type="number" min="0" max="2500" step="1" value="500"></label>
+                    </div>
+                </section>
+
+                <section class="rounded-3xl p-6 shadow-glow glass-panel md:p-8">
+                    <div><p class="text-xs font-semibold uppercase tracking-[.22em] text-blue-300">02 · Mint rules</p><h2 class="mt-2 text-2xl font-bold text-white">Initial public stage</h2></div>
+                    <div class="mt-6 grid gap-5 md:grid-cols-2">
+                        <label class="text-sm font-medium text-gray-200">Stage name<input id="stage-name" class="field mt-2" value="Public Mint"></label>
+                        <label class="text-sm font-medium text-gray-200">Price (SUI)<input id="price-sui" class="field mt-2" inputmode="decimal" value="1"></label>
+                        <label class="text-sm font-medium text-gray-200">Start time<input id="start-time" class="field mt-2" type="datetime-local"></label>
+                        <label class="text-sm font-medium text-gray-200">End time <span class="text-dark-text-secondary">(optional)</span><input id="end-time" class="field mt-2" type="datetime-local"></label>
+                        <label class="text-sm font-medium text-gray-200">Per-wallet limit<input id="wallet-limit" class="field mt-2" type="number" min="1" step="1" value="5"></label>
+                        <label class="text-sm font-medium text-gray-200">Max per transaction<input id="max-per-tx" class="field mt-2" type="number" min="1" max="50" step="1" value="5"></label>
+                        <label class="flex items-center gap-3 rounded-xl border border-gray-700 bg-dark-bg/60 p-4 text-sm text-gray-200 md:col-span-2"><input id="allowlist-only" type="checkbox" class="h-4 w-4 accent-blue-500"><span>Restrict this stage to an allowlist <span class="text-dark-text-secondary">(addresses are supplied in the project JSON for this first draft)</span></span></label>
+                    </div>
+                </section>
+
+                <section class="rounded-3xl p-6 shadow-glow glass-panel md:p-8">
+                    <div><p class="text-xs font-semibold uppercase tracking-[.22em] text-blue-300">03 · Collection assets</p><h2 class="mt-2 text-2xl font-bold text-white">Metadata and media</h2></div>
+                    <div class="mt-6 grid gap-5 lg:grid-cols-2">
+                        <label class="drop-zone flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-2xl p-6 text-center">
+                            <span class="text-lg font-semibold text-white">Choose metadata CSV</span>
+                            <span id="csv-file-label" class="mt-2 text-sm text-dark-text-secondary">Required columns: Name, Description, File Name, Reserve For Creator</span>
+                            <input id="metadata-file" type="file" accept="text/csv,.csv" class="hidden">
+                        </label>
+                        <label class="drop-zone flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-2xl p-6 text-center">
+                            <span class="text-lg font-semibold text-white">Choose media folder</span>
+                            <span id="media-file-label" class="mt-2 text-sm text-dark-text-secondary">PNG, JPG, WEBP, GIF, or SVG · 50 MB each</span>
+                            <input id="media-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" multiple webkitdirectory directory class="hidden">
+                        </label>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <button id="download-csv" type="button" class="rounded-xl border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:border-blue-400 hover:text-white">Download CSV template</button>
+                        <button id="validate-btn" type="button" class="rounded-xl bg-brand-primary px-5 py-2 text-sm font-bold text-white shadow-lg shadow-blue-500/20 hover:bg-brand-primary-hover">Validate package</button>
+                    </div>
+                </section>
+
+                <section class="rounded-3xl p-6 shadow-glow glass-panel md:p-8">
+                    <div class="flex flex-wrap items-start justify-between gap-4"><div><p class="text-xs font-semibold uppercase tracking-[.22em] text-blue-300">04 · Review</p><h2 class="mt-2 text-2xl font-bold text-white">Items and validation</h2></div><span id="validation-badge" class="rounded-full border border-gray-600 bg-gray-700/50 px-3 py-1 text-xs font-semibold text-gray-300">Not validated</span></div>
+                    <div id="validation-messages" class="mt-6 hidden space-y-3"></div>
+                    <div class="mt-6 overflow-hidden rounded-2xl border border-white/5">
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[720px] text-left text-sm">
+                                <thead class="bg-dark-bg/80 text-xs uppercase tracking-[.16em] text-dark-text-secondary"><tr><th class="px-4 py-3">#</th><th class="px-4 py-3">Name</th><th class="px-4 py-3">Media</th><th class="px-4 py-3">Traits</th><th class="px-4 py-3">Inventory</th></tr></thead>
+                                <tbody id="item-table" class="divide-y divide-white/5"><tr><td colspan="5" class="px-4 py-10 text-center text-dark-text-secondary">Load a CSV to review collection items.</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rounded-3xl p-6 shadow-glow glass-panel md:p-8">
+                    <div><p class="text-xs font-semibold uppercase tracking-[.22em] text-brand-secondary">05 · Publication bundle</p><h2 class="mt-2 text-2xl font-bold text-white">Generate operator handoff</h2></div>
+                    <p class="mt-3 text-sm leading-6 text-dark-text-secondary">The bundle contains public launch configuration and exact on-chain initialization data. It never contains a private key or seed phrase.</p>
+                    <div class="mt-6 grid gap-5 md:grid-cols-2">
+                        <label class="text-sm font-medium text-gray-200 md:col-span-2">Hosted media base URL<input id="media-base-url" class="field mt-2" type="url" placeholder="https://cdn.example.com/collection"><span class="mt-2 block text-xs font-normal leading-5 text-dark-text-secondary">Upload and verify the media first; filenames from the CSV are appended to this URL.</span></label>
+                        <label class="text-sm font-medium text-gray-200 md:col-span-2">AlphaCity treasury address<input id="platform-treasury" class="field mt-2 font-mono text-sm" placeholder="0x…" autocomplete="off" spellcheck="false"></label>
+                        <label class="text-sm font-medium text-gray-200">Published package ID <span class="text-dark-text-secondary">(optional)</span><input id="package-id" class="field mt-2 font-mono text-sm" placeholder="0x…"></label>
+                        <label class="text-sm font-medium text-gray-200">Shared drop object ID <span class="text-dark-text-secondary">(optional)</span><input id="drop-id" class="field mt-2 font-mono text-sm" placeholder="0x…"></label>
+                    </div>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <button id="export-project" type="button" class="rounded-xl border border-gray-700 px-5 py-3 font-semibold text-gray-200 hover:border-blue-400 hover:text-white">Export project JSON</button>
+                        <button id="export-bundle" type="button" disabled class="rounded-xl bg-gray-700 px-5 py-3 font-bold text-gray-400">Export prepared bundle</button>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="space-y-5 xl:sticky xl:top-28 xl:self-start">
+                <div class="rounded-3xl p-6 shadow-glow glass-panel">
+                    <p class="text-xs font-semibold uppercase tracking-[.22em] text-dark-text-secondary">Readiness</p>
+                    <div id="readiness-list" class="mt-5 space-y-3"></div>
+                </div>
+                <div class="rounded-3xl border border-yellow-400/20 bg-yellow-400/5 p-6">
+                    <h3 class="font-bold text-yellow-200">Production boundary</h3>
+                    <p class="mt-2 text-sm leading-6 text-yellow-100/70">This page prepares and validates launches. Package publication remains an explicit AlphaCity multisig or hardware-wallet action.</p>
+                </div>
+                <div class="rounded-3xl p-6 glass-panel">
+                    <h3 class="font-bold text-white">After export</h3>
+                    <ol class="mt-3 space-y-3 text-sm leading-6 text-dark-text-secondary">
+                        <li>1. Upload media to permanent storage.</li>
+                        <li>2. Run the CLI preparation command.</li>
+                        <li>3. Publish and initialize the Move package.</li>
+                        <li>4. Add package and drop IDs, then export again.</li>
+                        <li>5. Add the collection config to the registry.</li>
+                    </ol>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="mt-12 border-t border-white/5 py-8"><div class="container mx-auto px-4 text-center text-sm text-dark-text-secondary">Alpha City managed NFT launch workflow.</div></footer>
+    <script src="/shared/wallet-sync.js"></script>
+    <script src="/shared/wallet-connector.js"></script>
+    <script src="/shared/launchpad-core.js"></script>
+    <script src="/launchpad/operator/operator.js"></script>
+</body>
+</html>
