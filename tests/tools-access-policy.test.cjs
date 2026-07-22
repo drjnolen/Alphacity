@@ -11,6 +11,7 @@ const intel = read('intel/index.html');
 const airdrop = read('airdrop/index.html');
 const pay = read('pay/index.html');
 const sluice = read('sluice/app-source.js');
+const deployment = read('.github/workflows/deploy.yml');
 
 test('shared tool access requires one million CITY and invalidates old threshold caches', () => {
     assert.match(gate, /GATE_THRESHOLD = 1000000n \* \(10n \*\* 9n\)/);
@@ -28,4 +29,10 @@ test('the tools portal targets the intel route and no analyze route remains', ()
     assert.match(tools, /href="\/intel\/"/);
     assert.doesNotMatch(tools, /href="\/analyze\//);
     assert.match(tools, /GATE_MAX_CITY\s+= 1000000/);
+});
+
+test('the Pages workflow injects runtime configuration into the deployed intel page', () => {
+    assert.match(deployment, /sed -i [^\n]+ intel\/index\.html/);
+    assert.doesNotMatch(deployment, /analyze\/index\.html/);
+    assert.match(intel, /__OPENAI_PROXY_URL__/);
 });
