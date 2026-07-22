@@ -3,11 +3,11 @@
 
     const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
     const CITY_STAKING_TYPE = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9::city_staking::UserStake<0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY>';
-    const GATE_THRESHOLD = 5000000n * (10n ** 9n); // 5M CITY (9 decimals)
+    const GATE_THRESHOLD = 1000000n * (10n ** 9n); // 1M CITY (9 decimals)
 
     const isToolsPage = window.location.pathname.includes('/tools');
     const isAnalyzeLocalPreview = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname) &&
-        window.location.pathname.startsWith('/analyze') &&
+        window.location.pathname.startsWith('/intel') &&
         new URLSearchParams(window.location.search).get('preview') === '1';
 
     // Local-only preview keeps the production gate intact while allowing visual QA.
@@ -67,8 +67,9 @@
         const cachedStatus = sessionStorage.getItem('alphacity_gate_status');
         const cachedLiquid = sessionStorage.getItem('alphacity_gate_liquid');
         const cachedStaked = sessionStorage.getItem('alphacity_gate_staked');
+        const cachedThreshold = sessionStorage.getItem('alphacity_gate_threshold');
 
-        if (cachedAddress === address && cachedStatus) {
+        if (cachedAddress === address && cachedStatus && cachedThreshold === GATE_THRESHOLD.toString()) {
             handleResult(
                 cachedStatus === 'unlocked',
                 BigInt(cachedLiquid || '0'),
@@ -86,6 +87,7 @@
             sessionStorage.setItem('alphacity_gate_status', isAllowed ? 'unlocked' : 'locked');
             sessionStorage.setItem('alphacity_gate_liquid', liquid.toString());
             sessionStorage.setItem('alphacity_gate_staked', staked.toString());
+            sessionStorage.setItem('alphacity_gate_threshold', GATE_THRESHOLD.toString());
 
             handleResult(isAllowed, liquid, staked, true);
         } catch (e) {
@@ -147,6 +149,7 @@
                 sessionStorage.removeItem('alphacity_gate_status');
                 sessionStorage.removeItem('alphacity_gate_liquid');
                 sessionStorage.removeItem('alphacity_gate_staked');
+                sessionStorage.removeItem('alphacity_gate_threshold');
 
                 window.alphacityGate = { connected: false };
 

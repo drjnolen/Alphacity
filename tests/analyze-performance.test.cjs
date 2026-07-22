@@ -3,11 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
-const analyzeHtml = fs.readFileSync(path.join(__dirname, '..', 'analyze', 'index.html'), 'utf8');
-const tailwindCss = fs.readFileSync(path.join(__dirname, '..', 'analyze', 'tailwind.css'), 'utf8');
+const analyzeHtml = fs.readFileSync(path.join(__dirname, '..', 'intel', 'index.html'), 'utf8');
+const tailwindCss = fs.readFileSync(path.join(__dirname, '..', 'intel', 'tailwind.css'), 'utf8');
 
 test('Analyze uses precompiled Tailwind without permanent glass compositor layers', () => {
-    assert.match(analyzeHtml, /href="\/analyze\/tailwind\.css"/);
+    assert.match(analyzeHtml, /href="\/intel\/tailwind\.css"/);
     assert.doesNotMatch(analyzeHtml, /cdn\.tailwindcss\.com/);
     assert.doesNotMatch(analyzeHtml, /backdrop-filter\s*:/);
     assert.doesNotMatch(analyzeHtml, /will-change\s*:/);

@@ -1,5 +1,5 @@
 module.exports = {
-    content: ['./analyze/index.html'],
+    content: ['./intel/index.html'],
     theme: {
         extend: {
             fontFamily: {

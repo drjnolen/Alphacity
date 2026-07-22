@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#111827">
     <meta name="color-scheme" content="dark">
     <title>CITY Intelligence Terminal - Alpha City</title>
-    <link rel="stylesheet" href="/analyze/tailwind.css">
+    <link rel="stylesheet" href="/intel/tailwind.css">
 
     <!-- Prevent gated content from flashing while deferred access checks run. -->
     <style id="tools-gate-style">body { display: none !important; }</style>
@@ -1492,7 +1492,7 @@
     // =========================================================
     const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
     const CITY_STAKING_TYPE = '0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9::city_staking::UserStake<0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY>';
-    const CITY_ACCESS_MIN   = 5_000_000n * 10n ** 9n; // 5M CITY × 10^9 decimals
+    const CITY_ACCESS_MIN   = 1_000_000n * 10n ** 9n; // 1M CITY × 10^9 decimals
 
     // Canonical SUI coin type (short and full-length forms)
     function isSuiCoinType(coinType) {

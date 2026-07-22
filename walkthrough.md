@@ -1,6 +1,6 @@
 # Walkthrough - SUI Token Safety Checker & Trading Widgets
 
-We have successfully implemented the **Token Safety Checker** widget alongside the **Trending & Watchlist** and **APY Yield Radar** widgets in the Left Column of the `/analyze` dashboard page.
+We have successfully implemented the **Token Safety Checker** widget alongside the **Trending & Watchlist** and **APY Yield Radar** widgets in the Left Column of the `/intel` dashboard page.
 
 ---
 
@@ -36,7 +36,7 @@ The Token Safety Checker is a smart contract audit tool designed to evaluate the
 ## Verification & Testing
 
 ### 1. Syntax Check
-Ensured no script errors exist in `analyze/index.html`:
+Ensured no script errors exist in `intel/index.html`:
 ```bash
 node scratch/verify_syntax.js
 ```

@@ -14,7 +14,7 @@
  *
  * After deploying, add the Worker URL as a GitHub Actions secret named
  * OPENAI_PROXY_URL (e.g. https://alphacity-openai-proxy.<you>.workers.dev)
- * so the deploy workflow can inject it into the analyze page.
+ * so the deploy workflow can inject it into the intel page.
  *
  * ── Environment variables / secrets ────────────────────────────────────
  *   OPENAI_API_KEY   (secret)   — your OpenAI API key

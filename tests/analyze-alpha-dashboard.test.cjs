@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'analyze', 'index.html'), 'utf8');
-const css = fs.readFileSync(path.join(__dirname, '..', 'analyze', 'tailwind.css'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'intel', 'index.html'), 'utf8');
+const css = fs.readFileSync(path.join(__dirname, '..', 'intel', 'tailwind.css'), 'utf8');
 
 test('Intelligence Dashboard defaults to the Signal Radar and exposes dislocations', () => {
     assert.match(html, /src="\/shared\/alpha-signals\.js"/);
