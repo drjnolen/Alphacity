@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const root = path.join(__dirname, '..');
-const analyzeHtml = fs.readFileSync(path.join(root, 'analyze', 'index.html'), 'utf8');
+const analyzeHtml = fs.readFileSync(path.join(root, 'intel', 'index.html'), 'utf8');
 const proxyWorker = fs.readFileSync(path.join(root, 'api', 'openai-proxy', 'worker.js'), 'utf8');
 const lpTools = fs.readFileSync(path.join(root, 'shared', 'lp-tools.js'), 'utf8');
 

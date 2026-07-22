@@ -33,7 +33,7 @@ test('the creator dashboard loads wallet sync, Sui client, and gate before Payli
 });
 
 test('generated links use a public payer context page while only creation is CITY-gated', () => {
-    assert.match(page, /Creator access requires 5M CITY/i);
+    assert.match(page, /Creator access requires 1M CITY/i);
     assert.match(page, /payer does not need CITY/i);
     assert.match(configSource, /https:\/\/my\.slush\.app\/pay/);
     assert.match(configSource, /https:\/\/alphacity\.tech\/pay\/request\//);

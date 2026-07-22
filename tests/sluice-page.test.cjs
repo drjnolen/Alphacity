@@ -12,7 +12,7 @@ const css = fs.readFileSync(path.join(root, 'sluice', 'sluice.css'), 'utf8');
 
 test('Sluice is public for viewing and claims, with creation gated in-app', () => {
     assert.doesNotMatch(html, /tools-gate\.js/);
-    assert.match(source, /CREATION_GATE/);
+    assert.match(source, /CREATION_GATE = 1_000_000n \* 1_000_000_000n/);
     assert.match(source, /refreshGate/);
     assert.match(source, /Viewing and claiming remain public/);
 });

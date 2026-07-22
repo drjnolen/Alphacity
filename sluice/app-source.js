@@ -24,7 +24,7 @@ const CLOCK_ID = '0x6';
 const SUI_TYPE = normalizeCoinType('0x2::sui::SUI');
 const CITY_TYPE = normalizeCoinType('0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY');
 const CITY_STAKING_TYPE = `${normalizeAddress('0x008856d5d6d60a088f6153dbe6f7697d19f81d1d0403695c9e9fbaecdc8b29a9')}::city_staking::UserStake<${CITY_TYPE}>`;
-const CREATION_GATE = 5_000_000n * 1_000_000_000n;
+const CREATION_GATE = 1_000_000n * 1_000_000_000n;
 const DEFAULT_CONFIG = {
     network: 'mainnet',
     v2PackageAddress: '',
@@ -189,7 +189,7 @@ function renderGate() {
     } else if (state.gate) {
         value.textContent = state.gate.allowed
             ? `Creation unlocked · ${formatUnits(state.gate.total, 9, 2)} CITY liquid + staked`
-            : `Creation requires 5,000,000 CITY · current liquid + staked: ${formatUnits(state.gate.total, 9, 2)}`;
+            : `Creation requires 1,000,000 CITY · current liquid + staked: ${formatUnits(state.gate.total, 9, 2)}`;
     } else {
         value.textContent = 'Checking CITY balance…';
     }
@@ -372,7 +372,7 @@ async function createSchedule(event) {
     if (!packageId) throw new Error('Sluice V2 is not deployed/configured yet');
     if (!state.address) throw new Error('Connect a wallet first');
     await refreshGate();
-    if (!state.gate?.allowed) throw new Error('Creation requires 5,000,000 CITY, including supported staked CITY');
+    if (!state.gate?.allowed) throw new Error('Creation requires 1,000,000 CITY, including supported staked CITY');
 
     const coinType = normalizeCoinType($('coin-type').value);
     const metadata = await getMetadata(coinType);

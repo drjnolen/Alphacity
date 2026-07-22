@@ -12,7 +12,7 @@ const Arcade = require(path.join(root, 'shared', 'predict-arcade.js'));
 test('the hidden Predict route is noindex and absent from existing navigation surfaces', () => {
     assert.match(html, /name="robots" content="noindex,nofollow,noarchive,nosnippet"/);
     assert.match(html, /Testnet Preview/);
-    for (const relative of ['index.html', 'tools/index.html', 'analyze/index.html', 'staking/index.html', 'districts/index.html']) {
+    for (const relative of ['index.html', 'tools/index.html', 'intel/index.html', 'staking/index.html', 'districts/index.html']) {
         const source = fs.readFileSync(path.join(root, relative), 'utf8');
         assert.doesNotMatch(source, /href=["']\/predict\/?["']/, `${relative} unexpectedly links to Predict`);
     }

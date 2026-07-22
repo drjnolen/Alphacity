@@ -2,7 +2,7 @@
   "name": "alpha-city-static-site",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -c tailwind.config.cjs -i ./analyze/tailwind.input.css -o ./analyze/tailwind.css --minify",
+    "build:css": "tailwindcss -c tailwind.config.cjs -i ./intel/tailwind.input.css -o ./intel/tailwind.css --minify",
     "build:paylink-css": "tailwindcss -c pay/tailwind.config.cjs -i ./pay/tailwind.input.css -o ./pay/tailwind.css --minify",
     "build:paylink": "esbuild shared/paylink-client-source.js --bundle --minify --format=iife --global-name=AlphaCityPaylinkBundle --platform=browser --target=es2022 --outfile=shared/paylink-client.js",
     "build:paylink-request": "esbuild shared/paylink-request-source.js --bundle --minify --format=iife --global-name=AlphaCityPaylinkRequestBundle --platform=browser --target=es2022 --outfile=shared/paylink-request.js",

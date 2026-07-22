@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const root = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'analyze', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'intel', 'index.html'), 'utf8');
 const gate = fs.readFileSync(path.join(root, 'shared', 'tools-gate.js'), 'utf8');
 
 test('Analyze defers shared dependencies without flashing gated content', () => {
@@ -68,7 +68,7 @@ test('intelligence tab choice persists and supports arrow-key navigation', () =>
 
 test('local Analyze preview cannot bypass the gate on a non-loopback host', () => {
     assert.match(gate, /\['localhost', '127\.0\.0\.1', '::1'\]\.includes\(window\.location\.hostname\)/);
-    assert.match(gate, /window\.location\.pathname\.startsWith\('\/analyze'\)/);
+    assert.match(gate, /window\.location\.pathname\.startsWith\('\/intel'\)/);
     assert.match(gate, /get\('preview'\) === '1'/);
     assert.match(gate, /function scheduleWalletCheck/);
     assert.match(gate, /visibilitychange/);

@@ -10,7 +10,7 @@ Route: `/pay/`
 
 Build a CITY-gated creator console that lets an authorized user generate a standards-based Sui payment request, render it as a QR code, share it as a Slush universal link, and monitor whether it has been paid.
 
-The Alpha City application remains gated exactly like Analyze, Sluice, and Airdrop. The payment link itself is not an Alpha City page: it points directly to the public `https://my.slush.app/pay?...` flow. This preserves the requested CITY gate for tool access without requiring every customer who pays an invoice to hold 5,000,000 CITY.
+The Alpha City application remains gated exactly like Intel, Sluice, and Airdrop. The payment link itself is not an Alpha City page: it points directly to the public `https://my.slush.app/pay?...` flow. This preserves the requested CITY gate for tool access without requiring every customer who pays an invoice to hold 1,000,000 CITY.
 
 The MVP will use a dedicated Payment Kit registry with registry-managed funds disabled:
 
@@ -86,7 +86,7 @@ These exclusions must be reflected in the UI. In particular, “Archive” only 
 
 The gate loads immediately after the Sui client so it can hide the page before Paylink-specific bundles initialize. This preserves the existing no-content-flash behavior for unauthorized users.
 
-`tools-gate.js` remains the source of truth for the 5,000,000 CITY threshold, including liquid and staked CITY. The Paylink page must not implement a second balance check or duplicate the threshold.
+`tools-gate.js` remains the source of truth for the 1,000,000 CITY threshold, including liquid and staked CITY. The Paylink page must not implement a second balance check or duplicate the threshold.
 
 Expected behavior:
 
