@@ -68,17 +68,17 @@ jobs:
           fi
 
           if [ -z "${OPENAI_API_KEY}" ]; then
-            echo "::warning::OPENAI_API_KEY secret is not set. The AI analyzer feature will be unavailable. Add it under Settings → Secrets and variables → Actions."
+            echo "::warning::OPENAI_API_KEY secret is not set. The AI intelligence feature will be unavailable. Add it under Settings → Secrets and variables → Actions."
             exit 0
           fi
 
           if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN not set. Cannot deploy the OpenAI proxy. The AI analyzer feature will be unavailable."
+            echo "::warning::CLOUDFLARE_API_TOKEN not set. Cannot deploy the OpenAI proxy. The AI intelligence feature will be unavailable."
             exit 0
           fi
 
           if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
-            echo "::warning::CLOUDFLARE_ACCOUNT_ID not set. Cannot deploy the OpenAI proxy. The AI analyzer feature will be unavailable."
+            echo "::warning::CLOUDFLARE_ACCOUNT_ID not set. Cannot deploy the OpenAI proxy. The AI intelligence feature will be unavailable."
             exit 0
           fi
 
@@ -101,9 +101,9 @@ jobs:
           OPENAI_PROXY_URL: ${{ env.OPENAI_PROXY_URL }}
         run: |
           if [ -z "${OPENAI_PROXY_URL}" ]; then
-            echo "::notice::No OpenAI proxy URL configured — skipping injection. The AI analyzer feature will be unavailable."
+            echo "::notice::No OpenAI proxy URL configured — skipping injection. The AI intelligence feature will be unavailable."
           else
-            sed -i "s|__OPENAI_PROXY_URL__|${OPENAI_PROXY_URL}|g" analyze/index.html
+            sed -i "s|__OPENAI_PROXY_URL__|${OPENAI_PROXY_URL}|g" intel/index.html
           fi
 
       - name: Setup Pages
