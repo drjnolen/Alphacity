@@ -1,2 +1,5 @@
 node_modules/
 .alphacity-r2/
+
+climb/assets/
+climb/gate.js

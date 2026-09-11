@@ -16,8 +16,10 @@
     "launchpad:prepare": "node scripts/launchpad-project.cjs prepare",
     "launchpad:validate": "node scripts/launchpad-project.cjs validate",
     "launchpad:media": "node scripts/launchpad-r2-publish.cjs",
-    "build": "npm run build:sui && npm run build:paylink && npm run build:paylink-request && npm run build:sluice && npm run build:alchemy && npm run build:launchpad && npm run build:mint && npm run build:launchpad-css && npm run build:css && npm run build:paylink-css && npm run build:telemetry",
-    "test": "node --test tests/*.test.cjs"
+    "build": "npm run build:sui && npm run build:paylink && npm run build:paylink-request && npm run build:sluice && npm run build:alchemy && npm run build:launchpad && npm run build:mint && npm run build:launchpad-css && npm run build:css && npm run build:paylink-css && npm run build:telemetry && npm run build:climb",
+    "test": "node --test tests/*.test.cjs",
+    "build:climb": "npm --prefix climb/game ci --ignore-scripts && npm --prefix climb/game run build && esbuild climb/gate-source.js --bundle --minify --format=iife --platform=browser --target=es2022 --outfile=climb/gate.js --external:/climb/assets/*",
+    "test:climb": "npm --prefix climb/game test"
   },
   "dependencies": {
     "@mysten/payment-kit": "0.2.5",
