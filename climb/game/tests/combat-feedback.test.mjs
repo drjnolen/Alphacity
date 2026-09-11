@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRun,transition,same,distance} from '../src/lib/game.ts';
+import {combatFeedback,movementPath} from '../src/lib/combat-feedback.ts';
+const enter=(hero='glitchborn')=>transition(transition(createRun(hero),{type:'begin'}),{type:'visit',id:'bridge'});
+const feedback=(r,a)=>combatFeedback(r,transition(r,a),a);
+test('invalid actions make no effects and feedback is immutable',()=>{const r=enter(),copy=structuredClone(r);assert.equal(feedback(r,{type:'attack',id:1}),null);assert.equal(feedback(r,{type:'heal'}),null);assert.equal(feedback(r,{type:'guard'}).impacts[0].text,'+8 GUARD');assert.deepEqual(r,copy);});
+test('movement trail routes around solid terrain',()=>{const r=enter();r.combat.obstacles.push({x:1,y:2});const path=movementPath(r.combat,{x:3,y:1});assert.deepEqual(path.at(-1),{x:3,y:1});for(let i=1;i<path.length;i++){assert.equal(distance(path[i-1],path[i]),1);assert.ok(!r.combat.obstacles.some(o=>same(o,path[i])));}});
+test('finishing strikes retain their target, damage, and kill after combat is cleared',()=>{const r=enter();r.combat.hero={x:3,y:1};r.combat.enemies=r.combat.enemies.slice(0,1);r.combat.enemies[0].hp=2;const cue=feedback(r,{type:'attack',id:1});assert.equal(cue.victory,true);assert.equal(cue.impacts[0].text,'−2');assert.equal(cue.impacts[0].killed,true);});
+test('corruption kills cancel volleys and a win skips floor eruptions',()=>{const r=enter();for(const e of r.combat.enemies){e.hp=1;e.poison=1;}r.combat.hazards=[r.combat.hero];r.combat.hazardDamage=100;const cue=feedback(r,{type:'end'});assert.equal(cue.victory,true);assert.equal(cue.attacks.length,0);assert.equal(cue.hazards.length,0);assert.ok(cue.impacts.every(h=>h.tone==='poison'));});
+test('jammed enemies never show an attacking volley or fake damage',()=>{const r=enter('coinbroker');r.combat.enemies=r.combat.enemies.slice(0,1);r.combat.enemies[0].jammed=1;r.combat.enemies[0].intent=[r.combat.hero];const cue=feedback(r,{type:'end'});assert.equal(cue.attacks.length,0);assert.ok(!cue.impacts.some(h=>h.tone==='enemy'));});
+test('healing caps and medical restart show true health changes',()=>{const r=enter();r.hp=r.maxHp-3;assert.equal(feedback(r,{type:'heal'}).impacts[0].text,'+3');r.hp=1;r.combat.enemies[0].intent=[r.combat.hero];r.combat.enemies[0].intentDamage=100;const cue=feedback(r,{type:'end'});assert.equal(cue.revived,true);assert.ok(cue.impacts.some(h=>h.text==='+14 REBORN'));});

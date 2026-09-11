@@ -55,7 +55,9 @@ jobs:
       - name: Run regression and security checks
         run: |
           npm test
+          npm run test:climb
           npm audit --audit-level=high
+          npm --prefix climb/game audit --audit-level=high
 
       - name: Install Wrangler
         run: npm install --global wrangler@4

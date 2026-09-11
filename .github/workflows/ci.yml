@@ -31,4 +31,6 @@ jobs:
       - name: Run regression tests
         run: |
           npm test
+          npm run test:climb
           npm audit --audit-level=high
+          npm --prefix climb/game audit --audit-level=high
