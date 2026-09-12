@@ -72,8 +72,9 @@
         const cachedLiquid = sessionStorage.getItem('alphacity_gate_liquid');
         const cachedStaked = sessionStorage.getItem('alphacity_gate_staked');
         const cachedThreshold = sessionStorage.getItem('alphacity_gate_threshold');
+        const age = Date.now() - Number(sessionStorage.getItem('alphacity_gate_verified_at'));
 
-        if (cachedAddress === address && cachedStatus && cachedThreshold === GATE_THRESHOLD.toString()) {
+        if (cachedAddress === address && cachedStatus && cachedThreshold === GATE_THRESHOLD.toString() && age >= 0 && age < 300000 && /^\d+$/.test(cachedLiquid) && /^\d+$/.test(cachedStaked)) {
             track('gate_check', { result: cachedStatus, source: 'cache' });
             handleResult(
                 cachedStatus === 'unlocked',
@@ -89,11 +90,14 @@
             const isAllowed = total >= GATE_THRESHOLD;
             track('gate_check', { result: isAllowed ? 'unlocked' : 'locked', source: 'rpc' });
 
+            if (currentAddress !== address) return;
+            sessionStorage.removeItem('alphacity_gate_verified_at');
             sessionStorage.setItem('alphacity_gate_address', address);
             sessionStorage.setItem('alphacity_gate_status', isAllowed ? 'unlocked' : 'locked');
             sessionStorage.setItem('alphacity_gate_liquid', liquid.toString());
             sessionStorage.setItem('alphacity_gate_staked', staked.toString());
             sessionStorage.setItem('alphacity_gate_threshold', GATE_THRESHOLD.toString());
+            sessionStorage.setItem('alphacity_gate_verified_at', Date.now().toString());
 
             handleResult(isAllowed, liquid, staked, true);
         } catch (e) {
@@ -154,6 +158,7 @@
             currentAddress = addr;
             if (!addr) {
                 track('gate_check', { result: 'no_wallet', source: 'session' });
+                sessionStorage.removeItem('alphacity_gate_verified_at');
                 sessionStorage.removeItem('alphacity_gate_address');
                 sessionStorage.removeItem('alphacity_gate_status');
                 sessionStorage.removeItem('alphacity_gate_liquid');
