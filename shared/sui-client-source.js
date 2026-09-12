@@ -1,5 +1,6 @@
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { Transaction } from '@mysten/sui/transactions';
 
 const DEFAULT_GRPC_URL = 'https://fullnode.mainnet.sui.io:443';
 const DEFAULT_GRAPHQL_URLS = [
@@ -726,6 +727,13 @@ export function createSuiDataLayer(config = {}) {
     return {
         rpc,
         graphql,
+        async prepareTransaction(legacyTransaction) {
+            // Migrate before building: the embedded staking SDK only discovers
+            // coin objects and cannot pay gas from a SUI address balance.
+            const transaction = Transaction.from(legacyTransaction.serialize());
+            const bytes = await transaction.build({ client: grpc });
+            return { transaction, bytes };
+        },
         grpcClient: grpc,
         transport: 'grpc+graphql',
         version: '2',
