@@ -85,3 +85,19 @@ Holder-count and custom triggers are implemented at contract level but require a
 ## Operational limits
 
 GitHub scheduled workflows are not guaranteed to start exactly on time. The contract's maximum sample gap makes delays fail safe by restarting continuity, but delays can postpone activation. A continuously scheduled Cloudflare Worker or other funded keeper is the recommended production reliability upgrade after the canary phase.
+
+## Relayer reliability and upgrades
+
+The relayer resolves `VestingScheduleV2`'s defining package from the configured implementation's on-chain type-origin table before scanning objects. Sui preserves that type identity across package upgrades. Discovery uses the defining ID; transaction calls use `SLUICE_V2_PACKAGE_ADDRESS`. An absent type-origin entry or incomplete indexer response fails the run instead of silently reporting an empty scan. Pagination rejects missing/repeated cursors and deduplicates overlapping pages.
+
+GraphQL and market-feed reads have a 15-second deadline covering both headers and the JSON body. Network errors, timeouts, HTTP 429, and server errors receive at most three attempts with bounded backoff. Signed transactions are not automatically retried. Same-token market data is shared for at most 30 seconds, retains its original acquisition timestamp, and is evicted after a failed request. Before signing, the relayer checks the schedule's freshness limit, replay boundary, and deadline again. A malformed schedule is reported without preventing later valid schedules from being serviced.
+
+The workflow installs only locked runtime dependencies and skips installation scripts. These relayer changes require no new repository variables, contract publication, or frontend changes.
+
+### Production review: September 11, 2026 (America/Denver)
+
+- Read-only mainnet discovery returned two V2 canaries, one completed and one cancelled; there were no pending schedules. A green empty scan verifies discovery/configuration, not sustained-trigger timing under load.
+- The three reviewed successful workflow starts were `2026-09-11T21:14:17Z`, `2026-09-11T23:21:38Z`, and `2026-09-12T01:18:01Z`. Those roughly two-hour gaps exceed the Create form's 20-minute default maximum sample gap despite the configured 15-minute cron. Use a keeper with reliably shorter gaps before depending on continuous market-trigger activation. Widening the allowed gap changes the validation policy and is not a substitute for frequent observations.
+- The configured implementation remains the July package `0xa95f0f0860baab092b26a8f19190ccd0c11f07d76513a8c32a5dcc0fd7f47b91`. The contract deadline protection merged in PR #132 is not made active merely by merging source code. Complete the package upgrade and deployment configuration rollout before relying on that protection. Old published implementations remain callable under Sui's upgrade model; stronger migration enforcement would need a separate contract design review.
+
+No mainnet transaction or key rotation was performed during this backend review.

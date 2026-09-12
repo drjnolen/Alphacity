@@ -22,18 +22,71 @@ const DEFAULT_GRAPHQL = 'https://graphql.mainnet.sui.io/graphql';
 const DEFAULT_GRPC = 'https://fullnode.mainnet.sui.io:443';
 const OBSERVATION_CLOCK_SKEW_MS = 30_000n;
 const FETCH_TIMEOUT_MS = 15_000;
+const PAIR_CACHE_TTL_MS = 30_000;
 
-async function fetchWithTimeout(fetchImpl, url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+async function fetchJsonWithTimeout(fetchImpl, url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        return await fetchImpl(url, { ...options, signal: controller.signal });
+        const response = await fetchImpl(url, { ...options, signal: controller.signal });
+        if (!response.ok) {
+            await response.body?.cancel();
+            const error = new Error(`HTTP ${response.status}: ${url}`);
+            error.retryable = response.status === 429 || response.status >= 500;
+            throw error;
+        }
+        // Keep the deadline active until the body has been consumed, not just
+        // until the server sends its headers.
+        return await response.json();
     } catch (error) {
-        if (controller.signal.aborted) throw new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
+        if (controller.signal.aborted) {
+            const timedOut = new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
+            timedOut.retryable = true;
+            throw timedOut;
+        }
         throw error;
     } finally {
         clearTimeout(timeout);
     }
+}
+
+async function fetchJson(fetchImpl, url, options = {}, { sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), timeoutMs = FETCH_TIMEOUT_MS } = {}) {
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            return await fetchJsonWithTimeout(fetchImpl, url, options, timeoutMs);
+        } catch (error) {
+            // Only reads are retried. Never blindly retry a signed transaction.
+            const retryable = error.retryable === true
+                || (error.retryable === undefined && error instanceof TypeError);
+            if (!retryable || attempt >= 2) throw error;
+            await sleep(500 * (2 ** attempt));
+        }
+    }
+}
+
+async function queryGraphql(graphqlUrl, query, variables, fetchImpl) {
+    const payload = await fetchJson(fetchImpl, graphqlUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query, variables }),
+    });
+    if (payload?.errors?.length) throw new Error(payload.errors.map(error => error.message).join('; '));
+    if (!payload?.data) throw new Error('Sui GraphQL response is missing data');
+    return payload.data;
+}
+
+async function queryScheduleTypeOrigin(graphqlUrl, packageId, fetchImpl = fetch) {
+    const data = await queryGraphql(graphqlUrl, `
+        query SluiceV2TypeOrigin($package: SuiAddress!) {
+            object(address: $package) {
+                asMovePackage { typeOrigins { module struct definingId } }
+            }
+        }`, { package: packageId }, fetchImpl);
+    const origin = data.object?.asMovePackage?.typeOrigins?.find(
+        type => type.module === 'sluice_v2' && type.struct === 'VestingScheduleV2',
+    );
+    if (!origin?.definingId) throw new Error('Configured package does not define the Sluice V2 schedule type');
+    return normalizeAddress(origin.definingId);
 }
 
 function requiredEnvironment(name) {
@@ -90,21 +143,21 @@ async function querySchedules(graphqlUrl, packageId, fetchImpl = fetch) {
             }
         }`;
     const output = [];
+    const seenCursors = new Set();
+    const seenObjects = new Set();
     let after = null;
     do {
-        const response = await fetchWithTimeout(fetchImpl, graphqlUrl, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                query,
-                variables: { type: `${packageId}::sluice_v2::VestingScheduleV2`, after },
-            }),
-        });
-        if (!response.ok) throw new Error(`Sui GraphQL HTTP ${response.status}`);
-        const payload = await response.json();
-        if (payload.errors?.length) throw new Error(payload.errors.map(error => error.message).join('; '));
-        const connection = payload.data?.objects;
-        for (const node of (connection?.nodes || [])) {
+        const data = await queryGraphql(graphqlUrl, query, {
+            type: `${packageId}::sluice_v2::VestingScheduleV2`, after,
+        }, fetchImpl);
+        const connection = data.objects;
+        if (!Array.isArray(connection?.nodes) || typeof connection?.pageInfo?.hasNextPage !== 'boolean') {
+            throw new Error('Sui GraphQL returned an incomplete schedule connection');
+        }
+        for (const node of connection.nodes) {
+            const id = normalizeAddress(node.address);
+            if (seenObjects.has(id)) continue;
+            seenObjects.add(id);
             const move = node.asMoveObject;
             output.push({ data: {
                 objectId: node.address,
@@ -117,28 +170,44 @@ async function querySchedules(graphqlUrl, packageId, fetchImpl = fetch) {
                 },
             }});
         }
-        after = connection?.pageInfo?.hasNextPage ? connection.pageInfo.endCursor : null;
+        after = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null;
+        if (connection.pageInfo.hasNextPage) {
+            if (typeof after !== 'string' || !after || seenCursors.has(after)) {
+                throw new Error('Sui GraphQL schedule pagination did not advance');
+            }
+            seenCursors.add(after);
+        }
     } while (after);
     return output;
 }
 
 async function fetchDexPairs(coinType, fetchImpl = fetch) {
-    const response = await fetchWithTimeout(fetchImpl, `https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(coinType)}`, {
+    const payload = await fetchJson(fetchImpl, `https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(coinType)}`, {
         headers: { accept: 'application/json', 'user-agent': 'AlphaCity-Sluice-V2/1.0' },
     });
-    if (!response.ok) throw new Error(`DexScreener HTTP ${response.status}`);
-    const payload = await response.json();
+    if (!payload || (payload.pairs != null && !Array.isArray(payload.pairs))) {
+        throw new Error('DexScreener returned an invalid pair list');
+    }
     return payload.pairs || [];
 }
 
-async function fetchObservation(schedule, fetchImpl = fetch, pairCache = null) {
+async function fetchObservation(schedule, fetchImpl = fetch, pairCache = null, now = Date.now) {
     const cacheKey = normalizeCoinType(schedule.coinType);
-    let pairsPromise = pairCache?.get(cacheKey);
-    if (!pairsPromise) {
-        pairsPromise = fetchDexPairs(cacheKey, fetchImpl);
-        if (pairCache) pairCache.set(cacheKey, pairsPromise);
+    let entry = pairCache?.get(cacheKey);
+    const currentTime = now();
+    if (!entry || currentTime < entry.fetchedAtMs || currentTime - entry.fetchedAtMs >= PAIR_CACHE_TTL_MS) {
+        entry = { fetchedAtMs: currentTime, promise: fetchDexPairs(cacheKey, fetchImpl) };
+        if (pairCache) pairCache.set(cacheKey, entry);
     }
-    return observationFromPairs(schedule, await pairsPromise);
+    let pairs;
+    try {
+        pairs = await entry.promise;
+    } catch (error) {
+        // A transient failure must not poison this coin for every later schedule.
+        if (pairCache?.get(cacheKey) === entry) pairCache.delete(cacheKey);
+        throw error;
+    }
+    return { ...observationFromPairs(schedule, pairs), fetchedAtMs: BigInt(entry.fetchedAtMs) };
 }
 
 function verifyScheduleConfig(schedule) {
@@ -156,6 +225,12 @@ function verifyScheduleConfig(schedule) {
 }
 
 function matchOracleSigners(schedulePublicKeys, threshold, keypairs) {
+    if (!Number.isInteger(threshold) || threshold < 1 || threshold > schedulePublicKeys.length
+        || schedulePublicKeys.length > 10
+        || schedulePublicKeys.some(key => key.length !== 32)
+        || new Set(schedulePublicKeys.map(key => Buffer.from(key).toString('hex'))).size !== schedulePublicKeys.length) {
+        throw new Error('Schedule has an invalid oracle policy');
+    }
     const owned = new Map(keypairs.map(keypair => [rawPublicKeyHex(keypair), keypair]));
     const matches = [];
     schedulePublicKeys.forEach((publicKey, index) => {
@@ -198,6 +273,21 @@ async function waitForFinality(client, result) {
 function safeObservationTimestamp(localNowMs = BigInt(Date.now())) {
     const timestamp = BigInt(localNowMs);
     return timestamp > OBSERVATION_CLOCK_SKEW_MS ? timestamp - OBSERVATION_CLOCK_SKEW_MS : 0n;
+}
+
+function observationTimestamp(schedule, observation, maxObservationAgeMs, currentTimeMs) {
+    // Cached values retain their original acquisition time. Re-stamping them
+    // at submission would make old data look fresh to the contract.
+    const timestamp = safeObservationTimestamp(observation.fetchedAtMs);
+    const maxAge = BigInt(maxObservationAgeMs);
+    if (maxAge <= 0n || timestamp > currentTimeMs || currentTimeMs - timestamp >= maxAge
+        || currentTimeMs - timestamp >= 5n * 60_000n) {
+        throw new Error('Market observation is too old for this schedule; a fresh sample is required');
+    }
+    if (timestamp <= schedule.lastObservedAtMs) {
+        throw new Error('Market observation does not advance the last on-chain sample');
+    }
+    return timestamp;
 }
 
 async function submitObservation({ client, gasKeypair, packageId, schedule, schedulePublicKeys, threshold, oracleKeypairs, observedValue, nowMs }) {
@@ -266,35 +356,43 @@ async function run(options = {}) {
 
     console.log(`Sluice V2 relayer ${dryRun ? 'dry run' : 'scan'} for ${packageId}`);
     console.log(`Gas sponsor: ${gasKeypair.toSuiAddress()} · oracle keys: ${oracleKeypairs.length}`);
-    const objects = await querySchedules(graphqlUrl, packageId, fetchImpl);
+    // Object types retain their defining package across upgrades; transaction
+    // calls must still target the configured (current) implementation package.
+    const typeOrigin = await queryScheduleTypeOrigin(graphqlUrl, packageId, fetchImpl);
+    const objects = await querySchedules(graphqlUrl, typeOrigin, fetchImpl);
     console.log(`Indexed ${objects.length} V2 schedules.`);
     let pending = 0;
     let submitted = 0;
     let failed = 0;
     const pairCache = new Map();
+    const now = options.now || Date.now;
+
+    async function serviceExpiry(schedule) {
+        if (schedule.triggerDeadlineMs === 0n || BigInt(now()) < schedule.triggerDeadlineMs) return false;
+        if (dryRun) console.log(`[dry-run] ${schedule.id} would resolve its expired fallback`);
+        else {
+            const digest = await resolveExpired({ client, gasKeypair, packageId, schedule });
+            console.log(`${schedule.id} expired fallback submitted: ${digest}`);
+            submitted += 1;
+        }
+        return true;
+    }
 
     for (const object of objects) {
-        const fields = object.data.content.fields;
-        const schedule = parseScheduleObject(object);
-        if (schedule.status !== 0 || schedule.triggerKind === TRIGGERS.TIME) continue;
-        pending += 1;
         try {
-            const currentTimeMs = BigInt(Date.now());
-            if (schedule.triggerDeadlineMs > 0n && currentTimeMs >= schedule.triggerDeadlineMs) {
-                if (dryRun) console.log(`[dry-run] ${schedule.id} would resolve its expired fallback`);
-                else {
-                    const digest = await resolveExpired({ client, gasKeypair, packageId, schedule });
-                    console.log(`${schedule.id} expired fallback submitted: ${digest}`);
-                    submitted += 1;
-                }
-                continue;
-            }
+            const fields = object.data.content.fields;
+            const schedule = parseScheduleObject(object);
+            if (schedule.status !== 0 || schedule.triggerKind === TRIGGERS.TIME) continue;
+            pending += 1;
+            if (await serviceExpiry(schedule)) continue;
             verifyScheduleConfig(schedule);
             const publicKeys = nestedByteVectors(fields.oracle_pubkeys);
             const threshold = Number(fields.oracle_threshold || 0);
             matchOracleSigners(publicKeys, threshold, oracleKeypairs);
-            const observation = await fetchObservation(schedule, fetchImpl, pairCache);
-            const nowMs = safeObservationTimestamp(currentTimeMs);
+            const observation = await fetchObservation(schedule, fetchImpl, pairCache, now);
+            // Network reads/retries may have crossed the immutable deadline.
+            if (await serviceExpiry(schedule)) continue;
+            const nowMs = observationTimestamp(schedule, observation, fields.max_observation_age_ms, BigInt(now()));
             if (dryRun) {
                 console.log(`[dry-run] ${schedule.id} ${triggerMetricName(schedule.triggerKind)}=${observation.observedValue} via ${observation.pair}`);
             } else {
@@ -311,11 +409,11 @@ async function run(options = {}) {
             }
         } catch (error) {
             failed += 1;
-            console.error(`${schedule.id} skipped: ${error.message}`);
+            console.error(`${object?.data?.objectId || 'Unknown schedule'} skipped: ${error.message}`);
         }
     }
     console.log(`Relayer complete: ${pending} pending, ${submitted} submitted, ${failed} failed.`);
-    if (failed) throw new Error(`${failed} pending schedule(s) could not be serviced`);
+    if (failed) throw new Error(`${failed} schedule(s) could not be serviced`);
     return { indexed: objects.length, pending, submitted, failed };
 }
 
@@ -331,7 +429,9 @@ if (require.main === module) {
 module.exports = {
     keypairFromSecret,
     nestedByteVectors,
-    fetchWithTimeout,
+    fetchJsonWithTimeout,
+    fetchJson,
+    queryScheduleTypeOrigin,
     querySchedules,
     selectPrimaryPair,
     metricValue,
@@ -343,6 +443,7 @@ module.exports = {
     effectSucceeded,
     waitForFinality,
     safeObservationTimestamp,
+    observationTimestamp,
     submitObservation,
     run,
 };
