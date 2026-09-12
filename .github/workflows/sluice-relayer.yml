@@ -30,7 +30,7 @@ jobs:
           cache: npm
 
       - name: Install locked dependencies
-        run: npm ci
+        run: npm ci --omit=dev --ignore-scripts
 
       - name: Submit signed V2 observations on-chain
         env:
