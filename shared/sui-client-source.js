@@ -727,10 +727,28 @@ export function createSuiDataLayer(config = {}) {
     return {
         rpc,
         graphql,
-        async prepareTransaction(legacyTransaction) {
+        createStakeTransaction({ sender, coinType, packageId, poolId, clockId, amount, lockDays }) {
+            const transaction = new Transaction();
+            const balance = BigInt(amount);
+            if (balance <= 0n) throw new Error('Enter a non-zero amount.');
+            transaction.setSender(sender);
+            // Match getBalance's total: CITY can be held as coin objects, an
+            // address balance, or both. The SDK resolves and paginates these.
+            const coin = transaction.coin({ type: coinType, balance });
+            transaction.moveCall({
+                target: `${packageId}::city_staking::stake_new`,
+                typeArguments: [coinType],
+                arguments: [transaction.object(poolId), coin,
+                    transaction.pure.u64(lockDays), transaction.object(clockId)],
+            });
+            return transaction;
+        },
+        async prepareTransaction(input) {
             // Migrate before building: the embedded staking SDK only discovers
             // coin objects and cannot pay gas from a SUI address balance.
-            const transaction = Transaction.from(legacyTransaction.serialize());
+            // Both SDK generations use the same brand symbol; only the modern
+            // Transaction has getData and can be copied with unresolved intents.
+            const transaction = Transaction.from(typeof input.getData === 'function' ? input : input.serialize());
             const bytes = await transaction.build({ client: grpc });
             return { transaction, bytes };
         },
