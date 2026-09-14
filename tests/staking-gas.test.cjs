@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const context = vm.createContext({
     TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, DataView,
     URL, URLSearchParams, Headers, Request, Response, fetch, atob, btoa,
-    console, setTimeout, clearTimeout, Event,
+    console, setTimeout, clearTimeout, Event, structuredClone,
     document: { createElement: () => ({ relList: { supports: () => true } }) },
 });
 context.window = context;
@@ -184,4 +184,98 @@ test('all three shipped wallet adapters use the new transaction path', () => {
     assert.equal(asset.includes('.build({client:bt})'), false);
     const html = fs.readFileSync(path.join(root, 'staking/index.html'), 'utf8');
     assert.ok(html.indexOf('/staking/transaction-client.js') < html.indexOf('/assets/index-BymD0MH7.js'));
+});
+
+const cityType = `0x${'0'.repeat(61)}abc::city::CITY`;
+const maxAmount = 67322201712345n;
+function cityLayer(addressBalance, pages) {
+    const client = mockClient();
+    const cursors = [];
+    client.core.getBalance = async ({ coinType, owner: sender }) => {
+        assert.equal(coinType, cityType);
+        assert.equal(sender, owner);
+        const coinBalance = pages.flat().reduce((sum, coin) => sum + BigInt(coin.balance), 0n);
+        return { balance: { balance: String(coinBalance + addressBalance), coinBalance: String(coinBalance), addressBalance: String(addressBalance) } };
+    };
+    client.core.listCoins = async ({ cursor, coinType }) => {
+        assert.equal(coinType, cityType);
+        cursors.push(cursor);
+        const index = Number(cursor || 0);
+        return { objects: pages[index] || [], hasNextPage: index + 1 < pages.length, cursor: index + 1 < pages.length ? String(index + 1) : null };
+    };
+    const simulate = client.transactionExecutionService.simulateTransaction;
+    client.transactionExecutionService.simulateTransaction = async request => {
+        // The node resolves the pool and clock shared references.
+        for (const input of request.transaction.kind.data.programmableTransaction.inputs) {
+            if (input.objectId && !input.kind) Object.assign(input, { kind: 3, version: 1n, mutable: !input.objectId.endsWith('6') });
+        }
+        return simulate(request);
+    };
+    return { layer: context.AlphaCitySuiBundle.createSuiDataLayer({ grpcClient: client }), cursors };
+}
+function cityCoin(balance, index = 2) {
+    return { objectId: `0x${String(index).repeat(64)}`, version: '1', digest, balance: String(balance) };
+}
+function stakeWith(layer, amount = maxAmount) {
+    return layer.createStakeTransaction({ sender: owner, coinType: cityType, packageId: '0xabc', poolId: '0x10', clockId: '0x6', amount, lockDays: 30 });
+}
+
+for (const [name, addressBalance, pages] of [
+    ['address balance only', maxAmount, [[]]],
+    ['mixed CITY holdings', maxAmount - 1000n, [[cityCoin(1000n)]]],
+    ['coin objects across pages', 0n, [[cityCoin(1000n)], [cityCoin(maxAmount - 1000n, 3)]]],
+]) {
+    test(`max stake resolves ${name} through the actual SDK`, async () => {
+        const { layer, cursors } = cityLayer(addressBalance, pages);
+        const tx = stakeWith(layer);
+        const { transaction, bytes } = await layer.prepareTransaction(tx);
+        assert.ok(bytes.length > 0);
+        const data = transaction.getData();
+        const stake = data.commands.find(command => command.MoveCall?.function === 'stake_new').MoveCall;
+        assert.equal(stake.function, 'stake_new');
+        assert.equal(stake.typeArguments[0], cityType);
+        assert.equal(stake.arguments.length, 4);
+        const lock = data.inputs[stake.arguments[2].Input].Pure.bytes;
+        assert.equal(Buffer.from(lock, 'base64').readBigUInt64LE(), 30n);
+        const withdrawals = data.inputs.filter(i => i.FundsWithdrawal);
+        if (addressBalance) {
+            assert.equal(withdrawals.length, 1);
+            assert.equal(BigInt(withdrawals[0].FundsWithdrawal.reservation.MaxAmountU64), addressBalance);
+        } else assert.equal(withdrawals.length, 0);
+        assert.equal(cursors.length, pages.length);
+        // The unresolved original remains reusable; copying must keep the intent.
+        assert.ok(tx.getData().commands[0].$Intent);
+        assert.equal(tx.getData().commands[0].$Intent.data.balance, maxAmount);
+    });
+}
+
+test('actual available CITY below the requested amount stops before wallet signing', async () => {
+    const { layer } = cityLayer(10n, [[cityCoin(10n)]]);
+    context.AlphaCitySui = layer;
+    let signs = 0;
+    await assert.rejects(context.AlphaCityStakingTransactions.signAndExecute({
+        transaction: stakeWith(layer), account: owner,
+        wallet: { async signAndExecuteTransaction() { signs++; } },
+    }), /Insufficient balance/);
+    assert.equal(signs, 0);
+});
+
+test('Max and 100% slider preserve all nine CITY decimals', () => {
+    const run = expression => vm.runInContext(expression, context);
+    const oldDocument = context.document;
+    const input = { value: '' }, slider = { value: 0 };
+    context.document = { getElementById: id => id === 'stake-input' ? input : slider };
+    // Isolate the shipped amount handlers from unrelated UI refresh functions.
+    run('globalThis.savedCe=ce;globalThis.savedDt=Dt;ce=()=>{};Dt=()=>{};d.connected=true;d.walletBalanceAtomic=67322201712345n;d.cityCoinDecimals=9;');
+    try {
+        run('Uo()');
+        assert.equal(input.value, '67322.201712345');
+        assert.equal(slider.value, 100);
+        assert.equal(run('Vr(document.getElementById("stake-input").value)'), maxAmount);
+        run('No({target:{value:"100"}})');
+        assert.equal(input.value, '67322.201712345');
+    } finally {
+        run('ce=savedCe;Dt=savedDt;d.connected=false;');
+        context.document = oldDocument;
+    }
 });
