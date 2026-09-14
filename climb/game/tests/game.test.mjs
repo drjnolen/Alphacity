@@ -70,7 +70,18 @@ test('a continuous nine-level revolution earns enough mastery and equipment fund
 });
 
 test('all 32 faction and equipment combinations can liberate the opening and final districts',()=>{
- const failures=[];for(const ch of [CHAPTERS[0],CHAPTERS[8]])for(const h of HEROES)for(const weapon of ['daggers','sword'])for(const tool of ['hook','lantern'])for(const charm of ['armor','phoenix']){const gear={weapon,tool,charm},r=district(createRun(h.id,gear,ch.id,ch.recommendedLevel,ranks(ch.recommendedRank)),true);if(!r.victory||!r.relic)failures.push({chapter:ch.id,hero:h.id,gear,node:r.nodeId,hp:r.hp});}assert.deepEqual(failures,[]);console.log('64 opening/finale loadout checks passed.');
+ const failures=[];
+ for(const ch of [CHAPTERS[0],CHAPTERS[8]])for(const h of HEROES)for(const weapon of ['daggers','sword'])for(const tool of ['hook','lantern'])for(const charm of ['armor','phoenix']){
+  // Match the safehouse: every operative receives cranial and chassis equipment.
+  // Isolated district checks use the documented mastery/rank, without talents or overclocks.
+  const book=emptyBook();book.cleared=CHAPTERS.filter(c=>c.id<ch.id).map(c=>c.id);
+  book.xp[h.id]=XP_THRESHOLDS[ch.recommendedLevel-1];book.ranks=ranks(ch.recommendedRank);
+  const gear={weapon,tool,charm},start=preparedRun(book,h.id,gear,ch.id);
+  assert.equal(Object.keys(start.loadout).length,5);
+  const r=district(start,true);
+  if(!r.victory||!r.relic)failures.push({chapter:ch.id,hero:h.id,gear,node:r.nodeId,hp:r.hp});
+ }
+ assert.deepEqual(failures,[]);console.log('64 opening/finale five-slot loadout checks passed.');
 });
 test('replaying a liberated district awards resources but never inflates the district count',()=>{
  const b=emptyBook();b.cleared=[1];b.hearts=1;const r={...createRun(),mode:'result',victory:true,relic:true,completedDepth:5,salvage:100};const after=settleExpedition(b,r);assert.equal(after.hearts,1);assert.equal(after.salvage,100);assert.equal(after.xp.glitchborn,100);
