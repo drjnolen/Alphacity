@@ -58,7 +58,7 @@ test('merch page includes launch metadata, responsive styles, and reduced-motion
     assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
 
-test('social card is a valid wide PNG and homepage links to merch', () => {
+test('social card is a valid wide PNG and draft merch is hidden from the homepage', () => {
     const image = fs.readFileSync(path.join(root, 'merch', 'og.png'));
     const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     const width = image.readUInt32BE(16);
@@ -66,5 +66,5 @@ test('social card is a valid wide PNG and homepage links to merch', () => {
 
     assert.deepEqual(image.subarray(0, 8), pngSignature);
     assert.ok(width / height > 1.8);
-    assert.equal((homepage.match(/href="\/merch\/"/g) || []).length, 2);
+    assert.doesNotMatch(homepage, /href="\/merch\/"/);
 });
