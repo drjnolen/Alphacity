@@ -4,12 +4,24 @@
     const core = window.AlphaCityLaunchpadCore;
     if (!core) throw new Error('Launchpad validation tools did not load.');
 
-    const DB_NAME = 'alphacity-launchpad';
-    const STORE_NAME = 'drafts';
-    const DRAFT_ID = 'alpha-city-primary';
-    const FALLBACK_KEY = 'alphacity-launchpad-primary-v2';
+    const drafts = window.AlphaCityLaunchpadDrafts.create({
+        indexedDB: window.indexedDB,
+        get localStorage() { try { return window.localStorage; } catch (_) { return null; } },
+    });
     const STEP_LABELS = ['Collection', 'Items', 'Mint phases', 'Payouts', 'Review', 'Prepare'];
     const state = {
+        draftId: '',
+        projects: [],
+        attachments: new Map(),
+        fileEpoch: 0,
+        mediaReading: false,
+        csvReading: false,
+        itemPage: 0,
+        coverFile: null,
+        renderTimer: null,
+        switching: false,
+        reviewedSteps: new Set(),
+        releaseLock: null,
         step: 0,
         phases: [],
         csvText: '',
@@ -32,19 +44,19 @@
     }[character]));
     const integer = (id, fallback = 0) => {
         const parsed = Number(value(id));
-        return Number.isSafeInteger(parsed) ? parsed : fallback;
+        return value(id) === '' ? fallback : parsed;
     };
 
     function localDateTime(input) {
         const timestamp = typeof input === 'number' ? input : Date.parse(input || '');
         if (!Number.isFinite(timestamp)) return '';
         const date = new Date(timestamp);
-        return new Date(timestamp - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+        return new Date(timestamp - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 23);
     }
 
     function isoDateTime(input) {
         if (!input) return '';
-        const timestamp = Date.parse(input);
+        const timestamp = typeof input === 'number' ? input : Date.parse(input);
         return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : input;
     }
 
@@ -102,52 +114,11 @@
 
     function currentDraft() {
         return {
-            id: DRAFT_ID,
+            id: state.draftId,
             savedAt: new Date().toISOString(),
             project: formProject(),
             step: state.step,
         };
-    }
-
-    function openDatabase() {
-        return new Promise((resolve, reject) => {
-            if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
-            const request = indexedDB.open(DB_NAME, 1);
-            request.onupgradeneeded = () => {
-                if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME, { keyPath: 'id' });
-            };
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error || new Error('Could not open draft storage.'));
-        });
-    }
-
-    async function idbGet() {
-        const database = await openDatabase();
-        return new Promise((resolve, reject) => {
-            const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(DRAFT_ID);
-            request.onsuccess = () => { database.close(); resolve(request.result || null); };
-            request.onerror = () => { database.close(); reject(request.error); };
-        });
-    }
-
-    async function idbPut(draft) {
-        const database = await openDatabase();
-        return new Promise((resolve, reject) => {
-            const transaction = database.transaction(STORE_NAME, 'readwrite');
-            transaction.objectStore(STORE_NAME).put(draft);
-            transaction.oncomplete = () => { database.close(); resolve(); };
-            transaction.onerror = () => { database.close(); reject(transaction.error); };
-        });
-    }
-
-    async function idbDelete() {
-        const database = await openDatabase();
-        return new Promise((resolve, reject) => {
-            const transaction = database.transaction(STORE_NAME, 'readwrite');
-            transaction.objectStore(STORE_NAME).delete(DRAFT_ID);
-            transaction.oncomplete = () => { database.close(); resolve(); };
-            transaction.onerror = () => { database.close(); reject(transaction.error); };
-        });
     }
 
     function autosaveStatus(label, tone = 'idle') {
@@ -163,21 +134,21 @@
     }
 
     async function persistDraft() {
-        if (!state.loaded || state.resetting) return;
+        if (!state.loaded || state.resetting) return false;
+        clearTimeout(state.saveTimer);
         autosaveStatus('Saving…');
         const draft = currentDraft();
         try {
-            await idbPut(draft);
-            localStorage.removeItem(FALLBACK_KEY);
+            await drafts.save(draft);
+            state.projects = state.projects.filter((entry) => entry.id !== draft.id);
+            state.projects.unshift(draft);
+            renderProjects();
             autosaveStatus('Saved in this browser', 'saved');
-        } catch (_) {
-            try {
-                localStorage.setItem(FALLBACK_KEY, JSON.stringify(draft));
-                autosaveStatus('Saved locally', 'saved');
-            } catch (error) {
-                console.warn('[launchpad] Could not save draft:', error);
-                autosaveStatus('Draft not saved', 'error');
-            }
+            return true;
+        } catch (error) {
+            console.warn('[launchpad] Could not save draft:', error);
+            autosaveStatus('Not saved · Export a backup', 'error');
+            return false;
         }
     }
 
@@ -188,38 +159,145 @@
         state.saveTimer = setTimeout(persistDraft, 450);
     }
 
-    async function loadDraft() {
-        let idbDraft = null;
-        let fallbackDraft = null;
-        try { idbDraft = await idbGet(); } catch (_) { idbDraft = null; }
-        try { fallbackDraft = JSON.parse(localStorage.getItem(FALLBACK_KEY) || 'null'); } catch (_) { fallbackDraft = null; }
-        const draft = !idbDraft ? fallbackDraft : !fallbackDraft ? idbDraft
-            : Date.parse(fallbackDraft.savedAt || 0) > Date.parse(idbDraft.savedAt || 0) ? fallbackDraft : idbDraft;
-        if (draft?.project) {
-            populateProject(draft.project);
-            state.csvText = '';
-            state.csvName = '';
-            state.step = Math.max(0, Math.min(5, Number(draft.step || 0)));
-        } else {
-            const tomorrow = Date.now() + 24 * 60 * 60 * 1000;
-            state.phases = [{
-                name: 'Public mint', priceSui: '1', startTime: localDateTime(tomorrow), endTime: '',
-                walletLimit: 5, allocation: 0, allowlistOnly: false, allowlist: [],
-            }];
+    function newProject() {
+        return { royaltyBps: 500, maxPerTx: 5, intendedSupply: 1000, stages: [{
+            name: 'Public mint', priceSui: '1', startTime: new Date(Date.now() + 86400000).toISOString(),
+            endTime: '', walletLimit: 5, allocation: 0, allowlistOnly: false, allowlist: [],
+        }] };
+    }
+
+    function renderProjects() {
+        const projects = [currentDraft(), ...state.projects.filter((entry) => entry.id !== state.draftId)];
+        byId('project-switcher').innerHTML = projects.map((draft) => `<option value="${escapeHtml(draft.id)}" ${draft.id === state.draftId ? 'selected' : ''}>${escapeHtml(draft.project.name || 'Untitled collection')}${draft.project.id ? ` (${escapeHtml(draft.project.id)})` : ''}</option>`).join('');
+    }
+
+    function clearFiles() {
+        state.fileEpoch++;
+        state.mediaReadEpoch++;
+        state.csvText = '';
+        state.csvName = '';
+        state.mediaFiles = [];
+        state.mediaSignatures = new Map();
+        state.validation = null;
+        state.mediaReading = false;
+        state.csvReading = false;
+        state.itemPage = 0;
+        byId('metadata-file').value = '';
+        byId('media-files').value = '';
+        byId('media-individual-files').value = '';
+        byId('assignment-policy-equivalent').checked = false;
+        byId('media-release-verified').checked = false;
+        byId('csv-file-label').textContent = 'Choose this project’s metadata CSV';
+        byId('media-file-label').textContent = 'Choose this project’s media folder or individual images';
+        ['summary-items', 'summary-files', 'summary-public', 'summary-reserved'].forEach((id) => { byId(id).textContent = '0'; });
+        renderMessages('item-validation-messages', []);
+        renderMessages('prepare-messages', []);
+        renderItemTable();
+    }
+
+    async function activateDraft(draft) {
+        if (state.releaseLock) { state.releaseLock(); state.releaseLock = null; }
+        if (navigator.locks) {
+            const available = await new Promise((resolve) => {
+                navigator.locks.request(`alphacity-launchpad:${draft.id}`, { ifAvailable: true }, async (lock) => {
+                    if (!lock) { resolve(false); return; }
+                    await new Promise((release) => { state.releaseLock = release; resolve(true); });
+                }).catch(() => resolve(true));
+            });
+            if (!available) {
+                draft = { ...draft, id: crypto.randomUUID(), project: { ...draft.project, name: `${draft.project.name || 'Untitled collection'} (copy)` } };
+                showToast('This project is open in another tab. You’re editing a separate copy.');
+                return activateDraft(draft);
+            }
         }
+        clearFiles();
+        state.reviewedSteps = new Set();
+        state.draftId = draft.id;
+        populateProject(draft.project);
+        // File-dependent confirmations must be repeated after a reload/import.
+        byId('assignment-policy-equivalent').checked = false;
+        byId('media-release-verified').checked = false;
+        const files = state.attachments.get(draft.id);
+        if (files && files.projectSignature === JSON.stringify(draft.project)) {
+            const { projectSignature, ...attachments } = files;
+            Object.assign(state, attachments);
+            byId('csv-file-label').textContent = state.csvName || 'Choose metadata CSV';
+            byId('media-file-label').textContent = `${state.mediaFiles.length} files selected`;
+            byId('assignment-policy-equivalent').checked = Boolean(draft.project.assignmentPolicy);
+            byId('media-release-verified').checked = Boolean(draft.project.mediaReleaseVerified);
+        }
+        const step = Number(draft.step);
+        state.step = Number.isInteger(step) ? Math.max(0, Math.min(5, step)) : 0;
+        drafts.select(draft.id);
+        renderProjects();
+        if (state.csvText) validateItems(false);
+        else renderAll();
+        showStep(state.step);
+    }
+
+    async function changeProject(id, project) {
+        if (state.switching) return;
+        state.switching = true;
+        byId('project-switcher').disabled = true;
+        byId('builder-content').inert = true;
+        try {
+            if (!await persistDraft()) throw new Error('Export a backup before changing projects; browser storage is unavailable.');
+            state.attachments.set(state.draftId, {
+                projectSignature: JSON.stringify(formProject()),
+                csvText: state.csvText, csvName: state.csvName,
+                mediaFiles: state.mediaFiles, mediaSignatures: state.mediaSignatures,
+            });
+            state.projects = await drafts.list();
+            const draft = project ? { id: crypto.randomUUID(), project, step: 0 } : state.projects.find((entry) => entry.id === id);
+            if (!draft) throw new Error('This project could not be found.');
+            await activateDraft(draft);
+            await persistDraft();
+            return true;
+        } catch (error) { showToast(error.message, 'error'); renderProjects(); return false; }
+        finally { state.switching = false; byId('project-switcher').disabled = false; byId('builder-content').inert = false; }
+    }
+
+    async function loadDraft() {
+        try {
+            state.projects = (await drafts.list()).filter((draft) => {
+                try { importableProject(draft.project); return true; }
+                catch (_) { showToast('A saved project could not be opened. Its stored copy has been kept.', 'error'); return false; }
+            });
+        }
+        catch (error) { showToast(error.message, 'error'); }
+        const draft = state.projects.find((entry) => entry.id === drafts.active()) || state.projects[0]
+            || { id: crypto.randomUUID(), project: newProject(), step: 0 };
+        await activateDraft(draft);
         state.loaded = true;
-        autosaveStatus(draft ? 'Draft restored' : 'New local draft', 'saved');
+        autosaveStatus(state.projects.length ? 'Project restored · Reselect files' : 'New project');
+    }
+
+    function importableProject(input) {
+        if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Choose an editable project JSON file.');
+        const project = input.project || input;
+        if (!project || typeof project !== 'object' || Array.isArray(project) || !('name' in project || 'id' in project || 'stages' in project)) throw new Error('This file is not an editable collection project.');
+        if (project.schemaVersion != null && ![1, 2, 3].includes(project.schemaVersion)) throw new Error('This project uses an unsupported version.');
+        if (project.stages != null && (!Array.isArray(project.stages) || project.stages.some((stage) => !stage || typeof stage !== 'object' || Array.isArray(stage) || (stage.allowlist != null && !Array.isArray(stage.allowlist))))) throw new Error('Mint phases must be a list with valid allowlist entries.');
+        for (const stage of project.stages || []) {
+            if (stage.priceSui == null && stage.priceMist != null) {
+                try { core.mistToSui(stage.priceMist); }
+                catch (_) { throw new Error('A mint phase has an invalid priceMist amount.'); }
+            }
+        }
+        if (Number(project.platformFeeBps || 0) !== 0) throw new Error('This builder supports projects with a 0% platform fee.');
+        return project;
     }
 
     function setValue(id, next) {
         const element = byId(id);
-        if (element && next != null) element.value = String(next);
+        if (element) element.value = next == null ? '' : String(next);
     }
 
     function populateProject(project) {
         setValue('collection-name', project.name);
         setValue('collection-slug', project.id);
-        setValue('intended-supply', project.intendedSupply || project.supply);
+        byId('collection-slug').dataset.touched = project.id ? 'true' : '';
+        setValue('intended-supply', project.intendedSupply ?? project.supply ?? '');
         setValue('hero-file', project.heroFile);
         setValue('creator-name', project.creatorName || project.creator?.name);
         setValue('headline', project.headline);
@@ -230,22 +308,22 @@
         setValue('discord', project.discord || project.creator?.discord);
         setValue('payout-address', project.creatorAddress || project.creator?.address);
         setValue('royalty-percent', bpsToPercent(project.royaltyBps));
-        setValue('max-per-tx', project.maxPerTx || 5);
+        setValue('max-per-tx', project.maxPerTx ?? 5);
         byId('assignment-policy-equivalent').checked = project.assignmentPolicy === core.ASSIGNMENT_POLICY;
-        byId('media-release-verified').checked = Boolean(project.mediaReleaseVerified);
+        byId('media-release-verified').checked = project.mediaReleaseVerified === true;
         setValue('reveal-mode', project.reveal?.mode === 'delayed' ? 'delayed' : 'instant');
         setValue('media-base-url', project.mediaBaseUrl);
         state.phases = (project.stages || []).map((phase) => ({
             name: phase.name || 'Mint phase',
             priceSui: String(phase.priceSui ?? (phase.priceMist != null ? core.mistToSui(phase.priceMist) : '1')),
-            startTime: localDateTime(phase.startTime ?? phase.startTimeMs),
-            endTime: localDateTime(phase.endTime ?? phase.endTimeMs),
-            walletLimit: Number(phase.walletLimit || 1),
+            startTime: isoDateTime(phase.startTime ?? phase.startTimeMs),
+            endTime: isoDateTime(phase.endTime ?? phase.endTimeMs),
+            walletLimit: Number(phase.walletLimit ?? 1),
             allocation: Number(phase.allocation || 0),
             allowlistOnly: Boolean(phase.allowlistOnly),
             allowlist: Array.isArray(phase.allowlist) ? phase.allowlist.map((entry) => typeof entry === 'string'
-                ? { address: entry, limit: Number(phase.walletLimit || 1) }
-                : { address: entry.address, limit: Number(entry.limit || phase.walletLimit || 1) }) : [],
+                ? { address: entry, limit: Number(phase.walletLimit ?? 1) }
+                : { address: entry?.address || '', limit: Number(entry?.limit ?? phase.walletLimit ?? 1) }) : [],
         }));
     }
 
@@ -258,7 +336,8 @@
     }
 
     function showStep(next) {
-        state.step = Math.max(0, Math.min(5, Number(next)));
+        if (state.loaded && Number(next) !== state.step) state.reviewedSteps.add(state.step);
+        state.step = Math.max(0, Math.min(5, Number.isInteger(Number(next)) ? Number(next) : 0));
         document.querySelectorAll('[data-step-panel]').forEach((panel) => { panel.hidden = Number(panel.dataset.stepPanel) !== state.step; });
         document.querySelectorAll('[data-step-target]').forEach((button) => {
             if (Number(button.dataset.stepTarget) === state.step) button.setAttribute('aria-current', 'step');
@@ -269,6 +348,7 @@
         nextButton.textContent = state.step === 5 ? 'Back to review' : `Next: ${STEP_LABELS[state.step + 1]} →`;
         if (state.step === 5) nextButton.onclick = () => showStep(4);
         else nextButton.onclick = () => showStep(state.step + 1);
+        renderAll();
         if (state.step === 4) renderPreview();
         if (state.step === 5) renderReadiness();
         scheduleSave();
@@ -280,6 +360,14 @@
         }
     }
 
+    function displayMessage(message) {
+        return String(message)
+            .replace('A hero image filename from the validated raster media folder is required.', 'Choose a cover image filename in Collection and include that image in your media folder.')
+            .replace('A valid nonzero Sui creator payout address is required.', 'Enter a valid Sui payout address in Payouts.')
+            .replace('Assignment policy must explicitly confirm that sequentially assigned public items have equivalent mint value.', 'Confirm that all public items have equivalent mint value in Items.')
+            .replace(/Mint stages/g, 'Mint phases').replace(/Mint stage/g, 'Mint phase').replace(/mint stage/g, 'mint phase');
+    }
+
     function renderMessages(containerId, errors, warnings = []) {
         const container = byId(containerId);
         const messages = [
@@ -287,7 +375,8 @@
             ...warnings.map((message) => ({ tone: 'warning', message })),
         ];
         container.classList.toggle('hidden', messages.length === 0);
-        container.innerHTML = messages.map(({ tone, message }) => `<div class="rounded-xl border px-4 py-3 text-sm ${tone === 'error' ? 'border-red-400/25 bg-red-400/10 text-red-100' : 'border-yellow-400/20 bg-yellow-400/10 text-yellow-100'}">${escapeHtml(message)}</div>`).join('');
+        container.innerHTML = messages.slice(0, 50).map(({ tone, message }) => `<div class="rounded-xl border px-4 py-3 text-sm ${tone === 'error' ? 'border-red-400/25 bg-red-400/10 text-red-100' : 'border-yellow-400/20 bg-yellow-400/10 text-yellow-100'}">${escapeHtml(displayMessage(message))}</div>`).join('');
+        if (messages.length > 50) container.insertAdjacentHTML('beforeend', `<p class="text-sm text-gray-400">Showing 50 of ${messages.length.toLocaleString()} issues. Fix these and validate again to see the remaining issues.</p>`);
     }
 
     function isItemValidationMessage(message) {
@@ -312,13 +401,23 @@
         byId('summary-files').textContent = String(state.mediaFiles.length);
         byId('summary-public').textContent = String(result.publicSupply || 0);
         byId('summary-reserved').textContent = String(result.reservedSupply || 0);
-        const body = byId('item-table');
-        body.innerHTML = result.items.length ? result.items.map((item) => `<tr class="bg-dark-bg/25"><td class="px-4 py-3 text-gray-500">${item.index + 1}</td><td class="px-4 py-3 font-semibold text-white">${escapeHtml(item.name || 'Missing name')}</td><td class="px-4 py-3 font-mono text-xs text-gray-300">${escapeHtml(item.fileName || 'Missing')}</td><td class="px-4 py-3 text-gray-400">${Object.keys(item.attributes).length}</td><td class="px-4 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${item.reserved ? 'bg-yellow-400/10 text-yellow-200' : 'bg-blue-400/10 text-blue-200'}">${item.reserved ? 'Reserved' : 'Public'}</span></td></tr>`).join('')
-            : '<tr><td colspan="5" class="px-4 py-12 text-center text-dark-text-secondary">Select a CSV and media folder to inspect the collection.</td></tr>';
+        renderItemTable();
         renderMessages('item-validation-messages', showMessages ? itemErrors : [], itemWarnings);
         updateCoverPreview();
         renderAll();
         return result;
+    }
+
+    function renderItemTable() {
+        const result = state.validation || { items: [] };
+        const pages = Math.max(1, Math.ceil(result.items.length / 100));
+        state.itemPage = Math.min(state.itemPage, pages - 1);
+        const body = byId('item-table');
+        body.innerHTML = result.items.length ? result.items.slice(state.itemPage * 100, (state.itemPage + 1) * 100).map((item) => `<tr class="bg-dark-bg/25"><td class="px-4 py-3 text-gray-500">${item.index + 1}</td><td class="px-4 py-3 font-semibold text-white">${escapeHtml(item.name || 'Missing name')}</td><td class="px-4 py-3 font-mono text-xs text-gray-300">${escapeHtml(item.fileName || 'Missing')}</td><td class="px-4 py-3 text-gray-400">${Object.keys(item.attributes).length}</td><td class="px-4 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${item.reserved ? 'bg-yellow-400/10 text-yellow-200' : 'bg-blue-400/10 text-blue-200'}">${item.reserved ? 'Reserved' : 'Public'}</span></td></tr>`).join('')
+            : '<tr><td colspan="5" class="px-4 py-12 text-center text-dark-text-secondary">Select a CSV and media folder to inspect the collection.</td></tr>';
+        byId('item-page-label').textContent = result.items.length ? `Page ${state.itemPage + 1} of ${pages} · ${result.items.length.toLocaleString()} items` : 'No items selected';
+        byId('items-previous').disabled = state.itemPage === 0;
+        byId('items-next').disabled = state.itemPage + 1 >= pages;
     }
 
     function parseAllowlist(text, defaultLimit) {
@@ -333,14 +432,15 @@
             else if (!Number.isSafeInteger(limit) || limit < 1 || limit > 10_000) errors.push(`Allowlist row ${index + 1} has an invalid limit.`);
             else entries.push({ address, limit });
         });
-        const duplicates = entries.filter((entry, index) => entries.findIndex((candidate) => candidate.address === entry.address) !== index);
+        const seen = new Set();
+        const duplicates = entries.filter((entry) => { const duplicate = seen.has(entry.address); seen.add(entry.address); return duplicate; });
         if (duplicates.length) errors.push('Allowlist contains duplicate wallet addresses.');
         return { entries, errors };
     }
 
     function phaseText(phase) {
         const access = phase.allowlistOnly ? `${phase.allowlist.length} allowlisted` : 'Public';
-        const start = phase.startTime ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(phase.startTime)) : 'No start';
+        const start = Number.isFinite(Date.parse(phase.startTime)) ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(phase.startTime)) : 'No start';
         return `${phase.priceSui} SUI · ${access} · ${start}`;
     }
 
@@ -355,8 +455,9 @@
 
     function openPhaseDialog(index = -1) {
         state.editingPhase = index;
+        state.allowlistEpoch = (state.allowlistEpoch || 0) + 1;
         const phase = index >= 0 ? state.phases[index] : {
-            name: state.phases.length ? 'Public mint' : 'Allowlist', priceSui: '1',
+            name: 'Public mint', priceSui: '1',
             startTime: localDateTime(Date.now() + 24 * 60 * 60 * 1000), endTime: '', walletLimit: 5,
             allocation: 0, allowlistOnly: false, allowlist: [],
         };
@@ -374,7 +475,7 @@
         byId('phase-dialog').showModal();
     }
 
-    function closePhaseDialog() { byId('phase-dialog').close(); }
+    function closePhaseDialog() { state.allowlistEpoch++; byId('phase-dialog').close(); }
 
     function revalidateAfterRuleChange() {
         state.validation = null;
@@ -400,13 +501,13 @@
             if (priceMist * BigInt(maxPerTx) > core.U64_MAX) errors.push('Phase price multiplied by the maximum per transaction exceeds the Sui u64 amount limit.');
         } catch (error) { errors.push(error.message); }
         if (!startTime || !Number.isFinite(Date.parse(startTime))) errors.push('A valid start date and time is required.');
-        if (endTime && Date.parse(endTime) <= Date.parse(startTime)) errors.push('End time must be after start time.');
-        if (walletLimit < 1 || walletLimit > 10_000) errors.push('Wallet limit must be between 1 and 10,000.');
-        if (allocation < 0) errors.push('Phase allocation cannot be negative.');
+        if (endTime && (!Number.isFinite(Date.parse(endTime)) || Date.parse(endTime) <= Date.parse(startTime))) errors.push('End time must be after start time.');
+        if (!Number.isSafeInteger(walletLimit) || walletLimit < 1 || walletLimit > 10_000) errors.push('Wallet limit must be between 1 and 10,000.');
+        if (!Number.isSafeInteger(allocation) || allocation < 0) errors.push('Phase allocation must be a whole number of zero or more.');
         const parsed = parseAllowlist(value('phase-allowlist'), walletLimit);
         if (allowlistOnly && !parsed.entries.length) errors.push('An allowlist phase needs at least one valid address.');
         if (allowlistOnly) errors.push(...parsed.errors);
-        const candidate = { name, priceSui, startTime, endTime, walletLimit, allocation, allowlistOnly, allowlist: allowlistOnly ? parsed.entries : [] };
+        const candidate = { name, priceSui, startTime: isoDateTime(startTime), endTime: isoDateTime(endTime), walletLimit, allocation, allowlistOnly, allowlist: allowlistOnly ? parsed.entries : [] };
         const phases = [...state.phases];
         if (state.editingPhase >= 0) phases[state.editingPhase] = candidate;
         else phases.push(candidate);
@@ -421,7 +522,7 @@
         }
         const errorBox = byId('phase-errors');
         if (errors.length) { errorBox.textContent = errors.join(' '); errorBox.classList.remove('hidden'); return; }
-        state.phases = phases;
+        state.phases = phases.sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime));
         closePhaseDialog();
         revalidateAfterRuleChange();
         scheduleSave();
@@ -430,14 +531,14 @@
     function renderPreview() {
         const project = formProject();
         const first = state.phases.slice().sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime))[0];
-        byId('preview-path').textContent = project.id ? `/mint/?collection=${project.id}` : '/mint/';
+        byId('preview-path').textContent = project.id ? `/mint/?collection=${encodeURIComponent(project.id)}` : '/mint/';
         byId('preview-name').textContent = project.name || 'Untitled collection';
         byId('preview-tagline').textContent = project.tagline || project.description || 'Your collection tagline will appear here.';
         byId('preview-supply').textContent = project.intendedSupply ? Number(project.intendedSupply).toLocaleString() : '—';
         byId('preview-price').textContent = first ? `${first.priceSui} SUI` : '—';
         byId('preview-royalty').textContent = `${value('royalty-percent') || '0'}%`;
         byId('preview-phase').textContent = first?.name || 'Mint schedule pending';
-        byId('preview-time').textContent = first?.startTime ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(first.startTime)) : 'Add a mint phase to continue.';
+        byId('preview-time').textContent = Number.isFinite(Date.parse(first?.startTime)) ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(first.startTime)) : 'Add a mint phase to continue.';
         byId('preview-limit').textContent = first ? `${first.walletLimit} per wallet` : '—';
         const normalized = core.normalizeProject(project);
         renderMessages('review-warnings', normalized.errors, normalized.warnings);
@@ -459,9 +560,10 @@
     }
 
     function updateCoverPreview() {
+        const hero = state.mediaFiles.find((file) => file.name === value('hero-file'));
+        if (hero === state.coverFile) return;
+        state.coverFile = hero;
         if (state.coverUrl) { URL.revokeObjectURL(state.coverUrl); state.coverUrl = ''; }
-        const heroName = value('hero-file').toLowerCase();
-        const hero = state.mediaFiles.find((file) => file.name.toLowerCase() === heroName);
         const image = byId('preview-art');
         const empty = byId('preview-art-empty');
         if (hero) {
@@ -476,24 +578,33 @@
         }
     }
 
+    function errorStep(error) {
+        if (/mint stage/i.test(error)) return 2;
+        if (/payout|royalty|maximum per transaction|reveal|platform fee/i.test(error)) return 3;
+        if (/assignment policy/i.test(error)) return 1;
+        return 0;
+    }
+
     function readinessRows() {
         const project = formProject();
         const normalized = core.normalizeProject(project);
         const mediaUrlValidation = core.validateMediaBaseUrl(project.mediaBaseUrl || '', { requireReleasePath: true, collectionId: project.id });
         return [
-            { ready: !normalized.errors.some((error) => /Collection|creator payout|link|Royalty|Maximum/i.test(error)), title: 'Collection and payout', detail: 'Required identity, payout, and exact percentages' },
-            { ready: Boolean(state.validation?.valid), title: 'Items validated', detail: state.validation ? `${state.validation.supply || 0} items · ${state.validation.errors.length} errors` : 'Select the CSV and media folder' },
-            { ready: state.phases.length > 0 && !normalized.errors.some((error) => /Mint stage/i.test(error)), title: 'Mint phases valid', detail: `${state.phases.length} configured` },
-            { ready: mediaUrlValidation.valid, title: 'Release-specific R2 media URL', detail: mediaUrlValidation.valid ? project.mediaBaseUrl : mediaUrlValidation.error },
-            { ready: project.mediaReleaseVerified, title: 'External media release gate', detail: project.mediaReleaseVerified ? 'R2 manifest, public URLs, and release controls attested by the operator' : 'Verify these outside the browser, then check the release gate' },
-            { ready: project.reveal.mode === 'instant', title: 'Supported reveal mode', detail: project.reveal.mode === 'instant' ? 'Instant reveal' : 'Delayed reveal needs contract work' },
-            { ready: project.assignmentPolicy === core.ASSIGNMENT_POLICY, title: 'Sequential assignment attested', detail: project.assignmentPolicy === core.ASSIGNMENT_POLICY ? 'All public items are confirmed to have equivalent mint value' : 'Required because the contract does not randomize item order' },
+            ...[0, 2, 3].map((step) => {
+                const errors = normalized.errors.filter((error) => errorStep(error) === step);
+                return { ready: errors.length === 0, title: ['Collection details', '', 'Mint phases', 'Payouts and royalties'][step], detail: errors.length ? errors.join(' ') : 'Complete', step };
+            }),
+            { ready: Boolean(state.validation?.valid) && !state.mediaReading && !state.csvReading, step: 1, title: 'Items validated', detail: state.mediaReading || state.csvReading ? 'Reading files…' : state.validation ? `${state.validation.supply || 0} items · ${state.validation.errors.length} errors` : 'Select the CSV and media folder' },
+            { ready: mediaUrlValidation.valid, step: 5, title: 'Published media URL', detail: mediaUrlValidation.valid ? project.mediaBaseUrl : mediaUrlValidation.error },
+            { ready: project.mediaReleaseVerified, step: 5, title: 'Published files verified', detail: project.mediaReleaseVerified ? 'You confirmed the uploaded files and locked release path' : 'Follow the publishing guide, then confirm the files above' },
+            { ready: project.reveal.mode === 'instant', step: 3, title: 'Reveal mode', detail: project.reveal.mode === 'instant' ? 'Instant reveal' : 'Choose immediate reveal in Payouts' },
+            { ready: project.assignmentPolicy === core.ASSIGNMENT_POLICY, step: 1, title: 'Item value confirmed', detail: project.assignmentPolicy === core.ASSIGNMENT_POLICY ? 'All public items are confirmed to have equivalent mint value' : 'Required because the contract does not randomize item order' },
         ];
     }
 
     function renderReadiness() {
         const rows = readinessRows();
-        byId('readiness-list').innerHTML = rows.map((row) => `<div class="flex gap-3"><span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${row.ready ? 'bg-green-400/15 text-green-300' : 'bg-gray-700 text-gray-400'}">${row.ready ? '✓' : '·'}</span><div><p class="text-sm font-semibold ${row.ready ? 'text-white' : 'text-gray-400'}">${escapeHtml(row.title)}</p><p class="mt-0.5 text-xs leading-5 text-gray-500">${escapeHtml(row.detail)}</p></div></div>`).join('');
+        byId('readiness-list').innerHTML = rows.map((row) => `<div class="flex gap-3"><span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${row.ready ? 'bg-green-400/15 text-green-300' : 'bg-gray-700 text-gray-400'}">${row.ready ? '✓' : '·'}</span><div class="min-w-0"><p class="text-sm font-semibold ${row.ready ? 'text-white' : 'text-gray-400'}">${escapeHtml(row.title)}</p><p class="mt-0.5 break-all text-xs leading-5 text-gray-500">${escapeHtml(displayMessage(row.detail))}</p>${!row.ready ? `<button type="button" data-fix-step="${row.step ?? 0}" class="mt-2 text-xs font-semibold text-blue-200 underline">Go to ${STEP_LABELS[row.step ?? 0]}</button>` : ''}</div></div>`).join('');
         const ready = rows.every((row) => row.ready);
         const badge = byId('readiness-badge');
         badge.textContent = ready ? 'Ready to export' : 'Not ready';
@@ -505,12 +616,13 @@
 
     function updateProgress() {
         const project = formProject();
+        const normalized = core.normalizeProject(project);
         const complete = [
-            Boolean(project.name && project.id && project.description && project.intendedSupply > 0),
+            !normalized.errors.some((error) => errorStep(error) === 0),
             Boolean(state.validation?.valid),
-            Boolean(state.phases.length),
-            Boolean(core.isValidSuiAddress(project.creatorAddress) && project.royaltyBps >= 0),
-            Boolean(project.name && state.phases.length),
+            Boolean(state.phases.length && !normalized.errors.some((error) => /mint stage/i.test(error))),
+            !normalized.errors.some((error) => /payout|Royalty|Maximum|Reveal/i.test(error)),
+            normalized.errors.length === 0 && Boolean(state.validation?.valid),
             readinessRows().every((row) => row.ready),
         ];
         document.querySelectorAll('.step-check').forEach((element, index) => { element.textContent = complete[index] ? '✓' : ''; });
@@ -526,6 +638,12 @@
         renderPayoutValidation();
         renderReadiness();
         updateProgress();
+        byId('validate-items').disabled = state.mediaReading || state.csvReading;
+        const project = formProject();
+        const duplicateSlug = project.id && state.projects.some((entry) => entry.id !== state.draftId && entry.project.id === project.id);
+        renderMessages('collection-validation', state.reviewedSteps.has(0) ? core.normalizeProject(project).errors.filter((error) => errorStep(error) === 0) : [], duplicateSlug ? ['Another saved project uses this mint URL. Give each published collection a unique slug.'] : []);
+        renderMessages('phase-validation', core.normalizeProject(formProject()).errors.filter((error) => /mint stage/i.test(error)));
+        renderProjects();
     }
 
     function download(fileName, contents, type = 'application/json') {
@@ -546,6 +664,7 @@
     }
 
     function exportBundle() {
+        if (state.mediaReading || state.csvReading) { showToast('Wait for the files to finish loading.', 'error'); return; }
         const validation = validateItems(true);
         const project = formProject();
         const messages = [];
@@ -578,7 +697,12 @@
         byId('phase-allowlist-only').addEventListener('change', (event) => byId('allowlist-fields').classList.toggle('hidden', !event.target.checked));
         byId('phase-allowlist-file').addEventListener('change', async (event) => {
             const file = event.target.files?.[0];
-            if (file) byId('phase-allowlist').value = await file.text();
+            const epoch = state.allowlistEpoch;
+            try {
+                if (file?.size > 10 * 1024 * 1024) throw new Error('Allowlist must be 10 MB or smaller.');
+                const text = file ? await file.text() : '';
+                if (state.allowlistEpoch === epoch && byId('phase-dialog').open) byId('phase-allowlist').value = text;
+            } catch (error) { showToast(error.message, 'error'); }
             event.target.value = '';
         });
         byId('phase-list').addEventListener('click', (event) => {
@@ -597,76 +721,98 @@
         byId('metadata-file').addEventListener('change', async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
-            state.csvText = await file.text();
-            state.csvName = file.name;
+            const epoch = ++state.fileEpoch;
+            state.csvReading = true;
+            state.validation = null;
+            state.csvText = '';
             byId('assignment-policy-equivalent').checked = false;
             byId('media-release-verified').checked = false;
-            byId('csv-file-label').textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
-            validateItems();
-            scheduleSave();
+            renderAll();
+            try {
+                if (file.size > 50 * 1024 * 1024) throw new Error('Metadata CSV must be 50 MB or smaller.');
+                const text = await file.text();
+                if (state.fileEpoch !== epoch) return;
+                state.csvText = text;
+                state.csvName = file.name;
+                state.itemPage = 0;
+                byId('csv-file-label').textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
+            } catch (error) {
+                if (state.fileEpoch === epoch) { state.csvName = ''; byId('csv-file-label').textContent = 'Could not read CSV. Choose it again.'; showToast(error.message, 'error'); }
+            } finally {
+                if (state.fileEpoch === epoch) { state.csvReading = false; validateItems(); scheduleSave(); }
+                event.target.value = '';
+            }
         });
-        byId('media-files').addEventListener('change', async (event) => {
-            state.mediaFiles = Array.from(event.target.files || []);
+        const readMedia = async (event) => {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+            state.mediaFiles = files;
             byId('assignment-policy-equivalent').checked = false;
             byId('media-release-verified').checked = false;
             state.mediaSignatures = new Map();
+            state.validation = null;
+            state.mediaReading = true;
             const epoch = ++state.mediaReadEpoch;
-            const bytes = state.mediaFiles.reduce((sum, file) => sum + file.size, 0);
-            byId('media-file-label').textContent = `Checking ${state.mediaFiles.length} file signature${state.mediaFiles.length === 1 ? '' : 's'}…`;
-            await Promise.all(state.mediaFiles.map(async (file) => {
-                try {
-                    const signature = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-                    if (state.mediaReadEpoch === epoch) state.mediaSignatures.set(file, signature);
-                } catch (error) {
-                    console.warn(`[launchpad] Could not read ${file.name}:`, error);
+            const bytes = files.reduce((sum, file) => sum + file.size, 0);
+            byId('media-file-label').textContent = `Checking ${files.length} files…`;
+            renderAll();
+            // Bound concurrent disk reads even for collections with thousands of files.
+            let next = 0;
+            await Promise.all(Array.from({ length: Math.min(8, files.length) }, async () => {
+                while (next < files.length && state.mediaReadEpoch === epoch) {
+                    const file = files[next++];
+                    try {
+                        const signature = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+                        if (state.mediaReadEpoch === epoch) state.mediaSignatures.set(file, signature);
+                    } catch (error) { console.warn(`[launchpad] Could not read ${file.name}:`, error); }
                 }
             }));
             if (state.mediaReadEpoch !== epoch) return;
-            byId('media-file-label').textContent = `${state.mediaFiles.length} files · ${(bytes / 1024 / 1024).toFixed(1)} MB · signatures checked`;
+            state.mediaReading = false;
+            byId('media-file-label').textContent = `${files.length} files · ${(bytes / 1024 / 1024).toFixed(1)} MB`;
             validateItems();
-        });
+            scheduleSave();
+            event.target.value = '';
+        };
+        byId('media-files').addEventListener('change', readMedia);
+        byId('media-individual-files').addEventListener('change', readMedia);
         byId('validate-items').addEventListener('click', () => validateItems(true));
-        byId('download-csv').addEventListener('click', () => download('alphacity-metadata-template.csv', core.metadataExampleCsv(), 'text/csv;charset=utf-8'));
+        byId('items-previous').addEventListener('click', () => { state.itemPage = Math.max(0, state.itemPage - 1); renderItemTable(); });
+        byId('items-next').addEventListener('click', () => { state.itemPage++; renderItemTable(); });
+        byId('readiness-list').addEventListener('click', (event) => {
+            const button = event.target.closest('[data-fix-step]');
+            if (button) showStep(Number(button.dataset.fixStep));
+        });
+        byId('download-csv').addEventListener('click', () => download('metadata-template.csv', core.metadataExampleCsv(), 'text/csv;charset=utf-8'));
         byId('export-project').addEventListener('click', exportProject);
+        byId('backup-project').addEventListener('click', exportProject);
         byId('export-bundle').addEventListener('click', exportBundle);
+        byId('new-project').addEventListener('click', () => changeProject(null, newProject()));
+        byId('project-switcher').addEventListener('change', (event) => changeProject(event.target.value));
         byId('project-file').addEventListener('change', async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
             try {
-                const project = JSON.parse(await file.text());
-                const normalized = core.normalizeProject(project);
-                if (normalized.errors.length) throw new Error(normalized.errors.join(' '));
-                state.csvText = '';
-                state.csvName = '';
-                state.mediaFiles = [];
-                state.mediaSignatures = new Map();
-                state.validation = null;
-                populateProject(normalized.value);
-                byId('assignment-policy-equivalent').checked = false;
-                byId('media-release-verified').checked = false;
-                byId('metadata-file').value = '';
-                byId('media-files').value = '';
-                byId('csv-file-label').textContent = 'Reselect metadata.csv for this imported project';
-                byId('media-file-label').textContent = 'Reselect this project’s raster media folder';
-                byId('item-table').innerHTML = '<tr><td colspan="5" class="px-4 py-12 text-center text-dark-text-secondary">Reselect this project’s CSV and media folder to inspect the collection.</td></tr>';
-                renderAll();
-                scheduleSave();
-                showToast('Project imported. Reselect its CSV and media folder.');
+                if (file.size > 10 * 1024 * 1024) throw new Error('Project JSON must be 10 MB or smaller.');
+                const project = importableProject(JSON.parse(await file.text()));
+                if (!await changeProject(null, project)) return;
+                showToast('Project opened as a new draft. Select its CSV and images in Items.');
             } catch (error) { showToast(`Project import failed: ${error.message}`, 'error'); }
             event.target.value = '';
         });
         byId('reset-draft').addEventListener('click', async () => {
-            if (!window.confirm('Reset this local collection draft? Export it first if you need a backup.')) return;
+            if (state.switching || !window.confirm(`Delete “${value('collection-name') || 'Untitled collection'}” from this browser? Export a backup first if you need it.`)) return;
             state.resetting = true;
+            state.switching = true;
+            byId('builder-content').inert = true;
             clearTimeout(state.saveTimer);
-            localStorage.removeItem(FALLBACK_KEY);
-            try { await idbDelete(); }
-            catch (error) {
-                state.resetting = false;
-                showToast(`Draft reset failed: ${error?.message || 'browser storage could not be cleared'}`, 'error');
-                return;
-            }
-            location.reload();
+            try {
+                await drafts.remove(state.draftId);
+                state.attachments.delete(state.draftId);
+                state.projects = state.projects.filter((entry) => entry.id !== state.draftId);
+                await activateDraft(state.projects[0] || { id: crypto.randomUUID(), project: newProject(), step: 0 });
+            } catch (error) { showToast(`Could not delete project: ${error.message}`, 'error'); }
+            finally { state.resetting = false; state.switching = false; byId('builder-content').inert = false; scheduleSave(); }
         });
         byId('collection-name').addEventListener('input', () => {
             const slug = byId('collection-slug');
@@ -674,7 +820,7 @@
         });
         byId('collection-slug').addEventListener('input', () => { byId('collection-slug').dataset.touched = 'true'; });
         document.querySelectorAll('input:not([type=file]), textarea:not(#phase-allowlist), select').forEach((element) => {
-            if (element.closest('#phase-dialog')) return;
+            if (element.closest('#phase-dialog') || element.id === 'project-switcher') return;
             const update = () => {
                 if (element.id === 'media-base-url') {
                     byId('media-release-verified').checked = false;
@@ -683,8 +829,11 @@
                 if (['collection-name', 'collection-slug', 'hero-file'].includes(element.id)) {
                     byId('media-release-verified').checked = false;
                 }
-                if (state.csvText && ['intended-supply', 'hero-file', 'assignment-policy-equivalent'].includes(element.id)) validateItems(false);
-                else renderAll();
+                const itemRulesChanged = ['intended-supply', 'hero-file', 'assignment-policy-equivalent', 'media-base-url'].includes(element.id);
+                if (itemRulesChanged) state.validation = null;
+                byId('export-bundle').disabled = true;
+                clearTimeout(state.renderTimer);
+                state.renderTimer = setTimeout(() => { if (state.csvText && !state.validation) validateItems(false); else renderAll(); }, 180);
                 scheduleSave();
             };
             element.addEventListener('input', update);
@@ -692,7 +841,7 @@
         });
         const flushStructuredDraft = () => {
             if (!state.loaded || state.resetting) return;
-            try { localStorage.setItem(FALLBACK_KEY, JSON.stringify(currentDraft())); } catch (_) {}
+            try { drafts.flush(currentDraft()); } catch (_) {}
         };
         window.addEventListener('pagehide', flushStructuredDraft);
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushStructuredDraft(); });
@@ -700,14 +849,15 @@
     }
 
     async function initialize() {
-        bindEvents();
+        byId('phase-timezone').textContent = `Time zone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
         await loadDraft();
-        renderAll();
-        showStep(state.step);
-        if (!state.csvText) byId('item-table').innerHTML = '<tr><td colspan="5" class="px-4 py-12 text-center text-dark-text-secondary">Select a CSV and media folder to inspect the collection.</td></tr>';
+        bindEvents();
+        byId('builder-content').inert = false;
+        document.querySelectorAll('[data-project-control]').forEach((element) => { element.disabled = false; });
+        scheduleSave();
     }
 
-    window.AlphaCityLaunchpadBuilder = Object.freeze({ exactPercentToBps, formProject, parseAllowlist });
+    window.AlphaCityLaunchpadBuilder = Object.freeze({ exactPercentToBps, formProject, parseAllowlist, importableProject });
     initialize().catch((error) => {
         console.error('[launchpad] Builder failed to initialize:', error);
         autosaveStatus('Builder failed to load', 'error');

@@ -19,11 +19,11 @@ test('public mint uses shared infrastructure instead of a page-local wallet adap
     assert.match(source, /AlphaCityWalletConnector\.create/);
 });
 
-test('launchpad route is the local first-party builder', () => {
+test('launchpad route is the local collection builder', () => {
     assert.match(builder, /Collection Builder/);
     assert.match(builder, /\/shared\/launchpad-core\.js/);
     assert.match(builder, /\/launchpad\/operator-app\.js/);
-    assert.match(builder, /AlphaCity collection only/);
+    assert.match(builder, /Alpha City Launchpad/);
 });
 
 test('managed-drop mint path builds and executes a Sui transaction', () => {
