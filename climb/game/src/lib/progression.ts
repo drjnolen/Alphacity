@@ -17,6 +17,25 @@ export function preparedRun(book:RecordBook,hero:HeroId,gear:Gear,chapter:Chapte
 }
 export function equipOwned(book:RecordBook,id:string,active=false):RecordBook{const item=book.inventory.find(i=>i.id===id);return active||!item?book:{...book,equipped:{...book.equipped,[item.slot]:id}};}
 export function mintAtSafehouse(book:RecordBook):RecordBook{if(book.salvage<SAFEHOUSE_MINT_COST)return book;const item={...rollEquipment(1),origin:'safehouse' as const};delete item.district;return {...book,salvage:book.salvage-SAFEHOUSE_MINT_COST,inventory:[...book.inventory,item],lastMintId:item.id};}
+// The collection is the only earned progression carried into another campaign.
+export function resetCampaignBook(book:RecordBook,endedId:string):RecordBook {
+ const fresh=emptyBook(),ids=new Set(fresh.inventory.map(i=>i.id));
+ for(const item of book.inventory)if(validEquipment(item)&&item.origin!=='starter'&&!ids.has(item.id)){
+  fresh.inventory.push(structuredClone(item));ids.add(item.id);
+ }
+ for(const slot of ['weapon','tool','charm','cranial','chassis'] as Slot[]){
+  if(fresh.inventory.some(i=>i.id===book.equipped[slot]&&i.slot===slot&&i.origin!=='starter'))fresh.equipped[slot]=book.equipped[slot];
+ }
+ // A settlement receipt prevents a terminal result from being credited again.
+ fresh.settled=[endedId];return fresh;
+}
+export function restartCampaign(book:RecordBook,previous:Run,reason:NonNullable<Run['resetReason']>='abandon'):{book:RecordBook;run:Run}{
+ const fresh=resetCampaignBook(collectMint(book,previous),previous.id);
+ const run=preparedRun(fresh,previous.heroId,createRun().gear,1);
+ run.resetReason=reason;
+ run.log=['New campaign: every operative is level 1. Credits, district progress, training and overclocks reset. Minted equipment is kept.'];
+ return {book:fresh,run};
+}
 export function continueClimb(book:RecordBook,previous:Run):Run{
  if(previous.mode!=='result'||!previous.victory||!previous.relic||!previous.climbActive||previous.chapter>=9)return previous;
  const next=preparedRun(book,previous.heroId,previous.gear,(previous.chapter+1) as ChapterId);
@@ -28,6 +47,7 @@ export function collectMint(book:RecordBook,r:Run):RecordBook{return r.minted&&v
 export const earnedXP=(r:Run)=>Math.max(0,r.completedDepth)*(r.victory?12:6)+(r.victory&&r.relic?40*r.chapter:0);
 export function settleExpedition(book:RecordBook,r:Run):RecordBook{
  if(r.mode!=='result'||book.settled.includes(r.id))return book;
+ if(!r.climbActive)return resetCampaignBook(collectMint(book,r),r.id);
  const b=structuredClone(collectMint(book,r));b.settled=[...b.settled,r.id].slice(-200);b.expeditions++;b.xp[r.heroId]+=earnedXP(r);
  if(r.victory){b.salvage+=r.salvage;b.lifetimeSalvage+=r.salvage;if(r.relic){if(!b.cleared.includes(r.chapter))b.cleared.push(r.chapter);b.hearts=b.cleared.length;}}
  return b;
@@ -41,7 +61,7 @@ export function itemDescription(id:ItemId,rank:number){
  switch(id){case 'capacitor':case 'repeater':return `${6+rank*2} base weapon damage before type and faction bonuses.`;case 'visor':return `+${2+rank} signature damage, plus rarity and quality.`;case 'crown':return `Signature cooldown reduced by 1 turn (minimum 1). +${rank} signature damage before rarity and quality.`;case 'plate':return `+${8+rank*2} maximum health, plus rarity and quality.`;case 'mantle':return `+${2+rank} guard each enemy turn, plus rarity and quality health.`;case 'daggers':return `${5+rank*2} weapon damage. Attacks apply ${2+rank} corruption for ${rank>=2?3:2} turns.`;case 'sword':return `${7+rank*2} weapon damage before character bonuses. Signature attacks ignore enemy armor.`;case 'hook':return `Move up to ${3+Math.ceil(rank/2)} tiles. Reach elevated rebel caches.${rank?` Start battles with ${rank*2} guard.`:''}`;case 'lantern':return `Bypass surveillance during exploration (combat hazards still deal damage).${rank?` +${rank*15} hidden credits and ${rank*3} starting guard.`:''}`;case 'armor':return `Gain ${3+rank*2} guard before enemies act every turn.`;case 'phoenix':return `Once per operation, survive a fatal blow with ${14+rank*8} health (up to maximum).`;}
 }
 const count=(v:unknown,max=1000000)=>typeof v==='number'&&Number.isFinite(v)?Math.max(0,Math.min(max,Math.floor(v))):0;
-export function migrateSave(value:unknown):{run:Run;book:RecordBook}{
+function restoreSave(value:unknown):{run:Run;book:RecordBook}{
  const fallback={run:createRun(),book:emptyBook()};if(!value||typeof value!=='object')return fallback;
  const source=value as {run?:Partial<Run>;book?:Partial<RecordBook>;version?:number},old=source.book??{},raw=source.run;
  const b=emptyBook();b.salvage=count(old.salvage);b.lifetimeSalvage=Math.max(b.salvage,count(old.lifetimeSalvage??old.salvage));b.expeditions=count(old.expeditions);b.hearts=count(old.hearts);
@@ -54,7 +74,7 @@ export function migrateSave(value:unknown):{run:Run;book:RecordBook}{
  if(Array.isArray(old.inventory)){const known=new Set(b.inventory.map(i=>i.id));for(const item of old.inventory){if(validEquipment(item)&&!known.has(item.id)){b.inventory.push(item);known.add(item.id);}}}
  if(typeof old.lastMintId==='string'&&b.inventory.some(i=>i.id===old.lastMintId))b.lastMintId=old.lastMintId;
  if(old.equipped)for(const slot of ['weapon','tool','charm','cranial','chassis'] as Slot[]){if(b.inventory.some(i=>i.id===old.equipped?.[slot]&&i.slot===slot))b.equipped[slot]=old.equipped[slot];}
- if(source.version!==3&&source.version!==4&&source.version!==5){
+ if(source.version!==3&&source.version!==4&&source.version!==5&&source.version!==6){
   const legacyXP=old.xp as Record<string,number>|undefined;
   for(const [previous,next] of Object.entries(oldIds))b.xp[next]=Math.max(b.xp[next],count(legacyXP?.[previous]));
   if(!old.xp&&b.hearts)b.xp[hero]=Math.max(100,b.hearts*100);
@@ -77,7 +97,7 @@ export function migrateSave(value:unknown):{run:Run;book:RecordBook}{
  r.hp=Math.min(r.hp,r.maxHp);
  r.climbActive=raw.climbActive??!['camp','result'].includes(r.mode);r.climbId=typeof raw.climbId==='string'?raw.climbId:r.id;
  r.boosts={};for(const slot of ['weapon','tool','charm','cranial','chassis'] as Slot[])r.boosts[slot]=count(raw.boosts?.[slot],8);
- if(raw.upgradeOffer&&['weapon','tool','charm','cranial','chassis'].includes(raw.upgradeOffer.slot)&&r.gear[raw.upgradeOffer.slot])r.upgradeOffer={slot:raw.upgradeOffer.slot,cost:60+r.chapter*20,resolved:!!raw.upgradeOffer.resolved,purchased:!!raw.upgradeOffer.purchased,...(['calibrate','active','passive'].includes(raw.upgradeOffer.choice??'')?{choice:raw.upgradeOffer.choice}:{})};else {delete r.upgradeOffer;if(source.version!==5&&r.mode==='reward'&&r.relic&&r.chapter<9){const slots=(['weapon','tool','charm','cranial','chassis'] as Slot[]).filter(s=>r.gear[s]);r.upgradeOffer={slot:slots[Math.floor(Math.random()*slots.length)],cost:60+r.chapter*20,resolved:false,purchased:false};}}
+ if(raw.upgradeOffer&&['weapon','tool','charm','cranial','chassis'].includes(raw.upgradeOffer.slot)&&r.gear[raw.upgradeOffer.slot])r.upgradeOffer={slot:raw.upgradeOffer.slot,cost:60+r.chapter*20,resolved:!!raw.upgradeOffer.resolved,purchased:!!raw.upgradeOffer.purchased,...(['calibrate','active','passive'].includes(raw.upgradeOffer.choice??'')?{choice:raw.upgradeOffer.choice}:{})};else {delete r.upgradeOffer;if((source.version??0)<5&&r.mode==='reward'&&r.relic&&r.chapter<9){const slots=(['weapon','tool','charm','cranial','chassis'] as Slot[]).filter(s=>r.gear[s]);r.upgradeOffer={slot:slots[Math.floor(Math.random()*slots.length)],cost:60+r.chapter*20,resolved:false,purchased:false};}}
  r.insight=r.climbActive?count(raw.insight??(r.chapter+(r.relic&&r.chapter<9?1:0)),9):r.mode==='camp'?1:0;
  r.talents=[];let budget=r.insight;
  for(const t of TALENTS.filter(t=>t.hero===hero)){if(Array.isArray(raw.talents)&&raw.talents.includes(t.id)&&budget>=t.cost&&(!t.requires||r.talents.includes(t.requires))){r.talents.push(t.id);budget-=t.cost;}}
@@ -98,6 +118,15 @@ export function migrateSave(value:unknown):{run:Run;book:RecordBook}{
  }
  // Legacy results already credited their salvage. Never settle them twice.
  if(r.mode==='result'&&!b.settled.includes(r.id))b.settled.push(r.id);
- if(r.mode==='camp'&&!r.climbActive)return {run:preparedRun(b,hero,r.gear,chapter),book:b};
+ if(r.mode==='camp'&&!r.climbActive){const run=preparedRun(b,hero,r.gear,chapter);if(['defeat','abandon','complete'].includes(r.resetReason??''))run.resetReason=r.resetReason;return {run,book:b};}
  return {run:r,book:b};
+}
+
+export function migrateSave(value:unknown):{run:Run;book:RecordBook}{
+ const restored=restoreSave(value),version=(value as {version?:number}|null)?.version??0;
+ const r=restored.run;
+ if(r.mode==='result'&&!r.climbActive)return restartCampaign(restored.book,r,r.victory?'complete':'defeat');
+ // Old safehouses could contain mastery from completed/failed campaigns.
+ if(version<6&&r.mode==='camp'&&!r.climbActive)return restartCampaign(restored.book,r);
+ return restored;
 }

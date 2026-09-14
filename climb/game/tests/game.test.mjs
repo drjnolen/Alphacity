@@ -47,10 +47,10 @@ test('twelve mastery levels and five shared equipment ranks cost real credits an
  let b=emptyBook();b.salvage=10000;for(let rank=0;rank<5;rank++){const before=b.salvage;b=upgradeItem(b,'daggers');assert.equal(b.salvage,before-upgradeCost(rank));}assert.equal(b.ranks.daggers,5);assert.equal(upgradeItem(b,'daggers'),b);assert.equal(upgradeItem(b,'armor',true),b);assert.equal(trainHero(b,'coinbroker',true),b);b.xp.coinbroker=3300;assert.equal(levelFor(b.xp.coinbroker),12);assert.equal(trainHero(b,'coinbroker'),b);
  const strong=createRun('glitchborn',undefined,9,9,ranks(5));assert.ok(weaponDamage(strong)>weaponDamage(createRun()));assert.ok(skillDamage(strong)>skillDamage(createRun()));assert.equal(XP_THRESHOLDS.length,12);
 });
-test('legacy saves retain credits, mastery, gear and pending earnings while starting the new story',()=>{
+test('old pre-Alpha campaigns restart with level-one operatives and no banked progression',()=>{
  const old={version:2,book:{salvage:400,xp:{vesper:240,rook:100,lyra:140},ranks:{daggers:2,hook:1},cleared:[1,2,3],hearts:3},run:{...createRun(),heroId:'vesper',mode:'combat',salvage:50,completedDepth:2}};
- const moved=migrateSave(old);assert.equal(moved.run.heroId,'glitchborn');assert.equal(moved.run.mode,'camp');assert.equal(moved.book.salvage,450);assert.equal(moved.book.xp.glitchborn,260);assert.equal(moved.book.ranks.daggers,2);assert.deepEqual(moved.book.cleared,[]);
- const reload=migrateSave({version:3,...moved});assert.equal(reload.book.salvage,450);assert.deepEqual(reload.book.xp,moved.book.xp);
+ const moved=migrateSave(old);assert.equal(moved.run.heroId,'glitchborn');assert.equal(moved.run.mode,'camp');assert.equal(moved.book.salvage,0);assert.equal(moved.book.xp.glitchborn,0);assert.equal(moved.book.ranks.daggers,0);assert.deepEqual(moved.book.cleared,[]);
+ const reload=migrateSave({version:3,...moved});assert.equal(reload.book.salvage,0);assert.deepEqual(reload.book.xp,moved.book.xp);
 });
 test('current saves keep a level nine battle, jams, ranks, and unlock order',()=>{
  const book=emptyBook();book.cleared=CHAPTERS.slice(0,8).map(c=>c.id);book.ranks=ranks(5);book.xp.coinbroker=1920;const run=enter(preparedRun(book,'coinbroker',createRun().gear,9));run.combat.enemies[0].jammed=1;const saved=migrateSave({version:3,run,book});assert.equal(saved.run.chapter,9);assert.equal(saved.run.combat.enemies[0].jammed,1);assert.equal(saved.run.ranks.daggers,5);assert.equal(canEnterChapter(emptyBook(),9),false);assert.throws(()=>preparedRun(emptyBook(),'glitchborn',run.gear,9));
@@ -65,7 +65,7 @@ test('all four factions complete all nine districts at recommended progression, 
  assert.deepEqual(failures,[]);console.log('36 elite-route district runs passed.');
 });
 test('a continuous nine-level revolution earns enough mastery and equipment funding for every faction',()=>{
- for(const h of HEROES){let b=emptyBook();for(const ch of CHAPTERS){for(const id of Object.values(createRun().gear)){while(b.ranks[id]<ch.recommendedRank){const next=upgradeItem(b,id);if(next===b)break;b=next;}}const r=district(preparedRun(b,h.id,createRun().gear,ch.id),true);assert.ok(r.victory&&r.relic,JSON.stringify({hero:h.id,chapter:ch.id,level:r.level,ranks:b.ranks,hp:r.hp,node:r.nodeId}));b=settleExpedition(b,r);}assert.equal(b.cleared.length,9);assert.ok(levelFor(b.xp[h.id])>=9);}
+ for(const h of HEROES){let b=emptyBook();for(const ch of CHAPTERS){for(const id of Object.values(createRun().gear)){while(b.ranks[id]<ch.recommendedRank){const next=upgradeItem(b,id);if(next===b)break;b=next;}}const r=district(preparedRun(b,h.id,createRun().gear,ch.id),true);assert.ok(r.victory&&r.relic,JSON.stringify({hero:h.id,chapter:ch.id,level:r.level,ranks:b.ranks,hp:r.hp,node:r.nodeId}));b=settleExpedition(b,r);}assert.equal(b.cleared.length,0);assert.equal(levelFor(b.xp[h.id]),1);}
  console.log('Four complete campaigns passed with earned XP and purchased upgrades only.');
 });
 
@@ -84,5 +84,5 @@ test('all 32 faction and equipment combinations can liberate the opening and fin
  assert.deepEqual(failures,[]);console.log('64 opening/finale five-slot loadout checks passed.');
 });
 test('replaying a liberated district awards resources but never inflates the district count',()=>{
- const b=emptyBook();b.cleared=[1];b.hearts=1;const r={...createRun(),mode:'result',victory:true,relic:true,completedDepth:5,salvage:100};const after=settleExpedition(b,r);assert.equal(after.hearts,1);assert.equal(after.salvage,100);assert.equal(after.xp.glitchborn,100);
+ const b=emptyBook();b.cleared=[1];b.hearts=1;const r={...createRun(),mode:'result',climbActive:true,victory:true,relic:true,completedDepth:5,salvage:100};const after=settleExpedition(b,r);assert.equal(after.hearts,1);assert.equal(after.salvage,100);assert.equal(after.xp.glitchborn,100);
 });

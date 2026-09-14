@@ -27,7 +27,7 @@ for(const [i,branch] of [...new Set(TALENTS.map(t=>t.branch))].entries())test(`n
    r=transition(r,{type:'extract'});b=settleExpedition(b,r);
    if(ch<9)r=continueClimb(b,r);
   }
-  assert.equal(b.cleared.length,9);assert.ok(learned>=5);assert.deepEqual(r.talents,[]);assert.equal(r.climbActive,false);
+  assert.equal(b.cleared.length,0);assert.equal(r.chapter,9);assert.equal(r.victory,true);assert.ok(Object.values(b.xp).every(x=>x===0));assert.ok(learned>=5);assert.deepEqual(r.talents,[]);assert.equal(r.climbActive,false);
   console.log(JSON.stringify({branch,turns,learned,finalHP:r.hp,credits:b.salvage}));
  }finally{Math.random=oldRandom;}
 });
