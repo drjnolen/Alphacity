@@ -25,3 +25,5 @@ All game art is local to game/public/art and built beneath /climb/assets/art. Bo
 ## Expedition builds
 
 Each class now has two four-node doctrine branches. Bosses grant insight and offer calibration, active, or passive overclock choices. Use Expedition doctrine to learn talents and equip up to three gear abilities alongside the signature. All choices reset at the end of the climb. See [EXPEDITION-BUILDS.md](./EXPEDITION-BUILDS.md) for mechanics, limits, and validation.
+
+Campaigns now restart in district 1 with all operatives at level 1 after death, manual ending, or final completion. Only minted equipment survives, alongside the standard starter kit. Use **End campaign** during play or beside **Resume operation** in the safehouse; confirmation explains the reset. Active legacy saves continue until their campaign ends. See [EXPEDITION-BUILDS.md](./EXPEDITION-BUILDS.md) for the full persistence rules.

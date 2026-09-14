@@ -55,8 +55,16 @@ An in-progress saved battle retains its announced damage. The new curve takes ef
 
 ## Persistence and validation
 
-Insight, learned talents, installed overclocks, active selections, and combat cooldowns carry across districts and browser saves. Death or final liberation clears them without changing permanent inventory or mastery. Existing active saves gain the appropriate available insight, keep their battlefield, and retain pending overclock offers. Migration filters unknown/foreign talents, invalid prerequisites, duplicate unlocks, and over-budget builds.
+Insight, learned talents, installed overclocks, active selections, and combat cooldowns carry across districts and browser saves. Death, manual abandonment, or final liberation starts a fresh campaign in the Tangle. Every operative returns to level 1; all credits (banked and unsecured), experience, district unlocks, training/forge ranks, supplies, temporary power, talents and overclocks reset. Only minted equipment carries forward, alongside a freshly restored standard starter kit. Both safehouse mints and legacy boss mints retain their identity, rarity, quality and effects. Existing active saves gain the appropriate available insight, keep their battlefield, and retain pending overclock offers. Migration filters unknown/foreign talents, invalid prerequisites, duplicate unlocks, and over-budget builds.
 
 The game transition validates learning, purchases, loadout changes, targeting, AP, cooldowns, and resource costs. The presentation uses the resulting combat state for effects and deterministic non-critical target previews. No wallet, hosting, minting, or NFT transaction behavior changes.
 
 Validation includes interaction and resource-cap tests, save migration, death/completion resets, all five gear abilities, critical hits, mobile/desktop UI review, and eight complete nine-district specialization campaigns using starter equipment and earned progression. These deterministic simulations establish viability and regressions; live-player balance can be tuned further from play feedback.
+
+## Ending a campaign
+
+End campaign is available on the operative panel during play and beside Resume operation in the Safehouse & Armory. The confirmation defaults to Keep playing and lists what will be lost. Confirming returns to safehouse preparation for district 1; it does not auto-launch another battle. Controls are disabled during combat animations so a queued turn cannot overwrite the reset.
+
+Version 6 saves distinguish the new campaign lifecycle. Existing active version 3–5 campaigns retain their current progress until they end. Old inactive safehouses and terminal results migrate to a fresh campaign with their minted collection. New saves preserve the reset across reloads. District victories before the finale still award campaign experience and credits and retain the current build; only an actual campaign ending clears them. Settlement receipts prevent duplicate rewards and are not player progression.
+
+Reset validation covers every faction and playable phase, combat and exploration deaths, medical revival, district continuation, final completion, item identity and selection, immutable state updates, duplicate settlement, and migration/reload. Browser checks cover both controls, cancellation, confirmation, death/completion, and desktop/phone layouts.
