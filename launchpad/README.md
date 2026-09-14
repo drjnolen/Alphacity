@@ -1,13 +1,35 @@
-# AlphaCity first-party launch workspace
+# AlphaCity collection launchpad
 
-The launchpad initially prepares AlphaCity's own NFT collection. It is a local owner workflow rather than a partner platform: the browser saves a draft, validates collection metadata and media, previews the mint, and exports a reproducible handoff. It does not contain a signing key or cloud credential.
+The launchpad prepares NFT collections for publication on Sui. Create a project, select its metadata and artwork, configure mint phases and payouts, preview the public page, and export launch files. Projects prepared by this builder retain the existing 0% platform fee and immediate, sequential reveal contract rules.
+
+## Managing projects
+
+- Create and switch between independent projects using the project selector. Draft IDs are separate from public mint slugs, so renaming a project never overwrites another draft. Keep each published collection’s slug unique.
+- Import opens a separate draft, including an unfinished editable project. Omitted fields are cleared. An imported project cannot inherit another project’s payout, website, CSV, images, or validation results.
+- Export backup is available from every step. Backups include configuration and allowlists; keep the CSV and image folder separately. Prepared bundles still require full validation and confirmation of the immutable media release.
+- Drafts use IndexedDB with a per-project localStorage fallback. The former single draft is restored automatically using the newest stored version. Saving is serialized; a failed save is reported, and switching projects is blocked until the current work can be saved. If storage is unavailable, export a backup before leaving the page.
+- Selected files remain in memory while switching projects in the same tab. Reloading requires selecting files again and renewing the file-dependent confirmations. File reads from an earlier project or selection cannot overwrite the current project.
+- Browsers supporting Web Locks open a separate copy if the same project is already being edited in another tab. On browsers without Web Locks, use one editing tab per project. Drafts are local to this browser, not synced between devices.
+- Delete removes only the selected project after confirmation. Other drafts are retained. Storage tombstones prevent a stale fallback copy from restoring a deleted project.
+
+The Items table shows 100 rows per page while validating all rows and images. Image signature reads use eight workers. The cover preview reuses its object URL until the selected file changes. Preparation reports missing requirements with links to the relevant step, and export always validates the current form and selected files again.
+
+## Builder validation
+
+```sh
+node --test tests/launchpad-*.test.cjs
+npm run build:launchpad-css
+```
+
+Browser coverage is available in `tests/launchpad.browser.cjs`. With Playwright and Chrome installed, run `node tests/launchpad.browser.cjs`. If Playwright is installed outside this checkout, set `PLAYWRIGHT_MODULE` to its module path. Set `LAUNCHPAD_SCREENSHOT_DIR` to save desktop and mobile screenshots. The test starts a temporary localhost server and an isolated browser profile; it checks project isolation, unfinished imports, exact price/date/royalty values, paginated inventory, prepared exports, simultaneous tabs, reloads, and all six steps on mobile.
 
 ## Components
 
-- `/launchpad/` is the local owner collection builder. Draft fields persist in the browser and exports remain explicit.
-- `/launchpad/operator/` is a compatibility route for the earlier operator workspace.
+- `/launchpad/` is the collection builder. Each project saves independently in this browser.
+- `/launchpad/operator/` retains the earlier operator workspace and its separate script.
 - `/mint/` is the public mint page. Collections in `coming-soon` mode remain non-transactional. Collections in `managed-drop` mode read their shared `Drop` object and build the Sui mint transaction through the universal wallet connector.
 - Legacy `/launchpad/?collection=<slug>` public links redirect to `/mint/?collection=<slug>`. Add `mode=edit` only when the owner intentionally needs the builder with a collection query present.
+- `launchpad/draft-store.js` handles draft persistence and legacy recovery; `launchpad/operator-app.js` manages the builder UI.
 - `shared/launchpad-core.js` is the common deterministic parser, validator, SUI/MIST converter, and bundle generator used by both browser and Node workflows.
 - `scripts/launchpad-project.cjs` validates an intake directory and generates a project-specific Move package, public collection config, and ordered transaction plan.
 - `scripts/launchpad-r2-publish.cjs` creates a deterministic, immutable R2 media release. Its default is a local dry run; `--upload` is a separate explicit action.

@@ -8,10 +8,11 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const page = fs.readFileSync(path.join(root, 'launchpad', 'index.html'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'launchpad', 'operator-app.js'), 'utf8');
+const storage = fs.readFileSync(path.join(root, 'launchpad', 'draft-store.js'), 'utf8');
 
-test('launchpad is a six-step first-party builder and legacy public links move to mint', () => {
+test('launchpad is a six-step project builder and legacy public links move to mint', () => {
     for (const label of ['Collection', 'Items', 'Mint phases', 'Payouts', 'Review', 'Prepare']) assert.match(page, new RegExp(label));
-    assert.match(page, /AlphaCity collection only/);
+    assert.match(page, /Alpha City Launchpad/);
     assert.match(page, /target = new URL\('\/mint\/'/);
     assert.match(page, /params\.get\('mode'\) !== 'edit'/);
     assert.match(page, /\/launchpad\/operator-app\.js/);
@@ -20,11 +21,11 @@ test('launchpad is a six-step first-party builder and legacy public links move t
 });
 
 test('builder saves locally and keeps media and signing credentials out of browser persistence', () => {
-    assert.match(source, /indexedDB\.open/);
-    assert.match(source, /localStorage\.setItem/);
-    assert.doesNotMatch(source, /mediaFiles:\s*state\.mediaFiles/);
-    assert.doesNotMatch(source, /csvText:\s*state\.csvText/);
-    assert.doesNotMatch(source, /csvName:\s*state\.csvName/);
+    assert.match(storage, /indexedDB\.open/);
+    assert.match(storage, /localStorage\.setItem/);
+
+
+    assert.doesNotMatch(source.slice(source.indexOf('function currentDraft'), source.indexOf('function autosaveStatus')), /csvText|csvName|mediaFiles/);
     assert.match(source, /state\.resetting = true/);
     assert.match(source, /if \(!state\.loaded \|\| state\.resetting\) return/);
     assert.match(page, /Files stay in this tab and are never uploaded by this page/);
@@ -46,9 +47,9 @@ test('builder supports phase CRUD, allowlist imports, exact royalties, validatio
     assert.match(source, /assignment-policy-equivalent/);
     assert.match(source, /\['collection-name', 'collection-slug', 'hero-file'\]\.includes\(element\.id\)/);
     assert.match(page, /equivalent mint value/);
-    assert.match(page, /external R2 release gate/i);
+    assert.match(page, /verified the published images/i);
     assert.match(page, /id="preview-name"/);
-    assert.match(page, /Delayed reveal \(future contract\)/);
+    assert.match(page, /Delayed reveal \(unavailable\)/);
 });
 
 test('builder source parses as JavaScript', () => {
