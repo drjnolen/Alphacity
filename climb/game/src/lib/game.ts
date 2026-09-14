@@ -1,3 +1,4 @@
+import {TALENTS, CLOCKS, dischargeLimit, exposureBonus, batteryGuard, clockText, hasTalent, canLearn, hasClock, armedClocks, canClock, signatureCost, type OverclockChoice} from './expedition.ts';
 import {encounterArena} from './encounter-arenas.ts';
 import type {DistrictArena} from './district-arenas.ts';
 import { bossPlan } from './bosses.ts';
@@ -11,7 +12,7 @@ export type Slot = 'weapon' | 'tool' | 'charm' | 'cranial' | 'chassis';
 export type Gear = Record<'weapon'|'tool'|'charm',ItemId> & Partial<Record<'cranial'|'chassis',ItemId>>;
 export type Mode = 'camp' | 'map' | 'event' | 'combat' | 'reward' | 'result';
 export type Position = { x: number; y: number };
-export type ActionMode = 'move' | 'attack' | 'skill';
+export type ActionMode = 'move' | 'attack' | 'skill' | 'overclock';
 export const HEROES = [
  {id:'glitchborn' as HeroId,name:'Nyx',lore:'Illegal and unregistered, Glitchborn are born without neural implants. Saboteurs and spies, they move beyond the Singularity’s sight.',title:'Glitchborn',role:'AMBUSH / SABOTAGE',hp:34,portrait:0,serial:'0042',trait:'Unregistered',passive:'The first attack in each encounter deals +3 damage. You are invisible to the ledger.',skill:'Ghost Step',skillText:'Blink beside a target within 3 tiles. Deal 10 damage.',skillRange:3,skillDamage:10,quote:'No implant. No record. No permission.'},
  {id:'chainbreaker' as HeroId,name:'Atlas',lore:'Genetically modified to survive the destruction of their neural implants, Chainbreakers wield the Underground’s weaponized analog augments.',title:'Chainbreaker',role:'ASSAULT / PROTECTION',hp:44,portrait:1,serial:'0108',trait:'Analog resolve',passive:'Start every encounter with 5 guard plus your level bonus.',skill:'Breach Pulse',skillText:'Deal 13 damage to an adjacent target. Gain 5 guard.',skillRange:1,skillDamage:13,quote:'They built these chains. We built the answer.'},
@@ -37,23 +38,23 @@ ITEMS.push(
 ITEMS.forEach(i=>i.rarity='Salvage');
 export const NODES = CHAPTER_NODES[1];
 export const EDGES = [['threshold','bridge'],['threshold','garden'],['bridge','archive'],['bridge','cistern'],['garden','archive'],['garden','cistern'],['archive','guardian'],['cistern','guardian'],['guardian','heart']];
-export type Enemy = Position & { id: number; name: string; hp: number; maxHp: number; damage: number; type: 'husk' | 'watcher' | 'boss'; poison: number; armor?:number; phase?:number; intentDamage?:number; intent: Position[]; advancing: boolean; faction?:EnemyFaction; portrait?:number; role?:'drone'|'sniper'|'nullifier'|'enforcer'; jammed?:number; slow?:number; weaken?:number; ability?:string; lastColumn?:number };
-export type Combat = { arena?:DistrictArena; encounter?:string;  bossRules?:boolean; lingering?:Position[];  layout?:ChapterId; terrain?:TerrainId; travel?:{enemyId:number;path:Position[]}[]; chapter?:ChapterId; hazards?:Position[]; hazardDamage?:number; hero: Position; enemies: Enemy[]; ap: number; round: number; block: number; cooldown: number; firstStrike: boolean; obstacles: Position[]; last: string; lockout?:number };
+export type Enemy = Position & { marked?:boolean; exposed?:number; id: number; name: string; hp: number; maxHp: number; damage: number; type: 'husk' | 'watcher' | 'boss'; poison: number; armor?:number; phase?:number; intentDamage?:number; intent: Position[]; advancing: boolean; faction?:EnemyFaction; portrait?:number; role?:'drone'|'sniper'|'nullifier'|'enforcer'; jammed?:number; slow?:number; weaken?:number; ability?:string; lastColumn?:number };
+export type Combat = { memory?:Record<string,number>;gearCooldowns?:Partial<Record<Slot,number>>; arena?:DistrictArena; encounter?:string;  bossRules?:boolean; lingering?:Position[];  layout?:ChapterId; terrain?:TerrainId; travel?:{enemyId:number;path:Position[]}[]; chapter?:ChapterId; hazards?:Position[]; hazardDamage?:number; hero: Position; enemies: Enemy[]; ap: number; round: number; block: number; cooldown: number; firstStrike: boolean; obstacles: Position[]; last: string; lockout?:number };
 export type DamageRoll = {target:'hero'|'enemy';enemyId:number;damage:number;critical:boolean};
 export const CRITICAL_CHANCE=.02;
-export type Run = {lastHits?:DamageRoll[];climbId?:string;climbActive?:boolean;boosts?:Partial<Record<Slot,number>>;upgradeOffer?:{slot:Slot;cost:number;resolved:boolean;purchased:boolean};  id:string; chapter:ChapterId; level:number; ranks:Record<ItemId,number>; completedDepth:number; bonusPower:number; mode: Mode; heroId: HeroId; gear: Gear; loadout?:Partial<Record<Slot,Equipment>>; minted?:Equipment; mintResolved?:boolean; hp: number; maxHp: number; supplies: number; salvage: number; depth: number; nodeId: string; visited: string[]; combat: Combat | null; log: string[]; rewardTitle: string; rewardText: string; victory: boolean; outcome: string; phoenixUsed: boolean; turns: number; relic: boolean; danger: number };
+export type Run = { insight?:number;talents?:string[];overclocks?:Partial<Record<Slot,('active'|'passive')[]>>;armedClocks?:Slot[];lastHits?:DamageRoll[];climbId?:string;climbActive?:boolean;boosts?:Partial<Record<Slot,number>>;upgradeOffer?:{slot:Slot;cost:number;resolved:boolean;purchased:boolean;choice?:OverclockChoice};  id:string; chapter:ChapterId; level:number; ranks:Record<ItemId,number>; completedDepth:number; bonusPower:number; mode: Mode; heroId: HeroId; gear: Gear; loadout?:Partial<Record<Slot,Equipment>>; minted?:Equipment; mintResolved?:boolean; hp: number; maxHp: number; supplies: number; salvage: number; depth: number; nodeId: string; visited: string[]; combat: Combat | null; log: string[]; rewardTitle: string; rewardText: string; victory: boolean; outcome: string; phoenixUsed: boolean; turns: number; relic: boolean; danger: number };
 export const heroFor = (r: Run) => HEROES.find(h => h.id === r.heroId)!;
 export const itemFor = (id: ItemId) => ITEMS.find(i => i.id === id)!;
 export const nodeFor = (id: string, chapter:ChapterId=1) => nodesForChapter(chapter).find(n => n.id === id)!;
 export const ranksZero=():Record<ItemId,number>=>({daggers:0,sword:0,hook:0,lantern:0,armor:0,phoenix:0,capacitor:0,repeater:0,visor:0,crown:0,plate:0,mantle:0});
 export const climbBoost=(r:Run,slot:Slot)=>r.boosts?.[slot]??0;
 export const upgradeBenefit=(slot:Slot)=>({weapon:'+2 weapon and signature damage',tool:'+3 starting guard each encounter',charm:'+2 guard when bracing',cranial:'+2 signature damage',chassis:'+4 maximum health and restore 4 health'})[slot];
-export function clearClimb(r:Run){r.maxHp-=climbBoost(r,'chassis')*4;r.hp=Math.min(r.hp,r.maxHp);r.boosts={};r.bonusPower=0;r.climbActive=false;}
+export function clearClimb(r:Run){r.maxHp-=climbBoost(r,'chassis')*4;r.hp=Math.min(r.hp,r.maxHp);r.boosts={};r.talents=[];r.insight=0;r.overclocks={};r.armedClocks=[];r.bonusPower=0;r.climbActive=false;}
 export const weaponDamage=(r:Run)=>(r.gear.weapon==='sword'?7:['capacitor','repeater'].includes(r.gear.weapon)?6:5)+(r.level-1)+r.ranks[r.gear.weapon]*2+r.bonusPower+bonusDamage(r)+climbBoost(r,'weapon')*2;
 export const skillDamage=(r:Run)=>heroFor(r).skillDamage+(r.level-1)*2+r.ranks[r.gear.weapon]*2+r.bonusPower+bonusDamage(r)+(r.gear.cranial==='visor'?2+(r.ranks.visor??0):r.gear.cranial==='crown'?(r.ranks.crown??0):0)+potency(equippedItem(r,'cranial'))+climbBoost(r,'weapon')*2+climbBoost(r,'cranial')*2;
 export const moveRange=(r:Run)=>r.gear.tool==='hook'?3+Math.ceil(r.ranks.hook/2):2;
 export const healAmount=(r:Run)=>12+(r.level-1)*3;
-export const guardAmount=(r:Run)=>7+(r.level-1)+potency(equippedItem(r,'charm'))+climbBoost(r,'charm')*2;
+export const guardAmount=(r:Run)=>7+(r.level-1)+potency(equippedItem(r,'charm'))+climbBoost(r,'charm')*2+(hasTalent(r,'collateral')?Math.min(5,Math.floor(r.salvage/40)):0)-(hasTalent(r,'redline')&&r.hp<=r.maxHp/2?2:0);
 export const poisonDamage=(r:Run)=>2+r.ranks.daggers;
 export const armorGuard=(r:Run)=>3+r.ranks.armor*2;
 export const reviveAmount=(r:Run)=>14+r.ranks.phoenix*8;
@@ -65,7 +66,7 @@ export const inBoard = onBoard;
 export function createRun(heroId: HeroId = 'glitchborn', gear: Gear = { weapon:'daggers', tool:'hook', charm:'phoenix' }, chapter:ChapterId=1, level=1, ranks:Record<ItemId,number>=ranksZero()): Run {
   const hero=HEROES.find(h=>h.id===heroId)!;
   const maxHp=hero.hp+(level-1)*5;
-  return { id:crypto.randomUUID(),chapter,level,ranks:{...ranks},completedDepth:0,bonusPower:0,mode:'camp',heroId,gear:{...gear},hp:maxHp,maxHp,supplies:2,salvage:0,depth:0,nodeId:'threshold',visited:['threshold'],combat:null,log:[chapterFor(chapter).intro],rewardTitle:'',rewardText:'',victory:false,outcome:'',phoenixUsed:false,turns:0,relic:false,danger:0 };
+  return { insight:1,talents:[],overclocks:{},armedClocks:[],id:crypto.randomUUID(),chapter,level,ranks:{...ranks},completedDepth:0,bonusPower:0,mode:'camp',heroId,gear:{...gear},hp:maxHp,maxHp,supplies:2,salvage:0,depth:0,nodeId:'threshold',visited:['threshold'],combat:null,log:[chapterFor(chapter).intro],rewardTitle:'',rewardText:'',victory:false,outcome:'',phoenixUsed:false,turns:0,relic:false,danger:0 };
 }
 export function append(r: Run, message: string) { r.log = [...r.log.slice(-24),message]; }
 export function availableNodes(r: Run) { return nodesForChapter(r.chapter).filter(n=>n.depth===r.depth+1&&(n.id!=='archive'||r.gear.tool==='hook')); }
@@ -74,7 +75,7 @@ export function blinkLanding(c:Combat,target:Position):Position|undefined {
  return neighbors(target).filter(p=>connected(c,target,p)&&!c.obstacles.some(o=>same(o,p))&&!c.enemies.some(e=>e.hp>0&&same(e,p))).sort((a,b)=>distance(a,c.hero)-distance(b,c.hero))[0];
 }
 export function canAttack(r:Run,enemy:Enemy,skill=false):boolean {
- const c=r.combat;if(!c||c.ap<(skill?2:1)||enemy.hp<=0||(skill&&(c.cooldown>0||(c.lockout??0)>0)))return false;
+ const c=r.combat;if(!c||c.ap<(skill?signatureCost(r):1)||enemy.hp<=0||(skill&&(c.cooldown>0||(c.lockout??0)>0)))return false;
  const range=skill?heroFor(r).skillRange:basicRange(r);
  if(distance(c.hero,enemy)>range)return false;
  if(skill&&r.heroId==='glitchborn')return !!blinkLanding(c,enemy);
@@ -108,8 +109,11 @@ export function planEnemies(c: Combat) {
  c.hazards=[...c.hazards,...(c.lingering??[])];
  c.hazards=c.hazards.filter(p=>hasTile(c,p)&&!c.obstacles.some(o=>same(o,p)));
 }
+// Fixed district curve: upgrades add tactical answers, but incoming hits must remain costly.
+// Saved battles retain their announced damage; the curve applies when entering a new room.
+const SECURITY_DAMAGE = [10,12,15,18,21,24,28,32,36] as const;
 function enterCombat(r:Run,boss:boolean){
- const ch=r.chapter,elite=nodeFor(r.nodeId,ch).kind==='elite',ranged=r.nodeId==='garden',hp=17+ch*4,damage=6+ch;
+ const ch=r.chapter,elite=nodeFor(r.nodeId,ch).kind==='elite',ranged=r.nodeId==='garden',hp=17+ch*4,damage=SECURITY_DAMAGE[ch-1];
  const profiles:{name:string;type:Enemy['type'];role:Enemy['role'];faction:EnemyFaction}[]=[
   {name:'Implant Militia',type:'husk',role:'enforcer',faction:'Neuralifes'},
   {name:'Audit Drone',type:'watcher',role:'drone',faction:'The Singularity'},
@@ -125,7 +129,7 @@ function enterCombat(r:Run,boss:boolean){
   const profileIndex=(ch-1+i*2+(ranged?1:0)+(elite?2:0))%profiles.length,base=profiles[profileIndex];
   const isBoss=boss&&i===0,commander=elite&&i===0;
   const health=isBoss?54+ch*12:hp+(commander?10:0)-(i?3:0);
-  return {...base,id:i+1,x:[4,7,5,7][i],y:[1,3,2,1][i],name:isBoss?chapterFor(ch).boss:commander?`Elite ${base.name}`:base.name,type:isBoss?'boss':base.type,faction:isBoss?chapterFor(ch).faction:base.faction,portrait:isBoss?undefined:7+profileIndex,hp:health+r.danger*3,maxHp:health+r.danger*3,damage:damage+(isBoss?5:commander?3:base.role==='sniper'?2:0),armor:ch===1?1:Math.floor(ch/3)+(commander||base.role==='enforcer'?1:0),poison:0,jammed:0,intent:[],advancing:false};
+  return {...base,id:i+1,x:[4,7,5,7][i],y:[1,3,2,1][i],name:isBoss?chapterFor(ch).boss:commander?`Elite ${base.name}`:base.name,type:isBoss?'boss':base.type,faction:isBoss?chapterFor(ch).faction:base.faction,portrait:isBoss?undefined:7+profileIndex,hp:health+r.danger*3,maxHp:health+r.danger*3,damage:damage+(isBoss?6+Math.floor(ch/3):commander?3+Math.floor(ch/3):base.role==='sniper'?2+Math.floor(ch/4):0),armor:ch===1?1:Math.floor(ch/3)+(commander||base.role==='enforcer'?1:0),poison:0,jammed:0,intent:[],advancing:false};
  });
  const guard=climbBoost(r,'tool')*3+potency(equippedItem(r,'tool'))+(r.heroId==='chainbreaker'?5+r.level-1:0)+(r.gear.tool==='hook'?r.ranks.hook*2:r.ranks.lantern*3);
  const obstacles=ch>=6?[{x:2,y:0},{x:2,y:2},{x:4,y:2}]:boss?[{x:2,y:1},{x:3,y:3}]:[{x:2,y:0},{x:3,y:3}];
@@ -145,12 +149,33 @@ function hurt(r:Run,amount:number){
   else if(r.hp<=0){clearClimb(r);r.mode='result';r.outcome='Operation compromised';r.victory=false;append(r,'Your rebel returns to the safehouse. Unsecured credits are lost.');}
 }
 function reward(r:Run,title:string,text:string,amount:number){const credits=r.heroId==='coinbroker'?Math.floor(amount*1.25):amount;r.completedDepth=r.depth;r.salvage+=credits;r.mode='reward';r.rewardTitle=title;r.rewardText=text;append(r,`${title} · +${credits} credits${r.heroId==='coinbroker'&&amount?' (Off-chain dividends)':''}`);}
-function combatWon(r:Run){const n=nodeFor(r.nodeId,r.chapter);r.combat=null;if(n.kind==='boss'){r.relic=true;r.mintResolved=true;if(r.chapter<9){const slots=SLOTS.filter(s=>r.gear[s]);r.upgradeOffer={slot:slots[Math.floor(Math.random()*slots.length)],cost:60+r.chapter*20,resolved:false,purchased:false};}reward(r,`${chapterFor(r.chapter).name}: network severed`,chapterFor(r.chapter).ending,n.reward);}else{if(n.kind==='elite')r.bonusPower++;reward(r,n.kind==='elite'?'Elite checkpoint broken':'Patrol neutralized',n.kind==='elite'?'Captured equipment grants +1 damage for the rest of this operation.':'The patrol is disabled. Recover its off-chain credits and an intact medical supply.',n.reward);r.supplies++;}}
-export type GameAction = {type:'upgradeGear'}|{type:'skipUpgrade'}|{type:'begin'}|{type:'visit';id:string}|{type:'event';choice:string}|{type:'continue'}|{type:'extract'}|{type:'move';position:Position}|{type:'attack';id:number;skill?:boolean}|{type:'guard'}|{type:'end'}|{type:'heal'};
+function combatWon(r:Run,random:()=>number=Math.random){const n=nodeFor(r.nodeId,r.chapter);r.combat=null;if(n.kind==='boss'){r.relic=true;r.mintResolved=true;if(r.chapter<9){r.insight=(r.insight??1)+1;const slots=SLOTS.filter(s=>r.gear[s]);r.upgradeOffer={slot:slots[Math.min(slots.length-1,Math.floor(random()*slots.length))],cost:60+r.chapter*20,resolved:false,purchased:false};}reward(r,`${chapterFor(r.chapter).name}: network severed`,chapterFor(r.chapter).ending,n.reward);}else{if(n.kind==='elite')r.bonusPower++;reward(r,n.kind==='elite'?'Elite checkpoint broken':'Patrol neutralized',n.kind==='elite'?'Captured equipment grants +1 damage for the rest of this operation.':'The patrol is disabled. Recover its off-chain credits and an intact medical supply.',n.reward);r.supplies++;}}
+export type GameAction = {type:'learnTalent';id:string}|{type:'armClock';slot:Slot}|{type:'overclock';slot:Slot;id?:number}|{type:'upgradeGear';choice?:OverclockChoice}|{type:'skipUpgrade'}|{type:'begin'}|{type:'visit';id:string}|{type:'event';choice:string}|{type:'continue'}|{type:'extract'}|{type:'move';position:Position}|{type:'attack';id:number;skill?:boolean}|{type:'guard'}|{type:'end'}|{type:'heal'};
 export function transition(original:Run,action:GameAction,random:()=>number=Math.random):Run{
   const r=structuredClone(original);const c=r.combat;r.lastHits=[];
   const hit=(target:DamageRoll['target'],enemyId:number,base:number)=>{const critical=random()<CRITICAL_CHANCE,damage=base*(critical?2:1);r.lastHits!.push({target,enemyId,damage,critical});return damage;};
-  if(action.type==='upgradeGear'&&r.mode==='reward'&&r.relic&&r.upgradeOffer&&!r.upgradeOffer.resolved&&r.salvage>=r.upgradeOffer.cost){const offer=r.upgradeOffer;r.salvage-=offer.cost;r.boosts={...r.boosts,[offer.slot]:climbBoost(r,offer.slot)+1};offer.resolved=true;offer.purchased=true;if(offer.slot==='chassis'){r.maxHp+=4;r.hp=Math.min(r.maxHp,r.hp+4);}append(r,`${itemFor(r.gear[offer.slot]!).name} overclocked for this climb: ${upgradeBenefit(offer.slot)}.`);return r;}
+  if(action.type==='learnTalent'){
+    if(!canLearn(r,action.id))return original;
+    r.talents=[...(r.talents??[]),action.id];append(r,'Doctrine learned: '+TALENTS.find(t=>t.id===action.id)!.name+'.');return r;
+  }
+  if(action.type==='armClock'){
+    if(!r.climbActive||!['map','reward','result'].includes(r.mode)||!hasClock(r,action.slot,'active'))return original;
+    const armed=armedClocks(r);if(armed.includes(action.slot))r.armedClocks=armed.filter(s=>s!==action.slot);
+    else{if(armed.length>=3)return original;r.armedClocks=[...armed,action.slot];}return r;
+  }
+  if(action.type==='upgradeGear'&&r.mode==='reward'&&r.relic&&r.upgradeOffer&&!r.upgradeOffer.resolved&&r.salvage>=r.upgradeOffer.cost){
+    const offer=r.upgradeOffer,choice=action.choice??'calibrate';
+    if(!['calibrate','active','passive'].includes(choice)||(choice!=='calibrate'&&hasClock(r,offer.slot,choice)))return original;
+    r.salvage-=offer.cost;offer.resolved=true;offer.purchased=true;offer.choice=choice;
+    if(choice==='calibrate'){
+      r.boosts={...r.boosts,[offer.slot]:climbBoost(r,offer.slot)+1};
+      if(offer.slot==='chassis'){r.maxHp+=4;r.hp=Math.min(r.maxHp,r.hp+4);}
+    }else{
+      r.overclocks={...r.overclocks,[offer.slot]:[...(r.overclocks?.[offer.slot]??[]),choice]};
+      if(choice==='active'&&armedClocks(r).length<3)r.armedClocks=[...armedClocks(r),offer.slot];
+    }
+    append(r,itemFor(r.gear[offer.slot]!).name+' overclocked: '+(choice==='calibrate'?upgradeBenefit(offer.slot):choice==='active'?CLOCKS[offer.slot].name:CLOCKS[offer.slot].passive)+'.');return r;
+  }
   if(action.type==='skipUpgrade'&&r.mode==='reward'&&r.upgradeOffer&&!r.upgradeOffer.resolved){r.upgradeOffer.resolved=true;return r;}
   if(action.type==='begin'&&r.mode==='camp'){r.climbActive=true;r.climbId??=r.id;r.mode='map';append(r,`${heroFor(r).name} joins the Alpha City uprising.`);return r;}
   if(action.type==='visit'&&r.mode==='map'){
@@ -175,14 +200,72 @@ export function transition(original:Run,action:GameAction,random:()=>number=Math
   if(r.mode!=='combat'||!c)return original;
   if(action.type==='move'){
     if(c.ap<1||same(c.hero,action.position)||!reachable(c,c.hero,action.position,moveRange(r)))return original;
-    c.hero={...action.position};c.ap--;c.last='Position changed. The marked attacks stay where they were.';return r;
+    c.hero={...action.position};c.ap--;const m=c.memory??={};m.moved=1;if(!m.moveGuard&&hasClock(r,'tool','passive')){c.block+=3;m.moveGuard=1;}if(!m.airGuard&&hasTalent(r,'airgap')&&!c.enemies.some(e=>distance(e,c.hero)<=2)){c.block+=4;m.airGuard=1;}c.last='Position changed. The marked attacks stay where they were.';return r;
   }
   if(action.type==='guard'){
-    if(c.ap<1)return original;c.ap--;c.block+=guardAmount(r);c.last=`Brace: +${guardAmount(r)} guard until the next enemy turn.`;append(r,c.last);return r;
+    if(c.ap<1)return original;c.ap--;const m=c.memory??={};c.block+=guardAmount(r)+(hasTalent(r,'coil')&&!m.braced?3:0);m.braced=1;if(hasTalent(r,'bailout')&&!m.bailout&&r.hp<=r.maxHp/2){m.bailout=1;if(r.salvage>=15){r.salvage-=15;r.hp=Math.min(r.maxHp,r.hp+6);}else c.block+=3;}c.last=`Brace: +${guardAmount(r)} guard until the next enemy turn.`;append(r,c.last);return r;
+  }
+  const primary=(enemy:Enemy,base:number,kind:'basic'|'signature'|'gear')=>{
+    const m=c.memory??={},poisoned=enemy.poison>0,suppressed=(enemy.weaken??0)>0;
+    let damage=base;if(c.firstStrike&&r.heroId==='glitchborn')damage+=3;c.firstStrike=false;
+    if(hasTalent(r,'momentum')&&m.moved&&!m.momentum){damage+=3;m.momentum=1;}
+    if(hasTalent(r,'convert')&&m.braced&&!m.convert){const charge=Math.min(6,c.block);c.block-=charge;damage+=charge;m.convert=1;}
+    if(hasTalent(r,'counter')&&m.charge){damage+=m.charge;m.charge=0;}
+    if(hasTalent(r,'drag')&&(enemy.slow??0)>0)damage+=2;
+    if(hasTalent(r,'redline')&&r.hp<=r.maxHp/2)damage+=4;
+    if(hasClock(r,'weapon','passive')&&enemy.hp<=enemy.maxHp/2)damage+=3;
+    if(enemy.exposed){damage+=enemy.exposed;enemy.exposed=0;}
+    if(kind==='signature'){
+      if(hasTalent(r,'catalyst')&&poisoned){damage+=Math.min(3,enemy.poison)*3;enemy.poison=0;}
+      if(hasTalent(r,'relay'))damage-=2;
+      if(hasTalent(r,'overdrive')&&c.ap>=3)damage+=6;
+      if(hasTalent(r,'bid')&&enemy.marked&&r.salvage>=12){r.salvage-=12;damage+=5;}
+      if(hasTalent(r,'liquidity')&&r.salvage<40)damage+=4;
+      if(hasClock(r,'cranial','passive')&&!m.focus){damage+=4;m.focus=1;}
+      m.feedback=hasTalent(r,'feedback')&&suppressed?1:0;
+      m.maker=hasTalent(r,'maker')&&enemy.marked?1:0;
+      if(hasTalent(r,'isolation')&&!c.enemies.some(e=>e.id!==enemy.id&&e.hp>0&&distance(e,enemy)<=2))c.block+=6;
+    }
+    if(kind==='basic'&&hasTalent(r,'liquidity')&&r.salvage<40)damage+=2;
+    const dealt=hit('enemy',enemy.id,Math.max(1,damage));enemy.hp=Math.max(0,enemy.hp-dealt);
+    const weapon=equippedItem(r,'weapon');
+    if(weapon?.damageType==='Kinetic'||(kind==='basic'&&hasTalent(r,'drag')))enemy.slow=Math.max(1,enemy.slow??0);
+    if(weapon?.damageType==='Enertech')enemy.weaken=Math.max(enemy.weaken??0,weakenPercent(weapon));
+    if(weapon?.damageType==='Siphon')r.salvage+=siphonCredits(weapon);
+    if(r.gear.weapon==='daggers'&&!(kind==='signature'&&hasTalent(r,'catalyst')))enemy.poison=Math.max(enemy.poison,2+(r.ranks.daggers>=2?1:0));
+    if(kind==='basic'&&hasTalent(r,'residue'))enemy.poison=Math.max(enemy.poison,r.gear.weapon==='daggers'?3:2);
+    if((hasTalent(r,'silence')&&poisoned)||(kind==='basic'&&hasTalent(r,'suppress')))enemy.weaken=Math.max(enemy.weaken??0,25);
+    if(kind==='basic'&&hasTalent(r,'levy')&&!enemy.marked){enemy.marked=true;r.salvage+=4;}
+    if(enemy.hp<=0){
+      if(hasTalent(r,'escape')&&m.moved&&!m.escape){c.ap++;m.escape=1;}
+      if(hasTalent(r,'reset')&&!m.reset){m.reset=1;m.killReset=1;}
+      if(hasTalent(r,'contagion'))c.enemies.forEach(e=>{if(e.hp>0&&distance(e,enemy)<=2)e.poison=Math.max(2,e.poison);});
+      if(hasClock(r,'charm','passive')&&!m.secondWind){r.hp=Math.min(r.maxHp,r.hp+4);m.secondWind=1;}
+    }
+    return dealt;
+  };
+  const finishHit=()=>{const m=c.memory??={};if(m.killReset){c.cooldown=Math.max(0,c.cooldown-1);m.killReset=0;}c.enemies=c.enemies.filter(e=>e.hp>0);if(!c.enemies.length)combatWon(r,random);};
+  if(action.type==='overclock'){
+    if(!canClock(r,action.slot,action.id))return original;
+    const slot=action.slot,clock=CLOCKS[slot],enemy=c.enemies.find(e=>e.id===action.id),m=c.memory??={};
+    c.gearCooldowns={...c.gearCooldowns,[slot]:clock.cooldown};
+    let dealt=0;
+    if(slot==='weapon'&&enemy){
+      const dx=enemy.x-c.hero.x,dy=enemy.y-c.hero.y,p={x:enemy.x+(Math.abs(dx)>=Math.abs(dy)?Math.sign(dx):0),y:enemy.y+(Math.abs(dx)<Math.abs(dy)?Math.sign(dy):0)};
+      const push=hasTile(c,p)&&connected(c,enemy,p)&&!c.obstacles.some(o=>same(o,p))&&!c.enemies.some(e=>e.hp>0&&same(e,p))&&!same(c.hero,p);
+      dealt=primary(enemy,Math.floor(skillDamage(r)*.75)+(push?0:3),'gear');if(push&&enemy.hp>0){enemy.x=p.x;enemy.y=p.y;}
+    }
+    if(slot==='tool'&&enemy){enemy.slow=Math.max(enemy.slow??0,1);enemy.weaken=Math.max(enemy.weaken??0,40);c.block+=3;}
+    if(slot==='cranial'&&enemy){enemy.exposed=exposureBonus(r);enemy.weaken=Math.max(enemy.weaken??0,25);}
+    if(slot==='charm'){c.block+=batteryGuard(r);c.cooldown=Math.max(0,c.cooldown-1);}
+    if(slot==='chassis'&&enemy){const charge=Math.min(dischargeLimit(r),c.block);c.block-=charge;dealt=primary(enemy,charge+3,'gear');}
+    if(hasTalent(r,'parallel')&&!m.parallelGear){c.cooldown=Math.max(0,c.cooldown-1);m.parallelGear=1;}
+    if(hasTalent(r,'cashback')&&!m.rebated&&(m.rebates??0)<3){r.salvage+=6;m.rebates=(m.rebates??0)+1;m.rebated=1;}
+    c.ap-=clock.cost;c.last=clock.name+(dealt?' · '+dealt+' damage.':': '+clockText(r,slot));append(r,c.last);finishHit();return r;
   }
   if(action.type==='attack'){
     const enemy=c.enemies.find(e=>e.id===action.id&&e.hp>0);if(!enemy)return original;
-    const hero=heroFor(r);const cost=action.skill?2:1;
+    const hero=heroFor(r);const cost=action.skill?signatureCost(r):1,unbound=!!action.skill&&hasTalent(r,'unbound')&&r.hp<=r.maxHp/2;
     if(!canAttack(r,enemy,action.skill))return original;
     if(action.skill&&r.heroId==='glitchborn'){
       const landing=blinkLanding(c,enemy);if(!landing)return original;c.hero=landing;
@@ -190,17 +273,17 @@ export function transition(original:Run,action:GameAction,random:()=>number=Math
     let damage=action.skill?skillDamage(r):weaponDamage(r);
     if(!action.skill&&weaponType(r)!=='Umbral')damage=Math.max(1,damage-(enemy.armor??0));
     if(c.firstStrike&&r.heroId==='glitchborn')damage+=3;c.firstStrike=false;
-    damage=hit('enemy',enemy.id,damage);enemy.hp=Math.max(0,enemy.hp-damage);
-    const weapon=equippedItem(r,'weapon');if(weapon?.damageType==='Kinetic')enemy.slow=1;if(weapon?.damageType==='Enertech')enemy.weaken=weakenPercent(weapon);if(weapon?.damageType==='Siphon')r.salvage+=siphonCredits(weapon);if(r.gear.weapon==='daggers')enemy.poison=2+(r.ranks.daggers>=2?1:0);
+    damage=primary(enemy,damage,action.skill?'signature':'basic');
     if(action.skill&&r.heroId==='coinbroker')enemy.jammed=1;
-    if(action.skill){c.cooldown=Math.max(1,(r.level>=4?2:3)-(r.gear.cranial==='crown'?1:0));if(r.heroId==='chainbreaker')c.block+=5+(r.level-1);if(r.heroId==='nodewalker')c.enemies.forEach(e=>{if(e.id!==enemy.id&&distance(e,enemy)<=2)e.hp=Math.max(0,e.hp-hit('enemy',e.id,4+(r.level-1)));});}
+    if(action.skill){c.cooldown=Math.max(1,(r.level>=4?2:3)-(r.gear.cranial==='crown'?1:0)-(c.memory?.feedback??0)-(c.memory?.maker??0)+(unbound?1:0));if(c.memory?.maker)c.block+=3;if(hasTalent(r,'parallel')&&!c.memory?.parallelSkill){(c.memory??={}).parallelSkill=1;for(const slot of SLOTS)if(c.gearCooldowns?.[slot])c.gearCooldowns[slot]=Math.max(0,c.gearCooldowns[slot]!-1);}if(r.heroId==='chainbreaker')c.block+=5+(r.level-1);if(r.heroId==='nodewalker')c.enemies.forEach(e=>{if(e.hp>0&&e.id!==enemy.id&&distance(e,enemy)<=(hasTalent(r,'relay')?3:2)){e.hp=Math.max(0,e.hp-hit('enemy',e.id,4+(r.level-1)));if(hasTalent(r,'storm'))e.weaken=Math.max(e.weaken??0,25);}});}
+    if(action.skill&&hasTalent(r,'fault'))c.enemies.forEach(e=>{if(e.hp>0&&e.id!==enemy.id&&distance(e,enemy)<=1)e.hp=Math.max(0,e.hp-hit('enemy',e.id,5));});
     c.ap-=cost;c.last=`${action.skill?hero.skill:'Strike'} hits ${enemy.name} for ${damage}${r.lastHits!.some(h=>h.critical)?' · CRITICAL ×2':''}${r.gear.weapon==='daggers'?' + corruption':''}.`;append(r,c.last);
-    c.enemies=c.enemies.filter(e=>e.hp>0);if(!c.enemies.length)combatWon(r);return r;
+    finishHit();return r;
   }
   if(action.type==='end'){
     c.travel=[];r.turns++;const arena=combatArena(c);if(c.layout===2&&arena?.props.some(p=>distance(p,c.hero)===1))c.block+=3;if(r.gear.charm==='armor')c.block+=armorGuard(r);if(r.gear.chassis==='mantle')c.block+=2+(r.ranks.mantle??0);let total=0;
     c.enemies.forEach(e=>{if(e.poison>0){e.hp-=poisonDamage(r);e.poison--;}});c.enemies=c.enemies.filter(e=>e.hp>0);
-    if(!c.enemies.length){combatWon(r);return r;}
+    if(!c.enemies.length){combatWon(r,random);return r;}
     let jamHit=false;c.lingering=[];
     c.enemies.forEach(e=>{
       if((e.jammed??0)>0){e.jammed!--;e.slow=0;e.weaken=0;return;}
@@ -217,9 +300,9 @@ export function transition(original:Run,action:GameAction,random:()=>number=Math
     });
     if(c.hazards?.some(p=>same(p,c.hero)))total+=c.hazardDamage??0;
     if(arena?.damage&&arena.props.some(p=>same(p,c.hero)))total+=arena.damage;
-    const damage=Math.max(0,total-c.block);hurt(r,damage);if(r.hp<=0)return r;
+    const absorbed=Math.min(total,c.block),carry=hasClock(r,'chassis','passive')?Math.min(3,Math.max(0,c.block-total)):0;const damage=Math.max(0,total-c.block);const m=c.memory??={};if(hasTalent(r,'counter'))m.charge=Math.max(m.charge??0,Math.min(8,Math.floor(absorbed*.4)));if(hasTalent(r,'hedge')&&damage>0){const payment=Math.min(8,damage,24-(m.hedgePaid??0));r.salvage+=payment;m.hedgePaid=(m.hedgePaid??0)+payment;}hurt(r,damage);if(r.hp<=0)return r;
     c.last=damage?`Enemy turn: ${damage} damage taken. Find safety before the next strike.`:total?'Your guard absorbs the attack.':'You evade every attack. The next intentions are revealed.';if(jamHit)c.last+=' Signature jammed for your next turn.';
-    if(r.lastHits!.some(h=>h.critical))c.last+=' Critical strike: double damage.';append(r,c.last);c.block=0;c.ap=3;c.round++;c.cooldown=Math.max(0,c.cooldown-1-(c.layout===4&&arena?.props.some(p=>distance(p,c.hero)===1)?1:0));c.lockout=jamHit?1:0;planEnemies(c);return r;
+    if(r.lastHits!.some(h=>h.critical))c.last+=' Critical strike: double damage.';append(r,c.last);c.block=carry;const bankedAP=c.ap;c.ap=3+(hasTalent(r,'absorb')&&total>0&&damage===0?1:0);for(const key of ['moved','moveGuard','airGuard','momentum','braced','convert','escape','reset','parallelGear','parallelSkill','rebated'])delete m[key];for(const e of c.enemies)e.exposed=0;for(const slot of SLOTS)if(c.gearCooldowns?.[slot])c.gearCooldowns[slot]=Math.max(0,c.gearCooldowns[slot]!-1);c.round++;c.cooldown=Math.max(0,c.cooldown-1-(hasTalent(r,'coldboot')&&bankedAP>0?1:0)-(c.layout===4&&arena?.props.some(p=>distance(p,c.hero)===1)?1:0));c.lockout=jamHit?1:0;planEnemies(c);return r;
   }
   return original;
 }

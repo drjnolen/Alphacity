@@ -1,3 +1,5 @@
+import {canClock} from '@/lib/expedition';
+import type {Slot} from '@/lib/game';
 'use client';
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ArrowUpRight, Footprints, Layers3, Minus, Plus, RotateCcw } from 'lucide-react';
@@ -127,9 +129,9 @@ function EnvironmentProp({id,chapter,center}:{id:string;chapter:number;center:Po
  </svg>;
 }
 
-type Props = { run: Run; actionMode: ActionMode; hoveredEnemy: number | null; busy: boolean; cue: CombatCue | null; reduced: boolean; onChoose: (p: Position) => void; onEnemyHover: (id: number | null) => void };
+type Props = { run: Run; actionMode: ActionMode; clockSlot?:Slot; hoveredEnemy: number | null; busy: boolean; cue: CombatCue | null; reduced: boolean; onChoose: (p: Position) => void; onEnemyHover: (id: number | null) => void };
 
-export default function IsometricBattlefield({ run, actionMode, hoveredEnemy, busy, cue, reduced, onChoose, onEnemyHover }: Props) {
+export default function IsometricBattlefield({ run, actionMode, clockSlot='weapon', hoveredEnemy, busy, cue, reduced, onChoose, onEnemyHover }: Props) {
   const id = `iso-${useId().replace(/[^a-zA-Z0-9]/g,'')}`, c = run.combat!, hero = heroFor(run), chapter = chapterFor(run.chapter);
   const heroTravel=useMemo(()=>cue?.destination?(cue.path??[cue.source,cue.destination]):[],[cue]);
   const [hovered, setHovered] = useState<Position | null>(null), [zoom,setZoom] = useState(1);
@@ -160,7 +162,7 @@ export default function IsometricBattlefield({ run, actionMode, hoveredEnemy, bu
           const cell = terrainCell(c.terrain,p), center = projectCell(c,p), enemy = c.enemies.find(e=>same(e,p)), player = same(c.hero,p), blocked = c.obstacles.some(o=>same(o,p));
           const threats = c.enemies.filter(e=>!(e.jammed??0)&&e.intent.some(t=>same(t,p))), threatened = hoveredEnemy===null ? threats.length>0 : threats.some(e=>e.id===hoveredEnemy);
           const hazard = c.hazards?.some(t=>same(t,p))||(!!arena?.damage&&arena.props.some(t=>same(t,p))), movable = !busy && actionMode==='move' && c.ap>0 && !player && !!targets.find(t=>same(t.p,p))?.path.length;
-          const targetable = !!enemy && actionMode!=='move' && canAttack(run,enemy,actionMode==='skill'), disabled = busy||blocked||(!movable&&!targetable&&!enemy);
+          const targetable = !!enemy && actionMode!=='move' && (actionMode==='overclock'?canClock(run,clockSlot,enemy.id):canAttack(run,enemy,actionMode==='skill')), disabled = busy||blocked||(!movable&&!targetable&&!enemy);
           const hit = cue?.impacts.find(h=>h.enemyId===enemy?.id && h.enemyId!==undefined), traveling = player ? !!cue?.destination : cue?.movements.some(m=>m.enemyId===enemy?.id);
           const feature=arena?.props.some(f=>same(f,p));
           const label = `${tileLabel(p)}, ${cell.stair?'stairs':`floor ${cell.height}`}${player?`, ${hero.name}`:enemy?`, ${enemy.name}, ${enemy.hp} health`:feature?`, ${arena!.feature}${blocked?', impassable':''}`:blocked?', impassable terrain':''}${threats.length?`, incoming ${threats.reduce((s,e)=>s+(e.intentDamage??e.damage),0)} attack damage`:''}${hazard?`, environmental hazard, ${(c.hazards?.some(t=>same(t,p))?c.hazardDamage??0:0)+(feature?arena!.damage:0)} damage`:''}${movable?', move here':targetable?', attack target':''}`;

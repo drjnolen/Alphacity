@@ -1,3 +1,4 @@
+import {TALENTS, hasClock} from './expedition.ts';
 import { starterInventory, SAFEHOUSE_MINT_COST, rollEquipment, validEquipment, equippedItem, potency, type Equipment } from './equipment.ts';
 import { HEROES, ITEMS, createRun, ranksZero, type Run, type HeroId, type ItemId, type Slot, type Gear } from './game.ts';
 import { CHAPTERS, nodesForChapter, type ChapterId } from './campaign.ts';
@@ -19,7 +20,7 @@ export function mintAtSafehouse(book:RecordBook):RecordBook{if(book.salvage<SAFE
 export function continueClimb(book:RecordBook,previous:Run):Run{
  if(previous.mode!=='result'||!previous.victory||!previous.relic||!previous.climbActive||previous.chapter>=9)return previous;
  const next=preparedRun(book,previous.heroId,previous.gear,(previous.chapter+1) as ChapterId);
- next.climbActive=true;next.climbId=previous.climbId??previous.id;next.boosts={...previous.boosts};next.loadout=structuredClone(previous.loadout);next.gear={...previous.gear};next.ranks={...previous.ranks};next.bonusPower=previous.bonusPower;
+ next.insight=previous.insight??1;next.talents=[...(previous.talents??[])];next.overclocks=structuredClone(previous.overclocks??{});next.armedClocks=[...(previous.armedClocks??[])];next.climbActive=true;next.climbId=previous.climbId??previous.id;next.boosts={...previous.boosts};next.loadout=structuredClone(previous.loadout);next.gear={...previous.gear};next.ranks={...previous.ranks};next.bonusPower=previous.bonusPower;
  next.maxHp=previous.maxHp+Math.max(0,next.level-previous.level)*5;next.hp=Math.min(previous.hp,next.maxHp);next.supplies=previous.supplies;next.phoenixUsed=previous.phoenixUsed;next.mode='map';
  next.log=[...previous.log.slice(-20),`The climb continues into ${CHAPTERS[next.chapter-1].name}. Health, supplies and temporary gear upgrades carry forward.`];return next;
 }
@@ -76,14 +77,23 @@ export function migrateSave(value:unknown):{run:Run;book:RecordBook}{
  r.hp=Math.min(r.hp,r.maxHp);
  r.climbActive=raw.climbActive??!['camp','result'].includes(r.mode);r.climbId=typeof raw.climbId==='string'?raw.climbId:r.id;
  r.boosts={};for(const slot of ['weapon','tool','charm','cranial','chassis'] as Slot[])r.boosts[slot]=count(raw.boosts?.[slot],8);
- if(raw.upgradeOffer&&['weapon','tool','charm','cranial','chassis'].includes(raw.upgradeOffer.slot)&&r.gear[raw.upgradeOffer.slot])r.upgradeOffer={slot:raw.upgradeOffer.slot,cost:60+r.chapter*20,resolved:!!raw.upgradeOffer.resolved,purchased:!!raw.upgradeOffer.purchased};else {delete r.upgradeOffer;if(source.version!==5&&r.mode==='reward'&&r.relic&&r.chapter<9){const slots=(['weapon','tool','charm','cranial','chassis'] as Slot[]).filter(s=>r.gear[s]);r.upgradeOffer={slot:slots[Math.floor(Math.random()*slots.length)],cost:60+r.chapter*20,resolved:false,purchased:false};}}
- if(!r.climbActive){r.boosts={};}
+ if(raw.upgradeOffer&&['weapon','tool','charm','cranial','chassis'].includes(raw.upgradeOffer.slot)&&r.gear[raw.upgradeOffer.slot])r.upgradeOffer={slot:raw.upgradeOffer.slot,cost:60+r.chapter*20,resolved:!!raw.upgradeOffer.resolved,purchased:!!raw.upgradeOffer.purchased,...(['calibrate','active','passive'].includes(raw.upgradeOffer.choice??'')?{choice:raw.upgradeOffer.choice}:{})};else {delete r.upgradeOffer;if(source.version!==5&&r.mode==='reward'&&r.relic&&r.chapter<9){const slots=(['weapon','tool','charm','cranial','chassis'] as Slot[]).filter(s=>r.gear[s]);r.upgradeOffer={slot:slots[Math.floor(Math.random()*slots.length)],cost:60+r.chapter*20,resolved:false,purchased:false};}}
+ r.insight=r.climbActive?count(raw.insight??(r.chapter+(r.relic&&r.chapter<9?1:0)),9):r.mode==='camp'?1:0;
+ r.talents=[];let budget=r.insight;
+ for(const t of TALENTS.filter(t=>t.hero===hero)){if(Array.isArray(raw.talents)&&raw.talents.includes(t.id)&&budget>=t.cost&&(!t.requires||r.talents.includes(t.requires))){r.talents.push(t.id);budget-=t.cost;}}
+ r.overclocks={};for(const slot of ['weapon','tool','charm','cranial','chassis'] as Slot[]){if(r.gear[slot]&&Array.isArray(raw.overclocks?.[slot]))r.overclocks[slot]=[...new Set(raw.overclocks[slot]!.filter(k=>k==='active'||k==='passive'))];}
+ r.armedClocks=Array.isArray(raw.armedClocks)?[...new Set(raw.armedClocks.filter(s=>['weapon','tool','charm','cranial','chassis'].includes(s)&&hasClock(r,s,'active')))].slice(0,3):[];
+ if(!r.climbActive){r.boosts={};r.talents=[];r.overclocks={};r.armedClocks=[];}
+
 
  r.loadout={};for(const slot of ['weapon','tool','charm','cranial','chassis'] as Slot[]){const item=raw.loadout?.[slot];if(validEquipment(item)&&item.slot===slot&&item.baseId===r.gear[slot]&&b.inventory.some(i=>i.id===item.id))r.loadout[slot]=item;}
  if(!validEquipment(r.minted))delete r.minted;
  const collected=collectMint(b,r);b.inventory=collected.inventory;
  if(r.mode==='combat'){
   const c=r.combat;if(!c||!Array.isArray(c.enemies)||!Array.isArray(c.obstacles)||!c.hero||![c.hero.x,c.hero.y,c.ap,c.round,c.block,c.cooldown].every(Number.isFinite)||!c.enemies.every(e=>[e.x,e.y,e.hp,e.maxHp,e.damage,e.poison].every(Number.isFinite)&&Array.isArray(e.intent)))return {run:preparedRun(b,hero,r.gear,chapter),book:b};
+  if(c.memory)c.memory=Object.fromEntries(Object.entries(c.memory??{}).filter(([k])=>['moved','moveGuard','airGuard','momentum','braced','convert','escape','reset','killReset','charge','focus','feedback','maker','secondWind','parallelGear','parallelSkill','rebated','rebates','bailout','hedgePaid'].includes(k)).map(([k,v])=>[k,count(v,24)]));
+  if(c.gearCooldowns)c.gearCooldowns=Object.fromEntries(['weapon','tool','charm','cranial','chassis'].map(s=>[s,count(c.gearCooldowns?.[s as Slot],4)]));
+  for(const e of c.enemies){if(e.exposed!==undefined)e.exposed=count(e.exposed,9);if(e.marked!==undefined)e.marked=!!e.marked;}
   c.chapter=chapter;if(c.layout!==undefined&&c.layout!==chapter)delete c.layout;c.hazards??=[];c.hazardDamage??=0;
  }
  // Legacy results already credited their salvage. Never settle them twice.
