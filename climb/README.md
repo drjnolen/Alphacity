@@ -21,3 +21,7 @@ Direct player attacks, all damaging signature hits, and enemy hits have a 2% cha
 ## Assets
 
 All game art is local to game/public/art and built beneath /climb/assets/art. Bosses and elite types use seventeen individually isolated PNGs with measured SVG framing. No Sites URL, authentication bypass, or image-generation service is needed at runtime.
+
+## Expedition builds
+
+Each class now has two four-node doctrine branches. Bosses grant insight and offer calibration, active, or passive overclock choices. Use Expedition doctrine to learn talents and equip up to three gear abilities alongside the signature. All choices reset at the end of the climb. See [EXPEDITION-BUILDS.md](./EXPEDITION-BUILDS.md) for mechanics, limits, and validation.
