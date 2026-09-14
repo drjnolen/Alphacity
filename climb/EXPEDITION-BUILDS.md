@@ -33,6 +33,26 @@ Reserve battery grants 7 + mastery level guard. Exposure is 4 + floor((mastery l
 
 Unlocks are attached to the equipped slot for this expedition; the existing climb already locks its physical loadout. Equip up to three gear actives alongside the signature in the doctrine panel. A fourth unlock stays available there for a later swap. Passive circuits apply without occupying an active slot. Pushes respect voids, stairs, obstacles, and occupied tiles; previously announced attacks remain fixed.
 
+## Enemy pressure
+
+Enemy damage follows a fixed district curve so that increasingly capable builds still need to avoid, suppress, or absorb attacks. It does not scale with the player's talent selections. Health, armor, encounter counts, telegraph shapes, and environmental damage retain their existing values.
+
+| District | Standard hit | Sniper | Elite commander | Boss, phase I |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 10 | 12 | 13 | 16 |
+| 2 | 12 | 14 | 15 | 18 |
+| 3 | 15 | 17 | 19 | 22 |
+| 4 | 18 | 21 | 22 | 25 |
+| 5 | 21 | 24 | 25 | 28 |
+| 6 | 24 | 27 | 29 | 32 |
+| 7 | 28 | 31 | 33 | 36 |
+| 8 | 32 | 36 | 37 | 40 |
+| 9 | 36 | 40 | 42 | 45 |
+
+These are unsuppressed, non-critical hits. Elite/boss bonuses replace the sniper bonus. Boss phase and protocol bonuses still apply: the final Sovereign Purge reaches 56 damage before suppression and guard. The existing 2% double-damage critical chance is unchanged. Standard hits previously ranged from 7 to 15; they now range from 10 to 36, making late suppression and positioning particularly valuable.
+
+An in-progress saved battle retains its announced damage. The new curve takes effect in the next encounter, without changing already revealed intentions on reload. Regression checks cover the curve across all encounter types, boss phase escalation, actual guard/suppression/dodge outcomes, lethal idle play in all nine districts, and saved-battle continuity. Full specialization campaign checks use the new curve.
+
 ## Persistence and validation
 
 Insight, learned talents, installed overclocks, active selections, and combat cooldowns carry across districts and browser saves. Death or final liberation clears them without changing permanent inventory or mastery. Existing active saves gain the appropriate available insight, keep their battlefield, and retain pending overclock offers. Migration filters unknown/foreign talents, invalid prerequisites, duplicate unlocks, and over-budget builds.

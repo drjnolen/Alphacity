@@ -109,8 +109,11 @@ export function planEnemies(c: Combat) {
  c.hazards=[...c.hazards,...(c.lingering??[])];
  c.hazards=c.hazards.filter(p=>hasTile(c,p)&&!c.obstacles.some(o=>same(o,p)));
 }
+// Fixed district curve: upgrades add tactical answers, but incoming hits must remain costly.
+// Saved battles retain their announced damage; the curve applies when entering a new room.
+const SECURITY_DAMAGE = [10,12,15,18,21,24,28,32,36] as const;
 function enterCombat(r:Run,boss:boolean){
- const ch=r.chapter,elite=nodeFor(r.nodeId,ch).kind==='elite',ranged=r.nodeId==='garden',hp=17+ch*4,damage=6+ch;
+ const ch=r.chapter,elite=nodeFor(r.nodeId,ch).kind==='elite',ranged=r.nodeId==='garden',hp=17+ch*4,damage=SECURITY_DAMAGE[ch-1];
  const profiles:{name:string;type:Enemy['type'];role:Enemy['role'];faction:EnemyFaction}[]=[
   {name:'Implant Militia',type:'husk',role:'enforcer',faction:'Neuralifes'},
   {name:'Audit Drone',type:'watcher',role:'drone',faction:'The Singularity'},
@@ -126,7 +129,7 @@ function enterCombat(r:Run,boss:boolean){
   const profileIndex=(ch-1+i*2+(ranged?1:0)+(elite?2:0))%profiles.length,base=profiles[profileIndex];
   const isBoss=boss&&i===0,commander=elite&&i===0;
   const health=isBoss?54+ch*12:hp+(commander?10:0)-(i?3:0);
-  return {...base,id:i+1,x:[4,7,5,7][i],y:[1,3,2,1][i],name:isBoss?chapterFor(ch).boss:commander?`Elite ${base.name}`:base.name,type:isBoss?'boss':base.type,faction:isBoss?chapterFor(ch).faction:base.faction,portrait:isBoss?undefined:7+profileIndex,hp:health+r.danger*3,maxHp:health+r.danger*3,damage:damage+(isBoss?5:commander?3:base.role==='sniper'?2:0),armor:ch===1?1:Math.floor(ch/3)+(commander||base.role==='enforcer'?1:0),poison:0,jammed:0,intent:[],advancing:false};
+  return {...base,id:i+1,x:[4,7,5,7][i],y:[1,3,2,1][i],name:isBoss?chapterFor(ch).boss:commander?`Elite ${base.name}`:base.name,type:isBoss?'boss':base.type,faction:isBoss?chapterFor(ch).faction:base.faction,portrait:isBoss?undefined:7+profileIndex,hp:health+r.danger*3,maxHp:health+r.danger*3,damage:damage+(isBoss?6+Math.floor(ch/3):commander?3+Math.floor(ch/3):base.role==='sniper'?2+Math.floor(ch/4):0),armor:ch===1?1:Math.floor(ch/3)+(commander||base.role==='enforcer'?1:0),poison:0,jammed:0,intent:[],advancing:false};
  });
  const guard=climbBoost(r,'tool')*3+potency(equippedItem(r,'tool'))+(r.heroId==='chainbreaker'?5+r.level-1:0)+(r.gear.tool==='hook'?r.ranks.hook*2:r.ranks.lantern*3);
  const obstacles=ch>=6?[{x:2,y:0},{x:2,y:2},{x:4,y:2}]:boss?[{x:2,y:1},{x:3,y:3}]:[{x:2,y:0},{x:3,y:3}];
