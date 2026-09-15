@@ -35,7 +35,7 @@ Unlocks are attached to the equipped slot for this expedition; the existing clim
 
 ## Enemy pressure
 
-Enemy damage follows a fixed district curve so that increasingly capable builds still need to avoid, suppress, or absorb attacks. It does not scale with the player's talent selections. Health, armor, encounter counts, telegraph shapes, and environmental damage retain their existing values.
+Enemy damage follows a fixed district curve so that increasingly capable builds still need to avoid, suppress, or absorb attacks. It does not scale with the player's talent selections. The tactical-pressure update adds movement attacks, relay protection, charged strikes and enrage on top of this curve; see [Tactical pressure](TACTICAL-PRESSURE.md). Original enemy health and environmental damage remain unchanged.
 
 | District | Standard hit | Sniper | Elite commander | Boss, phase I |
 | --- | ---: | ---: | ---: | ---: |
@@ -49,7 +49,7 @@ Enemy damage follows a fixed district curve so that increasingly capable builds 
 | 8 | 32 | 36 | 37 | 40 |
 | 9 | 36 | 40 | 42 | 45 |
 
-These are unsuppressed, non-critical hits. Elite/boss bonuses replace the sniper bonus. Boss phase and protocol bonuses still apply: the final Sovereign Purge reaches 56 damage before suppression and guard. The existing 2% double-damage critical chance is unchanged. Standard hits previously ranged from 7 to 15; they now range from 10 to 36, making late suppression and positioning particularly valuable.
+These are unsuppressed, non-critical hits. Elite/boss bonuses replace the sniper bonus. Boss phase and protocol bonuses still apply: the final Sovereign Purge starts at 56 damage before enrage, charged-strike multipliers, suppression and guard. The existing 2% double-damage critical chance is unchanged. Standard hits previously ranged from 7 to 15; they now range from 10 to 36, making late suppression and positioning particularly valuable.
 
 An in-progress saved battle retains its announced damage. The new curve takes effect in the next encounter, without changing already revealed intentions on reload. Regression checks cover the curve across all encounter types, boss phase escalation, actual guard/suppression/dodge outcomes, lethal idle play in all nine districts, and saved-battle continuity. Full specialization campaign checks use the new curve.
 

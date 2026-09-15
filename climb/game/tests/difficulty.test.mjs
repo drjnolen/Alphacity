@@ -18,6 +18,7 @@ test('every district raises patrol, elite and boss damage without inflating enem
   assert.ok(base>previous);previous=base;
   for(const r of [patrol,enter(ch,'garden'),elite,enter(ch,'detour'),boss]){
    for(const [i,e] of r.combat.enemies.entries()){
+    if(e.support){assert.equal(e.intent.length,0);continue;}
     const commander=r.nodeId==='gate'&&i===0,isBoss=e.type==='boss';
     const old=6+ch+(isBoss?5:commander?3:e.role==='sniper'?2:0);
     assert.ok(e.damage>=Math.ceil(old*1.3),`${ch}/${r.nodeId}/${e.name}: ${e.damage}`);
@@ -38,7 +39,7 @@ test('higher incoming hits still reward guard, suppression and leaving the teleg
   // Isolate one real district enemy's damage from scenery and other attackers.
   c.arena=undefined;c.terrain=undefined;c.layout=undefined;c.hazards=[];c.obstacles=[];
   c.hero={x:0,y:2};c.block=0;c.enemies=c.enemies.slice(0,1);
-  const e=c.enemies[0];e.x=1;e.y=2;e.intent=[{...c.hero}];e.advancing=false;
+  const e=c.enemies[0];e.assault=false;e.charger=false;delete e.charge;e.x=1;e.y=2;e.intent=[{...c.hero}];e.advancing=false;
   const hit=transition(r,{type:'end'});assert.equal(r.hp-hit.hp,enemyDamage(e));
   const braced=transition(transition(r,{type:'guard'}),{type:'end'});
   assert.equal(r.hp-braced.hp,Math.max(0,enemyDamage(e)-guardAmount(r)));

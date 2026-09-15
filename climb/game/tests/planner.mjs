@@ -1,7 +1,8 @@
+import {canDisableRelay} from '../src/lib/enemy-tactics.ts';
 import {armedClocks,canClock} from '../src/lib/expedition.ts';
 import { boardCells, neighbors, connected, route } from '../src/lib/battlefield.ts';
 import {transition,availableNodes,reachable,moveRange,canAttack} from '../src/lib/game.ts';
-export function candidates(r){const c=r.combat;return [{type:'guard'},{type:'heal'},...c.enemies.flatMap(e=>[...(canAttack(r,e)?[{type:'attack',id:e.id}]:[]),...(canAttack(r,e,true)?[{type:'attack',id:e.id,skill:true}]:[])]),...boardCells(c).filter(p=>reachable(c,c.hero,p,moveRange(r))).map(position=>({type:'move',position}))];}
+export function candidates(r){const c=r.combat;return [...c.enemies.filter(e=>canDisableRelay(c,e)).map(e=>({type:'disableRelay',id:e.id})),{type:'guard'},{type:'heal'},...c.enemies.flatMap(e=>[...(canAttack(r,e)?[{type:'attack',id:e.id}]:[]),...(canAttack(r,e,true)?[{type:'attack',id:e.id,skill:true}]:[])]),...boardCells(c).filter(p=>reachable(c,c.hero,p,moveRange(r))).map(position=>({type:'move',position}))];}
 const navCache=new Map();
 function approach(r){const c=r.combat,key=JSON.stringify([c.hero,c.enemies.map(e=>[e.x,e.y])]);if(navCache.has(key))return navCache.get(key);const paths=c.enemies.flatMap(e=>neighbors(e).filter(p=>connected(c,p,e)).map(p=>route(c,c.hero,p))).filter(p=>p.length);const n=paths.length?Math.min(...paths.map(p=>p.length)):30;navCache.set(key,n);return n;}
 function score(r,base){if(r.mode==='result')return -10000;if(r.mode==='reward')return 2000+r.hp*3+r.supplies*4;const c=r.combat,enemyHp=c.enemies.reduce((sum,e)=>sum+e.hp,0),near=approach(r);return (base-enemyHp)*3+r.hp*3-c.enemies.length*10+r.supplies*4-(r.phoenixUsed?20:0)-near*1.1;}

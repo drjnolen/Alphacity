@@ -21,9 +21,9 @@ export function movementPath(c: Combat, target: Position): Position[] { return r
 // Presentation describes an already validated transition; it never applies game rules.
 export function combatFeedback(before: Run, after: Run, action: GameAction): CombatCue | null {
   const c = before.combat;
-  if (before === after || before.mode !== 'combat' || !c || !['move','attack','overclock','end','guard','heal'].includes(action.type)) return null;
-  const kind = action.type === 'overclock' ? 'signature' : action.type === 'attack' ? action.skill ? 'signature' : 'strike' : action.type as CombatCue['kind'];
-  const hero = heroFor(before), target = action.type === 'attack'||action.type === 'overclock' ? c.enemies.find(e => e.id === action.id)??c.hero : c.hero;
+  if (before === after || before.mode !== 'combat' || !c || !['disableRelay','move','attack','overclock','end','guard','heal'].includes(action.type)) return null;
+  const kind = action.type==='disableRelay'?'strike':action.type === 'overclock' ? 'signature' : action.type === 'attack' ? action.skill ? 'signature' : 'strike' : action.type as CombatCue['kind'];
+  const hero = heroFor(before), target = action.type === 'attack'||action.type === 'overclock'||action.type==='disableRelay' ? c.enemies.find(e => e.id === action.id)??c.hero : c.hero;
   const cue: CombatCue = {
     kind, title: kind === 'signature' ? hero.skill : kind === 'strike' ? 'Strike' : kind === 'move' ? 'Reposition' : kind === 'guard' ? 'Brace' : kind === 'heal' ? 'Second wind' : 'Security responds',
     subtitle: kind === 'signature' ? `${hero.name} · SIGNATURE ABILITY` : kind === 'end' ? 'ENEMY TURN' : `${hero.name} · ${kind === 'move' ? 'MOVEMENT' : 'ACTION'}`,
@@ -45,6 +45,7 @@ export function combatFeedback(before: Run, after: Run, action: GameAction): Com
   const impactTime = kind === 'signature' ? 380 : kind === 'end' ? 100 : 190;
   for (const enemy of c.enemies) {
     const survivor = after.combat?.enemies.find(e => e.id === enemy.id);
+    if(enemy.charge&&survivor?.interrupted)cue.impacts.push({position:enemy,text:'INTERRUPTED',tone:'gold',delay:impactTime});
     const loss = enemy.hp - (survivor?.hp ?? 0);
     if(loss<0)cue.impacts.push({position:enemy,text:`+${-loss} RESTORED`,tone:'heal',delay:900,enemyId:enemy.id});
     const critical=after.lastHits?.some(h=>h.target==='enemy'&&h.enemyId===enemy.id&&h.critical);
@@ -61,13 +62,14 @@ export function combatFeedback(before: Run, after: Run, action: GameAction): Com
     const living = c.enemies.filter(e => e.hp > (e.poison > 0 ? poisonDamage(before) : 0));
     living.forEach((e, i) => {
       const delay = 280 + i * 160;
-      if (!e.advancing && !(e.jammed??0)) cue.attacks.push({source:e,tiles:e.intent,delay,boss:e.type === 'boss',effect:e.type==='boss'?cue.bossEffect:undefined});
+      const volley=after.combat?.volleys?.find(v=>v.enemyId===e.id),tiles=volley?.tiles??[],moved=after.combat?.travel?.find(t=>t.enemyId===e.id)?.path.at(-1);
+      if(tiles.length)cue.attacks.push({source:volley?.source??moved??e,tiles,delay:delay+(moved?500:0),boss:e.type==='boss',effect:e.type==='boss'?cue.bossEffect:undefined});
       const next = after.combat?.enemies.find(n => n.id === e.id);
       if (next && !same(e,next)) cue.movements.push({source:e,target:next,portrait:enemyPortrait(before,e),delay,path:after.combat?.travel?.find(t=>t.enemyId===e.id)?.path??route(c,e,next,BOARD_SIZE,'enemy'),enemyId:e.id});
     });
     const arena=combatArena(c);
     cue.hazards = [...(c.hazards ?? []),...(arena?.damage?arena.props:[])];
-    const total = living.filter(e=>!(e.jammed??0)&&e.intent.some(p=>same(p,c.hero))).reduce((sum,e)=>sum+(after.lastHits?.find(h=>h.target==='hero'&&h.enemyId===e.id)?.damage??enemyDamage(e)),0)+(c.hazards?.some(p=>same(p,c.hero))?(c.hazardDamage??0):0)+(arena?.props.some(p=>same(p,c.hero))?arena.damage:0);
+    const total = (after.lastHits??[]).filter(h=>h.target==='hero').reduce((sum,h)=>sum+h.damage,0)+(c.hazards?.some(p=>same(p,c.hero))?(c.hazardDamage??0):0)+(arena?.props.some(p=>same(p,c.hero))?arena.damage:0);
     const absorbed = Math.min(total,c.block+(before.gear.charm==='armor'?armorGuard(before):0)+(before.gear.chassis==='mantle'?2+(before.ranks.mantle??0):0)+(c.layout===2&&arena?.props.some(p=>distance(p,c.hero)===1)?3:0));
     if(absorbed) cue.impacts.push({position:c.hero,text:`${absorbed} BLOCKED`,tone:'gold',delay:670});
     if(total>absorbed) cue.impacts.push({position:c.hero,text:`−${Math.min(before.hp,total-absorbed)}`,tone:'enemy',delay:830});
@@ -75,6 +77,7 @@ export function combatFeedback(before: Run, after: Run, action: GameAction): Com
     if(cue.revived){cue.impacts.push({position:c.hero,text:`+${after.hp} REBORN`,tone:'gold',delay:1080});cue.duration=1850;cue.title='Dead-Man Core online';}
   }
   if(after.lastHits?.some(h=>h.critical)){cue.title=kind==='end'?'Enemy critical strike':'Critical strike';cue.subtitle+=' · 2× DAMAGE';}
+  if(action.type==='disableRelay'){cue.title='Relay disconnected';cue.subtitle='SHIELD LINK SEVERED';cue.impacts=cue.impacts.map(h=>({...h,text:'DISABLED',tone:'gold'}));}
   if (cue.victory) cue.duration += 400;
   return cue;
 }

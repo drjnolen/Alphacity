@@ -1,3 +1,5 @@
+import {effectiveIntent,assaultPath,supportArmor,supportStrength} from '@/lib/enemy-tactics';
+import {enemyDamage} from '@/lib/equipment';
 import {canClock} from '@/lib/expedition';
 import type {Slot} from '@/lib/game';
 'use client';
@@ -140,7 +142,7 @@ export default function IsometricBattlefield({ run, actionMode, clockSlot='weapo
   const preview = !busy && actionMode === 'move' && hovered ? targets.find(t=>same(t.p,hovered))?.path : undefined;
   const targetEnemy = c.enemies.find(e => hovered && same(e,hovered));
   const focusCell = hovered ?? c.hero, tile = terrainCell(c.terrain,focusCell);
-  const danger = c.enemies.filter(e=>!(e.jammed??0)&&e.intent.some(p=>same(p,focusCell))).reduce((s,e)=>s+(e.intentDamage??e.damage),0);
+  const danger = c.enemies.filter(e=>!(e.jammed??0)&&effectiveIntent(c,e).some(p=>same(p,focusCell))).reduce((s,e)=>s+enemyDamage(e),0);
   const floorDanger = (c.hazards?.some(p=>same(p,focusCell)) ? c.hazardDamage??0 : 0)+(arena?.props.some(p=>same(p,focusCell))?arena.damage:0);
   return <div className={`iso-board-area ${cue?.bossEffect&&!reduced?'boss-impact':''} ${cue?.phaseChange&&!reduced?'boss-phase-change':''}`}>
     <CombatBanner cue={cue}/>
@@ -160,12 +162,12 @@ export default function IsometricBattlefield({ run, actionMode, clockSlot='weapo
         {cells.map(p=><polygon key={`shadow-${p.x}-${p.y}`} points={diamond(project(p,-.7),82,41)} fill="#000" opacity=".5" filter={`url(#${id}-shadow)`} aria-hidden="true"/>)}
         {[...cells].sort((a,b)=>a.y-a.x-(b.y-b.x)||a.x-b.x).map(p => {
           const cell = terrainCell(c.terrain,p), center = projectCell(c,p), enemy = c.enemies.find(e=>same(e,p)), player = same(c.hero,p), blocked = c.obstacles.some(o=>same(o,p));
-          const threats = c.enemies.filter(e=>!(e.jammed??0)&&e.intent.some(t=>same(t,p))), threatened = hoveredEnemy===null ? threats.length>0 : threats.some(e=>e.id===hoveredEnemy);
+          const threats = c.enemies.filter(e=>!(e.jammed??0)&&effectiveIntent(c,e).some(t=>same(t,p))), threatened = hoveredEnemy===null ? threats.length>0 : threats.some(e=>e.id===hoveredEnemy);
           const hazard = c.hazards?.some(t=>same(t,p))||(!!arena?.damage&&arena.props.some(t=>same(t,p))), movable = !busy && actionMode==='move' && c.ap>0 && !player && !!targets.find(t=>same(t.p,p))?.path.length;
           const targetable = !!enemy && actionMode!=='move' && (actionMode==='overclock'?canClock(run,clockSlot,enemy.id):canAttack(run,enemy,actionMode==='skill')), disabled = busy||blocked||(!movable&&!targetable&&!enemy);
           const hit = cue?.impacts.find(h=>h.enemyId===enemy?.id && h.enemyId!==undefined), traveling = player ? !!cue?.destination : cue?.movements.some(m=>m.enemyId===enemy?.id);
-          const feature=arena?.props.some(f=>same(f,p));
-          const label = `${tileLabel(p)}, ${cell.stair?'stairs':`floor ${cell.height}`}${player?`, ${hero.name}`:enemy?`, ${enemy.name}, ${enemy.hp} health`:feature?`, ${arena!.feature}${blocked?', impassable':''}`:blocked?', impassable terrain':''}${threats.length?`, incoming ${threats.reduce((s,e)=>s+(e.intentDamage??e.damage),0)} attack damage`:''}${hazard?`, environmental hazard, ${(c.hazards?.some(t=>same(t,p))?c.hazardDamage??0:0)+(feature?arena!.damage:0)} damage`:''}${movable?', move here':targetable?', attack target':''}`;
+          const feature=arena?.props.some(f=>same(f,p)),charging=c.enemies.some(e=>e.charge?.phase==='windup'&&e.charge.tiles.some(t=>same(t,p)));
+          const label = `${tileLabel(p)}, ${cell.stair?'stairs':`floor ${cell.height}`}${player?`, ${hero.name}`:enemy?`, ${enemy.name}, ${enemy.hp} health`:feature?`, ${arena!.feature}${blocked?', impassable':''}`:blocked?', impassable terrain':''}${threats.length?`, incoming ${threats.reduce((s,e)=>s+enemyDamage(e),0)} attack damage`:''}${hazard?`, environmental hazard, ${(c.hazards?.some(t=>same(t,p))?c.hazardDamage??0:0)+(feature?arena!.damage:0)} damage`:''}${charging?', charged attack preparing for next round':''}${movable?', move here':targetable?', attack target':''}`;
           const previewStep = preview?.findIndex(q=>same(q,p))??-1;
           return <g key={`${p.x}-${p.y}`} className={`iso-cell ${movable?'iso-can-move':''} ${targetable?'iso-can-target':''} ${threatened?'iso-threatened':''} ${player?'iso-player-cell':''}`}>
             <Ground cell={cell} chapter={run.chapter} id={id}/>{feature&&<EnvironmentProp id={`${id}-feature-${p.x}-${p.y}`} chapter={c.layout!} center={center}/>}
@@ -175,7 +177,7 @@ export default function IsometricBattlefield({ run, actionMode, clockSlot='weapo
               {movable&&<polygon points={points(surfaceCorners(cell,.06))} className="iso-move-overlay"/>}
               {threatened&&<polygon points={points(surfaceCorners(cell,.06))} fill={`url(#${id}-danger)`} className="iso-threat-overlay"/>}
               {hazard&&<polygon points={points(surfaceCorners(cell,.09))} fill={`url(#${id}-hazard)`} className="iso-hazard-overlay"/>}
-              {targetable&&<polygon points={points(surfaceCorners(cell,.1))} className="iso-target-overlay"/>}
+              {charging&&<polygon points={points(surfaceCorners(cell,.08))} className="iso-charge-overlay"/>}{targetable&&<polygon points={points(surfaceCorners(cell,.1))} className="iso-target-overlay"/>}
               {previewStep>0&&<g className="iso-path-step"><circle cx={center.x} cy={center.y} r="11"/><text x={center.x} y={center.y+5} textAnchor="middle">{previewStep}</text></g>}
               {cell.stair&&!enemy&&!player&&previewStep<1&&<text x={center.x} y={center.y+5} textAnchor="middle" className="iso-stair-mark">↟</text>}
               {!blocked&&<text x={center.x} y={center.y+28} textAnchor="middle" className="iso-coordinate">{tileLabel(p)}{cell.stair?' ↗':cell.height>0?` · +${cell.height}`:''}</text>}
@@ -189,13 +191,13 @@ export default function IsometricBattlefield({ run, actionMode, clockSlot='weapo
                   <text textAnchor="middle" y="2">{player?hero.name:enemy?.type==='boss'?'BOSS':`${enemy!.hp} HP`}</text>
                   {enemy&&<><rect x="-29" y="11" width="58" height="4" className="iso-life-track"/><rect x="-29" y="11" width={58*enemy.hp/enemy.maxHp} height="4" className="iso-life-fill"/></>}
                 </g>
-                {player&&c.block>0&&<text y="15" textAnchor="middle" className="iso-status-label">{c.block} GUARD</text>}
+                {enemy?.support&&<text y="-105" textAnchor="middle" className="iso-status-label">{enemy.objective&&!enemy.objective.triggered?`RELAY · ${enemy.objective.turns}`:'SHIELD RELAY'}</text>}{enemy?.enrage? <text y="-105" textAnchor="middle" className="iso-status-label">ENRAGED {enemy.enrage}</text>:null}{player&&c.block>0&&<text y="15" textAnchor="middle" className="iso-status-label">{c.block} GUARD</text>}
                 {enemy&&((enemy.jammed??0)>0||enemy.poison>0)&&<text y="15" textAnchor="middle" className="iso-status-label">{(enemy.jammed??0)>0?'JAMMED':'CORRUPTED'}</text>}
               </g>}
             </g>
           </g>;
         })}
-        {!!preview?.length&&preview.length>1&&!busy&&<polyline points={points(preview.map(p=>projectCell(c,p)))} className="iso-path-preview" pointerEvents="none"/>}
+        {c.enemies.filter(e=>e.assault&&!(e.jammed??0)).map(e=><polyline key={`assault-${e.id}`} points={points(assaultPath(c,e).map(p=>projectCell(c,p)))} className="iso-assault-path"/>)}{c.enemies.filter(e=>e.support&&!(e.jammed??0)&&supportStrength(e)>0).flatMap(e=>c.enemies.filter(t=>t.id!==e.id&&supportArmor(c,t)>0&&Math.abs(t.x-e.x)+Math.abs(t.y-e.y)<=2).map(t=><polyline key={`link-${e.id}-${t.id}`} points={points([projectCell(c,e),projectCell(c,t)])} className="iso-relay-link"/>))}{!!preview?.length&&preview.length>1&&!busy&&<polyline points={points(preview.map(p=>projectCell(c,p)))} className="iso-path-preview" pointerEvents="none"/>}
         {cue?.destination&&<Traveler id={id} c={c} path={heroTravel} index={hero.portrait} duration={cue.kind==='move'?cue.duration:350} reduced={reduced}/>}
         {cue?.movements.map(m=><Traveler key={m.enemyId} id={id} c={c} path={m.path.length?m.path:[m.source,m.target]} index={bodyIndex(c.enemies.find(e=>e.id===m.enemyId)!)} art={enemyArt(c.enemies.find(e=>e.id===m.enemyId))} boss={c.enemies.find(e=>e.id===m.enemyId)?.type==='boss'} duration={500} delay={m.delay} reduced={reduced}/>)}
         {cue&&<Effects c={c} cue={cue}/>}
@@ -205,6 +207,6 @@ export default function IsometricBattlefield({ run, actionMode, clockSlot='weapo
     <div className="iso-inspector" aria-live="polite"><span><b>{tileLabel(focusCell)}</b>{targetEnemy?.name??(arena?.props.some(p=>same(p,focusCell))?arena.feature:null)??(same(focusCell,c.hero)?hero.name:tile.stair?'Stairway':`Floor +${tile.height}`)}</span><span>{danger+floorDanger>0?<em>{danger+floorDanger} incoming damage</em>:preview&&preview.length>1?<><Footprints size={13}/>{preview.length-1} tiles · 1 AP</>:<><ArrowUpRight size={13}/>{tile.stair?'Stairs connect adjacent floors':`Elevation +${elevation(c,focusCell)}`}</>}</span></div>
     {arena&&<div className="iso-environment-note"><strong>{arena.feature}</strong><span>{arena.description}</span></div>}
     <div className="iso-legend"><span><i className="iso-key-move"/>Reachable</span><span><i className="iso-key-threat"/>Incoming attack</span>{run.chapter>1&&<span><i className="iso-key-hazard"/>{chapter.hazard}</span>}<span><ArrowUpRight size={13}/>Stairs</span></div>
-    <p className="iso-instructions">Follow stairs to change floors. Melee needs a connected edge; ranged attacks cross elevations. Zoom in to inspect terrain; the full battlefield fits at 100%.</p>
+    <p className="iso-instructions">Amber paths preview enemy movement; violet tiles are charging for next round. Follow stairs to change floors. Melee needs a connected edge; ranged attacks cross elevations. Zoom in to inspect terrain; the full battlefield fits at 100%.</p>
   </div>;
 }
