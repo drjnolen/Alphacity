@@ -1,0 +1,6 @@
+.tactic-hint,.enrage-hint,.relay-hint{display:block!important;white-space:normal;text-align:left;font-size:11px;line-height:1.55;margin-top:7px;padding:7px 9px;border-left:2px solid #6bcbd5;background:#192b3677;color:#b2e4ec}
+.enrage-hint{border-color:#b79458;color:#d4c59f}.enrage-hint.is-enraged{border-color:#ff7365;color:#ffada2;background:#512d2b55}.relay-hint{border-color:#9ae1ab;color:#9ae1ab}
+.tactical-objectives{display:grid;gap:8px;padding:12px 16px;border-top:1px solid #60878355;background:#11232699}
+.tactical-objective{display:flex;align-items:center;justify-content:space-between;gap:14px}.tactical-objective strong{font-size:13px;color:#d8e998}.tactical-objective p,.tactical-objective small{font-size:11px;line-height:1.5;color:#b3c9ce;margin:4px 0}.tactical-objective button{flex-shrink:0;font-size:11px}
+.iso-assault-path{fill:none;stroke:#f4b46a;stroke-width:4;stroke-dasharray:7 5;pointer-events:none}.iso-charge-overlay{fill:#9270ff33;stroke:#bda1ff;stroke-width:2;pointer-events:none}.iso-relay-link{fill:none;stroke:#8ee8b3;stroke-width:2;stroke-dasharray:4 4;pointer-events:none}
+@media(max-width:740px){.tactical-objective{align-items:stretch;flex-direction:column;gap:5px}.tactical-objective button{min-height:40px}}

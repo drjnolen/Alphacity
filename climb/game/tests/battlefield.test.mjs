@@ -102,7 +102,7 @@ test('non-grid coordinates and occupied stair tiles cannot be entered',()=>{
 test('battlefields expose 54 labeled cells through column I and row 6',()=>{assert.equal(CELLS.length,54);assert.deepEqual(CELLS.at(-1),{x:8,y:5});});
 
 test('security warnings cover the outer rows and columns of the expanded board',()=>{
- const r=enter(),c=r.combat;delete c.layout;delete c.arena;c.hero={x:8,y:5};c.round=2;c.enemies=c.enemies.slice(0,1);c.enemies[0].type='boss';c.obstacles=[];planEnemies(c);
+ const r=enter(),c=r.combat;delete c.layout;delete c.arena;c.hero={x:8,y:5};c.round=2;c.enemies=c.enemies.slice(0,1);c.enemies[0].type='boss';c.enemies[0].assault=false;c.obstacles=[];planEnemies(c);
  assert.equal(new Set(c.enemies[0].intent.filter(p=>p.y===5).map(p=>p.x)).size,9);
  assert.equal(new Set(c.enemies[0].intent.filter(p=>p.x===8).map(p=>p.y)).size,6);
  const h=enter(2).combat,columns=new Set();delete h.layout;delete h.arena;h.obstacles=[];for(let round=1;round<=9;round++){h.round=round;planEnemies(h);assert.equal(h.hazards.length,6);h.hazards.forEach(p=>columns.add(p.x));}assert.equal(columns.size,9);

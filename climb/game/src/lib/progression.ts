@@ -114,6 +114,15 @@ function restoreSave(value:unknown):{run:Run;book:RecordBook}{
   if(c.memory)c.memory=Object.fromEntries(Object.entries(c.memory??{}).filter(([k])=>['moved','moveGuard','airGuard','momentum','braced','convert','escape','reset','killReset','charge','focus','feedback','maker','secondWind','parallelGear','parallelSkill','rebated','rebates','bailout','hedgePaid'].includes(k)).map(([k,v])=>[k,count(v,24)]));
   if(c.gearCooldowns)c.gearCooldowns=Object.fromEntries(['weapon','tool','charm','cranial','chassis'].map(s=>[s,count(c.gearCooldowns?.[s as Slot],4)]));
   for(const e of c.enemies){if(e.exposed!==undefined)e.exposed=count(e.exposed,9);if(e.marked!==undefined)e.marked=!!e.marked;}
+  if(c.tactics){
+   c.tactics=true;const position=(p:unknown)=>!!p&&typeof p==='object'&&Number.isInteger((p as {x:number}).x)&&Number.isInteger((p as {y:number}).y)&&(p as {x:number}).x>=0&&(p as {x:number}).x<9&&(p as {y:number}).y>=0&&(p as {y:number}).y<6;
+   for(const e of c.enemies){
+    for(const key of ['assault','support','commander','charger','interrupted'] as const)if(e[key]!==undefined)e[key]=!!e[key];if(e.enrage!==undefined)e.enrage=count(e.enrage,2);
+    if(e.advancePath)e.advancePath=e.advancePath.filter(position).slice(0,3);
+    if(e.charge){const q=e.charge;if(!['windup','release'].includes(q.phase)||!Array.isArray(q.tiles)||!q.tiles.every(position)||!position(q.origin)||![q.damage,q.startHp,q.required].every(v=>Number.isFinite(v)&&v>0)){delete e.charge;e.intent=[];}else{q.damage=count(q.damage,300);q.required=count(q.required,100);q.startHp=count(q.startHp,1000);}}
+    if(e.objective){if(!e.support)delete e.objective;else{e.objective.triggered=!!e.objective.triggered;e.objective.turns=e.objective.triggered?0:Math.max(1,count(e.objective.turns,4));}}
+   }
+  }
   c.chapter=chapter;if(c.layout!==undefined&&c.layout!==chapter)delete c.layout;c.hazards??=[];c.hazardDamage??=0;
  }
  // Legacy results already credited their salvage. Never settle them twice.

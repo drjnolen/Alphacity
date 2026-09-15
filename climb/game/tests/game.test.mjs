@@ -25,7 +25,7 @@ test('Coinbroker jamming cancels attack, movement, and nullifier effects for one
  const hit=transition(r,{type:'attack',id:1,skill:true}),end=transition(hit,{type:'end'});assert.equal(end.hp,r.hp);assert.equal(end.combat.lockout,0);assert.ok(same(end.combat.enemies[0],e));assert.equal(end.combat.enemies[0].jammed,0);
 });
 test('nullifier attacks lock the next signature only, ordinary actions still work',()=>{
- const r=enter();r.combat.enemies=r.combat.enemies.slice(0,1);const e=r.combat.enemies[0];e.role='nullifier';e.intent=[{...r.combat.hero}];e.intentDamage=1;e.advancing=false;const end=transition(r,{type:'end'});assert.equal(end.combat.lockout,1);end.combat.hero={x:3,y:1};assert.equal(transition(end,{type:'attack',id:1,skill:true}),end);assert.notEqual(transition(end,{type:'attack',id:1}),end);end.combat.enemies[0].intent=[];const clear=transition(end,{type:'end'});assert.equal(clear.combat.lockout,0);
+ const r=enter();r.combat.enemies=r.combat.enemies.slice(0,1);const e=r.combat.enemies[0];e.role='nullifier';e.assault=false;e.intent=[{...r.combat.hero}];e.intentDamage=1;e.advancing=false;const end=transition(r,{type:'end'});assert.equal(end.combat.lockout,1);end.combat.hero={x:3,y:1};assert.equal(transition(end,{type:'attack',id:1,skill:true}),end);assert.notEqual(transition(end,{type:'attack',id:1}),end);end.combat.enemies[0].intent=[];const clear=transition(end,{type:'end'});assert.equal(clear.combat.lockout,0);
 });
 test('armor reduces strikes; signatures pierce it; corruption ticks before enemy attacks',()=>{
  const r=enter(createRun('glitchborn',{weapon:'sword',tool:'hook',charm:'phoenix'}));r.combat.hero={x:3,y:1};r.combat.firstStrike=false;r.combat.enemies[0].armor=4;const a=transition(r,{type:'attack',id:1});assert.equal(r.combat.enemies[0].hp-a.combat.enemies[0].hp,4);
@@ -33,7 +33,7 @@ test('armor reduces strikes; signatures pierce it; corruption ticks before enemy
  for(const e of r.combat.enemies){e.hp=1;e.poison=1;e.intent=[r.combat.hero];e.intentDamage=100;}const won=transition(r,{type:'end'});assert.equal(won.mode,'reward');assert.equal(won.hp,r.hp);
 });
 test('guard absorbs combined floor and attack damage; emergency medical restart fires once',()=>{
- const r=enter(createRun('chainbreaker',{weapon:'sword',tool:'hook',charm:'armor'}));r.combat.enemies.forEach(e=>{e.intent=[];e.advancing=false;});r.combat.enemies[0].intent=[r.combat.hero];r.combat.enemies[0].intentDamage=5;r.combat.hazards=[r.combat.hero];r.combat.hazardDamage=5;const a=transition(r,{type:'end'});assert.equal(a.hp,r.hp-1);assert.equal(a.combat.block,0);
+ const r=enter(createRun('chainbreaker',{weapon:'sword',tool:'hook',charm:'armor'}));r.combat.enemies.forEach(e=>{e.intent=[];e.advancing=false;e.assault=false;});r.combat.enemies[0].intent=[r.combat.hero];r.combat.enemies[0].intentDamage=5;r.combat.hazards=[r.combat.hero];r.combat.hazardDamage=5;const a=transition(r,{type:'end'});assert.equal(a.hp,r.hp-1);assert.equal(a.combat.block,0);
  const v=enter();v.hp=1;v.combat.enemies[0].intent=[v.combat.hero];v.combat.enemies[0].intentDamage=100;let after=transition(v,{type:'end'});assert.equal(after.hp,14);assert.equal(after.phoenixUsed,true);after.combat.enemies[0].intent=[after.combat.hero];after.combat.enemies[0].intentDamage=100;after=transition(after,{type:'end'});assert.equal(after.mode,'result');assert.equal(after.hp,0);
 });
 test('elite win grants power and extra credits; boss victory unlock requires securing the district',()=>{
@@ -57,7 +57,7 @@ test('current saves keep a level nine battle, jams, ranks, and unlock order',()=
 });
 test('security formations escalate and use diverse minions with distinct art and boss patterns',()=>{
  const names=new Set(),portraits=new Set();let previous=0;
- for(const ch of CHAPTERS){let r=transition(createRun('glitchborn',undefined,ch.id),{type:'begin'});r.depth=4;r=transition(r,{type:'visit',id:'guardian'});const boss=r.combat.enemies[0];assert.ok(boss.maxHp>previous);previous=boss.maxHp;const old=boss.intent.length;boss.hp=1;planEnemies(r.combat);assert.equal(r.combat.enemies[0].phase,ch.id===9?3:2);assert.ok(r.combat.enemies[0].intent.length>0);for(const id of ['bridge','garden']){const b=transition(transition(createRun('glitchborn',undefined,ch.id),{type:'begin'}),{type:'visit',id});for(const e of b.combat.enemies){names.add(e.name);portraits.add(enemyPortrait(b,e));}}}
+ for(const ch of CHAPTERS){let r=transition(createRun('glitchborn',undefined,ch.id),{type:'begin'});r.depth=4;r=transition(r,{type:'visit',id:'guardian'});const boss=r.combat.enemies[0];assert.ok(boss.maxHp>previous);previous=boss.maxHp;const old=boss.intent.length;boss.hp=1;planEnemies(r.combat);assert.equal(r.combat.enemies[0].phase,ch.id===9?3:2);assert.ok((r.combat.enemies[0].intent.length||r.combat.enemies[0].charge?.tiles.length)>0);for(const id of ['bridge','garden']){const b=transition(transition(createRun('glitchborn',undefined,ch.id),{type:'begin'}),{type:'visit',id});for(const e of b.combat.enemies){names.add(e.name);portraits.add(enemyPortrait(b,e));}}}
  assert.ok(names.size>=8);assert.ok(portraits.size>=8);
 });
 test('all four factions complete all nine districts at recommended progression, including elite routes',()=>{
