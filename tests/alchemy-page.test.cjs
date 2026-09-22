@@ -19,10 +19,17 @@ test('Alchemy page loads shared wallet and Sui dependencies before its app', () 
     ];
     let previous = -1;
     for (const script of scripts) {
-        const index = html.indexOf(`src="${script}"`);
+        const index = html.indexOf(`src="${script}`);
         assert.ok(index > previous, `${script} should load in dependency order`);
         previous = index;
     }
+});
+
+test('Alchemy HTML requests matching content-versioned app and core scripts', () => {
+    const { assetVersion, assets } = require('../scripts/version-alchemy-assets.cjs');
+    const version = assetVersion(root);
+    for (const asset of assets) assert.ok(html.includes(`src="${asset}?v=${version}"`));
+    assert.match(packageJson.scripts['build:alchemy'], /scripts\/version-alchemy-assets\.cjs/);
 });
 
 test('Alchemy uses the universal wallet connector and is discoverable as a free catalog tool', () => {

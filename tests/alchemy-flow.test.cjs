@@ -7,6 +7,7 @@ const core = require('../shared/alchemy-core.js');
 
 function app() {
     const elements = new Map();
+    const targetLabels = Array.from({ length: 4 }, () => ({ textContent: 'CITY' }));
     const element = id => {
         if (!elements.has(id)) elements.set(id, { textContent: '', innerHTML: '', hidden: false, disabled: false,
             querySelectorAll: () => [], classList: { add() {}, remove() {}, toggle() {} }, scrollIntoView() {} });
@@ -14,13 +15,61 @@ function app() {
     };
     const context = vm.createContext({
         window: { AlphaCityAlchemyCore: core },
-        document: { getElementById: element, querySelectorAll: () => [], addEventListener() {} },
+        document: { getElementById: element, querySelectorAll: selector => selector === '[data-target-symbol]' ? targetLabels : [], addEventListener() {} },
         console, setTimeout: () => 1, clearTimeout() {}, AbortController,
     });
     const source = fs.readFileSync(path.join(__dirname, '../alchemy/app-source.js'), 'utf8').replace(/^import .*;\r?\n/gm, '');
     vm.runInContext(source + '\n globalThis.app = { state, quoteHolding, quoteSelectedHolding, renderHoldings, renderSummary, handleTargetChange, scanWallet, prepareAlchemy, executeAlchemy };', context);
-    return { ...context.app, element, window: context.window, context };
+    return { ...context.app, element, window: context.window, context, targetLabels };
 }
+
+test('connected target switching requotes a large wallet and hides tiny and unchecked holdings', async () => {
+    const a = app();
+    a.state.address = '0x123';
+    const balances = Array.from({ length: 43 }, (_, index) => ({
+        coinType: `0xabc::dust::TOKEN_${index}`, totalBalance: '1000000',
+    }));
+    const outgoing = [];
+    a.window.AlphaCitySui = { async rpc(method) {
+        return method === 'suix_getCoinMetadata' ? { decimals: 9 } : balances;
+    } };
+    a.state.routerPromise = Promise.resolve({ async getCompleteTradeRouteGivenAmountIn(args) {
+        const index = Number(args.coinInType.split('_').at(-1));
+        if (args.coinOutType === core.USDC_TYPE) {
+            if (index === 2) throw new Error('Unpriced');
+            return { coinOut: { amount: index === 0 ? 49_999n : 50_000n } };
+        }
+        outgoing.push(args.coinOutType);
+        return { coinOut: { amount: args.coinOutType === core.CITY_TYPE ? 1_000_000_000n : 2_000_000_000n } };
+    } });
+    await a.scanWallet();
+    assert.ok(a.targetLabels.every(label => label.textContent === 'CITY'));
+    assert.equal(a.element('expected-city').textContent, '10');
+    a.state.prepared = { tx: {} };
+    outgoing.length = 0;
+    a.element('target-token').value = 'LOFI';
+    const switched = a.handleTargetChange();
+    assert.equal(a.state.prepared, null);
+    assert.equal(a.state.holdings.length, 0);
+    assert.ok(a.targetLabels.every(label => label.textContent === 'LOFI'));
+    await switched;
+    assert.equal(outgoing.length, 38);
+    assert.ok(outgoing.every(type => type === core.LOFI_TYPE));
+    assert.equal(a.element('expected-city').textContent, '20');
+    assert.match(a.element('prepare-button').textContent, /LOFI/);
+    assert.equal((a.element('holdings-list').innerHTML.match(/class="holding-checkbox/g) || []).length, 38);
+    assert.doesNotMatch(a.element('holdings-list').innerHTML, /TOKEN_(?:0|2|40|41|42)(?:["<\s])|Initial scan limit/);
+    assert.match(a.element('holdings-list').innerHTML, /TOKEN_1["<\s]/);
+    assert.match(a.element('alchemy-status').textContent, /Checked 40 of 43/);
+});
+
+test('render restores the selector to the actual target after browser form restoration', () => {
+    const a = app();
+    a.element('target-token').value = 'LOFI';
+    a.renderSummary();
+    assert.equal(a.element('target-token').value, 'CITY');
+    assert.ok(a.targetLabels.every(label => label.textContent === 'CITY'));
+});
 
 test('quotes LOFI and skips output routes for holdings below five cents', async () => {
     const a = app();

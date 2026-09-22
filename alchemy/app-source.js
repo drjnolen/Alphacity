@@ -296,6 +296,7 @@ function selectionTotals() {
 }
 
 function renderSummary() {
+    $('target-token').value = state.target.symbol;
     $('target-token').disabled = state.scanning || state.preparing || state.executing;
     document.querySelectorAll('[data-target-symbol]').forEach(element => { element.textContent = state.target.symbol; });
     const totals = selectionTotals();
@@ -444,7 +445,9 @@ async function scanWallet() {
             quotable,
             SCAN_QUOTE_CONCURRENCY,
             holding => quoteHolding(holding, router),
-            (complete, total) => setStatus(`Checking executable USDC values and ${state.target.symbol} routes… ${complete}/${total}`, 'info'),
+            (complete, total) => {
+                if (nonce === state.scanNonce) setStatus(`Checking executable USDC values and ${state.target.symbol} routes… ${complete}/${total}`, 'info');
+            },
         );
         if (nonce !== state.scanNonce) return;
         state.holdings = [...quoted.map((result, index) => {
@@ -462,10 +465,11 @@ async function scanWallet() {
         state.selected = new Set(core.selectInitialHoldings(state.holdings, core.DEFAULT_BATCH_LIMIT, state.target));
         const eligible = state.holdings.filter(holding => core.classifyHolding(holding, state.target).eligible).length;
         const unverified = state.holdings.length - eligible;
-        setStatus(
-            eligible
+        const scanSummary = eligible
                 ? `Scan complete: ${eligible} holding${eligible === 1 ? '' : 's'} verified from $0.05 to under $1 with a ${state.target.symbol} route. ${unverified} other holding${unverified === 1 ? '' : 's'} left untouched.`
-                : `Scan complete. No holdings met both the $0.05-to-under-$1 valuation and executable ${state.target.symbol}-route requirements.`,
+                : `Scan complete. No holdings met both the $0.05-to-under-$1 valuation and executable ${state.target.symbol}-route requirements.`;
+        setStatus(
+            scanSummary + (overflow.length ? ` Checked ${quotable.length} of ${withMetadata.length} token types; unchecked holdings are hidden.` : ''),
             eligible ? 'success' : 'warning',
         );
     } catch (error) {
@@ -683,7 +687,7 @@ function handleTargetChange() {
     if (!target || target.coinType === state.target.coinType) return;
     state.target = target;
     resetForWallet();
-    if (state.address) scanWallet();
+    if (state.address) return scanWallet();
 }
 
 function bindSlippage() {
