@@ -44,7 +44,7 @@ test('Alchemy composes, simulates, and only then enables execution', () => {
 
 test('Alchemy refreshes selected valuation and CITY routes concurrently', () => {
     assert.match(source, /PREPARE_QUOTE_CONCURRENCY = 5/);
-    assert.match(source, /Promise\.allSettled\(\[usdQuote, targetQuote\]\)/);
+    assert.match(source, /Promise\.allSettled\(\[usdQuote, targetQuote, metadataQuote\]\)/);
     assert.match(source, /quoteSelectedHolding/);
 });
 

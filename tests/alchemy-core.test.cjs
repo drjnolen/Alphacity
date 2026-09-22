@@ -44,10 +44,17 @@ test('auto-selects below five dollars and allows manual selection at or above fi
     assert.equal(core.classifyHolding(holding({ usdMicros: 100_000_000n, targetRoute: null })).eligible, false);
 });
 
-test('requires metadata, a valuation, and a CITY route', () => {
-    assert.equal(core.classifyHolding(holding({ metadata: null })).code, 'unverified');
+test('requires executable value and a target route, not input display metadata', () => {
+    assert.equal(core.classifyHolding(holding({ metadata: null })).eligible, true);
     assert.equal(core.classifyHolding(holding({ usdMicros: null })).code, 'unverified');
     assert.equal(core.classifyHolding(holding({ targetRoute: null })).code, 'no-target-route');
+});
+
+test('missing or malformed decimals are never interpreted as zero', () => {
+    for (const value of [null, undefined, '', ' ', false, true, {}, -1, 1.5, 31]) {
+        assert.equal(core.clampDecimals(value), null);
+    }
+    for (const value of [0, '0', 6, 8, 9]) assert.equal(core.clampDecimals(value), Number(value));
 });
 
 test('selects the lowest-value eligible holdings first up to the batch cap', () => {

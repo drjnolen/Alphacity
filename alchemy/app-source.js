@@ -7,6 +7,11 @@ if (!core) throw new Error('The Alchemy core module did not load');
 const SCAN_QUOTE_CONCURRENCY = 3;
 const PREPARE_QUOTE_CONCURRENCY = 5;
 const EXPLORER_TX_URL = 'https://suiscan.xyz/mainnet/tx/';
+const metadataCache = new Map();
+const metadataRequests = new Map();
+const COIN_METADATA_QUERY = `query AlchemyCoinMetadata($coinType: String!) {
+    coinMetadata(coinType: $coinType) { decimals name symbol iconUrl }
+}`;
 
 const state = {
     address: '',
@@ -118,19 +123,48 @@ async function mapLimit(items, limit, worker, progress, isCurrent = () => true) 
     return output;
 }
 
-async function fetchMetadata(coinType) {
+async function metadataWithTimeout(load) {
+    let timer;
     try {
-        const metadata = await rpc('suix_getCoinMetadata', [coinType]);
-        if (!metadata || core.clampDecimals(metadata.decimals) === null) return null;
-        return {
-            decimals: Number(metadata.decimals),
-            name: metadata.name || '',
-            symbol: metadata.symbol || '',
-            iconUrl: metadata.iconUrl || '',
-        };
-    } catch (_) {
-        return null;
+        return await Promise.race([
+            Promise.resolve().then(load),
+            new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Metadata lookup timed out')), 6_000); }),
+        ]);
+    } finally {
+        clearTimeout(timer);
     }
+}
+
+async function fetchMetadata(coinType) {
+    // Match the complete type, never the symbol: unrelated tokens can share a ticker.
+    const key = core.normalizeCoinType(coinType);
+    if (metadataCache.has(key)) return metadataCache.get(key);
+    if (metadataRequests.has(key)) return metadataRequests.get(key);
+    const request = (async () => {
+        const sources = [
+            () => rpc('suix_getCoinMetadata', [coinType]),
+            async () => (await window.AlphaCitySui?.graphql?.(COIN_METADATA_QUERY, { coinType }, 1))?.coinMetadata,
+            () => rpc('suix_getCoinMetadata', [coinType]),
+        ];
+        for (const load of sources) {
+            try {
+                const metadata = await metadataWithTimeout(load);
+                const decimals = core.clampDecimals(metadata?.decimals);
+                if (!metadata || decimals === null) continue;
+                const result = {
+                    decimals,
+                    name: metadata.name || '',
+                    symbol: metadata.symbol || '',
+                    iconUrl: metadata.iconUrl || '',
+                };
+                metadataCache.set(key, result);
+                return result;
+            } catch (_) { /* Try the next source; failed lookups are not cached. */ }
+        }
+        return null;
+    })();
+    metadataRequests.set(key, request);
+    try { return await request; } finally { metadataRequests.delete(key); }
 }
 
 async function fetchRoute(router, coinInType, coinOutType, coinInAmount) {
@@ -195,17 +229,16 @@ async function quoteSelectedHolding(holding, router) {
         routeError: '',
         quotedAt: 0,
     };
-    if (!holding.metadata) {
-        quoted.quoteError = 'Coin metadata is unavailable';
-        return quoted;
-    }
-
+    const metadataQuote = core.clampDecimals(holding.metadata?.decimals) === null
+        ? fetchMetadata(holding.coinType)
+        : Promise.resolve(holding.metadata);
     const usdQuote = core.sameCoinType(holding.coinType, core.USDC_TYPE)
         ? Promise.resolve({ route: null, amount: core.safeBigInt(holding.totalBalance) })
         : fetchRoute(router, holding.coinType, core.USDC_TYPE, holding.totalBalance)
             .then(route => ({ route, amount: core.routeOutputAmount(route) }));
     const targetQuote = fetchRoute(router, holding.coinType, state.target.coinType, holding.totalBalance);
-    const [usdResult, targetResult] = await Promise.allSettled([usdQuote, targetQuote]);
+    const [usdResult, targetResult, metadataResult] = await Promise.allSettled([usdQuote, targetQuote, metadataQuote]);
+    if (metadataResult.status === 'fulfilled') quoted.metadata = metadataResult.value;
 
     if (usdResult.status === 'fulfilled') {
         quoted.usdRoute = usdResult.value.route;
@@ -233,10 +266,10 @@ function holdingRow(holding) {
     const classification = core.classifyHolding(holding, state.target);
     const normalizedType = core.normalizeCoinType(holding.coinType);
     const checked = state.selected.has(normalizedType);
-    const decimals = holding.metadata?.decimals;
-    const balance = decimals === undefined
-        ? core.safeBigInt(holding.totalBalance).toString()
-        : core.formatUnits(holding.totalBalance, decimals, 6);
+    const decimals = core.clampDecimals(holding.metadata?.decimals);
+    const balance = decimals === null
+        ? 'Full balance · decimals unavailable'
+        : `${core.formatUnits(holding.totalBalance, decimals, decimals)} ${symbolFor(holding)}`;
     const targetAmount = core.routeOutputAmount(holding.targetRoute);
     const detail = classification.eligible
         ? `${core.formatUsdMicros(holding.usdMicros, 6)} liquidation value · ≈ ${core.formatUnits(targetAmount, state.target.decimals, 4)} ${state.target.symbol}`
@@ -258,7 +291,7 @@ function holdingRow(holding) {
                     <span class="font-semibold text-white">${escapeHtml(symbolFor(holding))}</span>
                     <span class="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${classificationClasses(classification.code)}">${escapeHtml(classification.label)}</span>
                 </span>
-                <span class="mt-1 block text-sm text-gray-300">${escapeHtml(balance)} ${escapeHtml(symbolFor(holding))}</span>
+                <span class="mt-1 block break-words text-sm text-gray-300">${escapeHtml(balance)}</span>
                 <span class="mt-1 block truncate font-mono text-[10px] text-gray-500" title="${escapeHtml(holding.coinType)}">${escapeHtml(shortType(holding.coinType))}</span>
                 <span class="mt-2 block text-xs text-dark-text-secondary">${escapeHtml(detail)}</span>
             </span>

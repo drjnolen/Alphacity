@@ -64,6 +64,7 @@
     }
 
     function clampDecimals(value) {
+        if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+$/.test(value))) return null;
         const number = Number(value);
         return Number.isInteger(number) && number >= 0 && number <= 30 ? number : null;
     }
@@ -109,9 +110,6 @@
         const excluded = exclusionReason(holding?.coinType, target);
         if (excluded) return { code: 'excluded', label: 'Excluded', reason: excluded, eligible: false };
         if (totalBalance <= 0n) return { code: 'empty', label: 'Empty', reason: 'Zero balance', eligible: false };
-        if (!holding?.metadata || clampDecimals(holding.metadata.decimals) === null) {
-            return { code: 'unverified', label: 'Unverified', reason: 'Coin metadata is unavailable', eligible: false };
-        }
         if (holding.usdMicros === null || holding.usdMicros === undefined) {
             return { code: 'unverified', label: 'Unverified', reason: holding.quoteError || 'No executable USDC valuation route', eligible: false };
         }
