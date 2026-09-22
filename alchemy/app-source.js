@@ -4,7 +4,6 @@ import { Transaction } from '@mysten/sui/transactions';
 const core = window.AlphaCityAlchemyCore;
 if (!core) throw new Error('The Alchemy core module did not load');
 
-const MAX_QUOTED_TYPES = 40;
 const SCAN_QUOTE_CONCURRENCY = 3;
 const PREPARE_QUOTE_CONCURRENCY = 5;
 const EXPLORER_TX_URL = 'https://suiscan.xyz/mainnet/tx/';
@@ -97,12 +96,13 @@ function getRouter() {
     return state.routerPromise;
 }
 
-async function mapLimit(items, limit, worker, progress) {
+async function mapLimit(items, limit, worker, progress, isCurrent = () => true) {
     const output = new Array(items.length);
     let nextIndex = 0;
     let completed = 0;
     async function run() {
         for (;;) {
+            if (!isCurrent()) return;
             const index = nextIndex++;
             if (index >= items.length) return;
             try {
@@ -149,7 +149,7 @@ async function fetchRoute(router, coinInType, coinOutType, coinInAmount) {
     }
 }
 
-async function quoteHolding(holding, router) {
+async function quoteHolding(holding, router, target = state.target) {
     const quoted = {
         ...holding,
         usdMicros: null,
@@ -159,11 +159,6 @@ async function quoteHolding(holding, router) {
         routeError: '',
         quotedAt: 0,
     };
-    if (!holding.metadata) {
-        quoted.quoteError = 'Coin metadata is unavailable';
-        return quoted;
-    }
-
     try {
         if (core.sameCoinType(holding.coinType, core.USDC_TYPE)) {
             quoted.usdMicros = core.safeBigInt(holding.totalBalance);
@@ -176,15 +171,15 @@ async function quoteHolding(holding, router) {
         return quoted;
     }
 
-    if (quoted.usdMicros < core.MIN_HOLDING_USD_MICROS) {
+    if (quoted.usdMicros <= core.MIN_HOLDING_USD_MICROS) {
         quoted.quotedAt = Date.now();
         return quoted;
     }
 
     try {
-        quoted.targetRoute = await fetchRoute(router, holding.coinType, state.target.coinType, holding.totalBalance);
+        quoted.targetRoute = await fetchRoute(router, holding.coinType, target.coinType, holding.totalBalance);
     } catch (error) {
-        quoted.routeError = errorMessage(error) || `No executable ${state.target.symbol} route`;
+        quoted.routeError = errorMessage(error) || `No executable ${target.symbol} route`;
     }
     quoted.quotedAt = Date.now();
     return quoted;
@@ -244,8 +239,10 @@ function holdingRow(holding) {
         : core.formatUnits(holding.totalBalance, decimals, 6);
     const targetAmount = core.routeOutputAmount(holding.targetRoute);
     const detail = classification.eligible
-        ? `${core.formatUsdMicros(holding.usdMicros)} liquidation value · ≈ ${core.formatUnits(targetAmount, state.target.decimals, 4)} ${state.target.symbol}`
-        : classification.reason;
+        ? `${core.formatUsdMicros(holding.usdMicros, 6)} liquidation value · ≈ ${core.formatUnits(targetAmount, state.target.decimals, 4)} ${state.target.symbol}`
+        : core.isVisibleHolding(holding)
+            ? `${core.formatUsdMicros(holding.usdMicros, 6)} liquidation value · ${classification.reason}`
+            : classification.reason;
     return `
         <label class="holding-row ${classification.eligible ? 'holding-row-selectable' : ''}">
             <input
@@ -253,7 +250,7 @@ function holdingRow(holding) {
                 type="checkbox"
                 data-coin-type="${escapeHtml(normalizedType)}"
                 ${checked ? 'checked' : ''}
-                ${classification.eligible ? '' : 'disabled'}
+                ${classification.eligible && !state.scanning ? '' : 'disabled'}
             >
             <span class="token-badge">${escapeHtml(badgeLetter(holding))}</span>
             <span class="min-w-0 flex-1">
@@ -278,9 +275,15 @@ function renderHoldings() {
         list.innerHTML = '<div class="empty-state"><span class="spinner text-brand-secondary"></span><span>Scanning balances and checking routes…</span></div>';
         return;
     }
-    const visible = state.holdings.filter(core.isVisibleHolding);
+    const visible = state.holdings.filter(core.isVisibleHolding).sort((left, right) => {
+        const a = core.safeBigInt(left.usdMicros);
+        const b = core.safeBigInt(right.usdMicros);
+        return a === b ? symbolFor(left).localeCompare(symbolFor(right)) : (a < b ? -1 : 1);
+    });
     if (!visible.length) {
-        list.innerHTML = '<div class="empty-state">No holdings with a verified value of at least $0.05 were found.</div>';
+        list.innerHTML = state.scanning
+            ? '<div class="empty-state"><span class="spinner text-brand-secondary"></span><span>Still checking for holdings worth more than $0.01…</span></div>'
+            : '<div class="empty-state">No holdings with a verified value of more than $0.01 were found.</div>';
         return;
     }
     list.innerHTML = visible.map(holdingRow).join('');
@@ -418,37 +421,43 @@ async function scanWallet() {
             }));
 
         setStatus(`Loading metadata for ${candidates.length} token type${candidates.length === 1 ? '' : 's'}…`, 'info');
+        const isCurrent = () => nonce === state.scanNonce;
         const withMetadata = await mapLimit(candidates, 6, async holding => ({
             ...holding,
             metadata: await fetchMetadata(holding.coinType),
-        }));
+        }), undefined, isCurrent);
         if (nonce !== state.scanNonce) return;
 
-        const quotable = withMetadata.slice(0, MAX_QUOTED_TYPES);
-        const overflow = withMetadata.slice(MAX_QUOTED_TYPES).map(holding => ({
-            ...holding,
-            quoteError: `Initial scan limit of ${MAX_QUOTED_TYPES} token types reached`,
-        }));
+        const quotable = withMetadata;
         if (!quotable.length) {
-            state.holdings = overflow;
-            setStatus('Scan complete. No holdings with a verified value of at least $0.05 were found.', 'success');
+            setStatus('Scan complete. No holdings with a verified value of more than $0.01 were found.', 'success');
             return;
         }
 
         setStatus(`Initializing the Aftermath router for ${quotable.length} valuation check${quotable.length === 1 ? '' : 's'}…`, 'info');
         const router = await getRouter();
         if (nonce !== state.scanNonce) return;
+        const target = state.target;
         const quoted = await mapLimit(
             quotable,
             SCAN_QUOTE_CONCURRENCY,
-            holding => quoteHolding(holding, router),
-            (complete, total) => setStatus(`Checking executable USDC values and ${state.target.symbol} routes… ${complete}/${total}`, 'info'),
+            async holding => {
+                const result = await quoteHolding(holding, router, target);
+                if (isCurrent()) state.holdings.push(result);
+                return result;
+            },
+            (complete, total) => {
+                if (!isCurrent()) return;
+                setStatus(`Checking all ${total} token types for executable value and ${target.symbol} routes… ${complete}/${total}`, 'info');
+                renderHoldings();
+            },
+            isCurrent,
         );
         if (nonce !== state.scanNonce) return;
-        state.holdings = [...quoted.map((result, index) => {
+        state.holdings = quoted.map((result, index) => {
             if (!(result instanceof Error)) return result;
             return { ...quotable[index], quoteError: errorMessage(result) };
-        }), ...overflow];
+        });
         state.holdings.sort((left, right) => {
             const aUsd = core.safeBigInt(left.usdMicros, -1n);
             const bUsd = core.safeBigInt(right.usdMicros, -1n);
@@ -456,11 +465,11 @@ async function scanWallet() {
         });
         state.selected = new Set(core.selectInitialHoldings(state.holdings, core.DEFAULT_BATCH_LIMIT, state.target));
         const eligible = state.holdings.filter(holding => core.classifyHolding(holding, state.target).eligible).length;
-        const unverified = state.holdings.length - eligible;
+        const valued = state.holdings.filter(core.isVisibleHolding).length;
+        const unpriced = state.holdings.filter(holding => holding.usdMicros == null).length;
+        const belowMinimum = state.holdings.length - valued - unpriced;
         setStatus(
-            eligible
-                ? `Scan complete: ${eligible} holding${eligible === 1 ? '' : 's'} verified at $0.05 or more with a ${state.target.symbol} route. ${state.selected.size} auto-selected below $5 (up to ${core.DEFAULT_BATCH_LIMIT}); holdings worth $5 or more can be selected manually. ${unverified} other holding${unverified === 1 ? '' : 's'} left untouched.`
-                : `Scan complete. No holdings met both the minimum-$0.05 valuation and executable ${state.target.symbol}-route requirements.`,
+            `Scan complete: checked all ${candidates.length} token types. ${valued} worth more than $0.01; ${eligible} ready to swap into ${state.target.symbol}. ${state.selected.size} auto-selected below $5 (up to ${core.DEFAULT_BATCH_LIMIT}). ${belowMinimum} at or below $0.01 and ${unpriced} without an executable valuation are hidden.`,
             eligible ? 'success' : 'warning',
         );
     } catch (error) {

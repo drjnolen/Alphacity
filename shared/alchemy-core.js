@@ -13,7 +13,7 @@
         CITY: Object.freeze({ coinType: CITY_TYPE, symbol: 'CITY', decimals: 9 }),
         LOFI: Object.freeze({ coinType: LOFI_TYPE, symbol: 'LOFI', decimals: null }),
     });
-    const MIN_HOLDING_USD_MICROS = 50_000n;
+    const MIN_HOLDING_USD_MICROS = 10_000n;
     const USDC_TYPE = '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC';
     const USD_MICROS_PER_DOLLAR = 1_000_000n;
     const AUTO_SELECT_MAX_USD_MICROS = 5_000_000n;
@@ -119,8 +119,8 @@
         if (usdMicros < 0n) {
             return { code: 'unverified', label: 'Unverified', reason: 'Invalid valuation result', eligible: false };
         }
-        if (usdMicros < MIN_HOLDING_USD_MICROS) {
-            return { code: 'below-minimum', label: 'Below $0.05', reason: 'Holding is worth less than $0.05', eligible: false };
+        if (usdMicros <= MIN_HOLDING_USD_MICROS) {
+            return { code: 'below-minimum', label: '$0.01 or less', reason: 'Holding must be worth more than $0.01', eligible: false };
         }
         if (!holding.targetRoute || routeOutputAmount(holding.targetRoute) <= 0n) {
             return { code: 'no-target-route', label: `No ${target.symbol} route`, reason: holding.routeError || `No executable route to ${target.symbol}`, eligible: false };
@@ -165,7 +165,7 @@
     }
 
     function isVisibleHolding(holding) {
-        return holding?.usdMicros != null && safeBigInt(holding.usdMicros, -1n) >= MIN_HOLDING_USD_MICROS;
+        return holding?.usdMicros != null && safeBigInt(holding.usdMicros, -1n) > MIN_HOLDING_USD_MICROS;
     }
 
     function gasUsedNet(gasUsed) {
