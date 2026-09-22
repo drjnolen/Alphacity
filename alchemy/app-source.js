@@ -73,7 +73,7 @@ function setStatus(message, kind = 'info') {
         warning: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
         error: 'border-red-500/30 bg-red-500/10 text-red-200',
     };
-    element.className = `mt-4 rounded-xl border px-4 py-3 text-sm ${classes[kind] || classes.info}`;
+    element.className = `mx-auto mb-6 max-w-5xl rounded-xl border px-4 py-3 text-sm ${classes[kind] || classes.info}`;
     element.textContent = message;
     element.hidden = false;
 }
