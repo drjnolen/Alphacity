@@ -49,7 +49,7 @@ test('Alchemy refreshes selected valuation and CITY routes concurrently', () => 
 });
 
 test('Alchemy UI discloses its conservative eligibility and batch behavior', () => {
-    assert.match(html, /at least \$0.05 and below \$5 are auto-selected/i);
+    assert.match(html, /Alchemy turns wallet dust into CITY or LOFI in one atomic Sui transaction\.\s*<\/p>/);
     assert.ok(html.includes('Showing verified holdings worth at least $0.05. Routable holdings below $5 are auto-selected. Each selection swaps the full token balance.'));
     assert.match(html, /Each selection swaps the full token balance/i);
     assert.match(html, /up to 10 token types in one atomic transaction/i);
