@@ -33,11 +33,15 @@ test('formats integer balances without floating point loss', () => {
     assert.equal(core.formatUsdMicros(999_999n), '$0.9999');
 });
 
-test('applies the strict under-one-dollar eligibility boundary', () => {
-    assert.equal(core.classifyHolding(holding({ usdMicros: 999_999n })).eligible, true);
-    const boundary = core.classifyHolding(holding({ usdMicros: 1_000_000n }));
-    assert.equal(boundary.eligible, false);
-    assert.equal(boundary.code, 'above-threshold');
+test('auto-selects below five dollars and allows manual selection at or above five', () => {
+    for (const value of [50_000n, 999_999n, 1_000_000n, 4_999_999n, 5_000_000n, 5_000_001n, 100_000_000n]) {
+        const row = holding({ usdMicros: value });
+        assert.equal(core.classifyHolding(row).eligible, true);
+        assert.equal(core.selectInitialHoldings([row]).length, value < 5_000_000n ? 1 : 0);
+        assert.equal(core.selectionTotals([row], [row.coinType], 1).usdMicros, value);
+    }
+    assert.equal(core.classifyHolding(holding({ usdMicros: 5_000_000n })).code, 'manual-selection');
+    assert.equal(core.classifyHolding(holding({ usdMicros: 100_000_000n, targetRoute: null })).eligible, false);
 });
 
 test('requires metadata, a valuation, and a CITY route', () => {
@@ -53,7 +57,7 @@ test('selects only the highest-value eligible holdings up to the batch cap', () 
         holding({ coinType: '0x3::c::C', usdMicros: 500_000n }),
         holding({ coinType: '0x4::d::D', usdMicros: 1_500_000n }),
     ];
-    assert.deepEqual(core.selectInitialHoldings(rows, 2), ['0x2::b::B', '0x3::c::C']);
+    assert.deepEqual(core.selectInitialHoldings(rows, 2), ['0x4::d::D', '0x2::b::B']);
     assert.equal(core.DEFAULT_BATCH_LIMIT, 10);
 });
 

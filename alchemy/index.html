@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" href="https://i.postimg.cc/9QgzZr7t/wd-1CLt-O-400x400.jpg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Convert verified Sui token balances worth at least $0.05 and below $1 into CITY or LOFI in one atomic transaction.">
+    <meta name="description" content="Convert verified Sui token balances worth at least $0.05 into CITY or LOFI in one atomic transaction.">
     <title>Alchemy - Turn wallet dust into gold</title>
     <script defer src="/shared/telemetry-config.js"></script>
     <script defer src="/shared/telemetry.js"></script>
@@ -104,7 +104,7 @@
                 Turn wallet dust into <span class="text-brand-secondary">gold</span>
             </h1>
             <p class="mx-auto mt-4 max-w-2xl text-sm leading-7 text-dark-text-secondary sm:text-base">
-                Alchemy finds fungible token balances with a fresh executable value of at least $0.05 and below $1, verifies a route to your chosen token, and composes the selected swaps into one atomic Sui transaction.
+                Alchemy turns wallet dust into CITY or LOFI in one atomic Sui transaction. Verified, routable holdings worth at least $0.05 and below $5 are auto-selected, up to 10 token types. Holdings worth $5 or more are available for manual selection.
             </p>
         </section>
 
@@ -115,7 +115,7 @@
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 id="holdings-heading" class="text-lg font-bold text-white">Wallet holdings</h2>
-                        <p class="mt-1 text-xs text-dark-text-secondary">Showing holdings worth at least $0.05. Only verified, routable balances below $1 can be selected. Unpriced holdings are hidden.</p>
+                        <p class="mt-1 text-xs text-dark-text-secondary">Showing holdings worth at least $0.05. Verified, routable holdings below $5 are auto-selected (up to 10); holdings worth $5 or more are selectable but unchecked by default. Each selection swaps the full token balance. Unpriced holdings are hidden.</p>
                     </div>
                     <button id="rescan-button" type="button" class="rounded-lg border border-gray-700 bg-dark-bg px-3 py-2 text-xs font-semibold text-gray-300 transition-colors hover:border-brand-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50" disabled>
                         Rescan wallet
@@ -194,7 +194,7 @@
 
                 <section class="rounded-xl border border-gray-800 bg-dark-bg/70 p-4 text-xs leading-5 text-dark-text-secondary">
                     <p class="font-semibold text-white">What stays untouched</p>
-                    <p class="mt-1">SUI, your chosen target token (<span data-target-symbol>CITY</span>), LP/vault/receipt tokens, balances below $0.05 or worth $1 or more, missing metadata, and anything without an executable valuation or route to your chosen token.</p>
+                    <p class="mt-1">SUI, your chosen target token (<span data-target-symbol>CITY</span>), LP/vault/receipt tokens, balances below $0.05, missing metadata, and anything without an executable valuation or route to your chosen token.</p>
                 </section>
             </aside>
         </div>

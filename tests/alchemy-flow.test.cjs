@@ -60,6 +60,34 @@ test('target switching clears selections and prepared transactions', () => {
     assert.equal(a.state.target.symbol, 'LOFI');
 });
 
+test('scan quotes larger holdings but only selects those below five dollars', async () => {
+    for (const target of Object.values(core.TARGETS)) {
+        const a = app();
+        a.state.address = '0x123';
+        a.state.target = target;
+        const values = [49_999n, 50_000n, 1_000_000n, 4_999_999n, 5_000_000n, 20_000_000n];
+        const balances = values.map((value, index) => ({ coinType: `0xabc::dust::D${index}`, totalBalance: String(value) }));
+        a.window.AlphaCitySui = { async rpc(method) {
+            return method === 'suix_getCoinMetadata' ? { decimals: 9 } : balances;
+        } };
+        const outputRequests = [];
+        a.state.routerPromise = Promise.resolve({ async getCompleteTradeRouteGivenAmountIn(args) {
+            if (args.coinOutType !== core.USDC_TYPE) outputRequests.push(args);
+            return { coinOut: { amount: args.coinInAmount } };
+        } });
+        await a.scanWallet();
+        assert.equal(outputRequests.length, 5);
+        assert.ok(outputRequests.every(args => args.coinOutType === target.coinType));
+        assert.deepEqual([...a.state.selected].sort(), balances.slice(1, 4).map(row => row.coinType));
+        assert.equal(a.state.holdings.filter(row => core.classifyHolding(row, target).eligible).length, 5);
+        assert.match(a.element('holdings-list').innerHTML, /Manual selection/);
+        a.state.selected.add(balances[5].coinType);
+        a.renderSummary();
+        assert.equal(a.element('selected-count').textContent, '4');
+        assert.equal(a.element('prepare-button').disabled, false);
+    }
+});
+
 test('holdings renderer hides tiny and unpriced balances while showing the boundary', () => {
     const a = app();
     a.state.address = '0x123';
@@ -106,14 +134,14 @@ test('prepares one simulated LOFI transaction and refuses execution after a targ
         setSender(address) { this.sender = address; }
     };
     a.state.holdings = [core.USDC_TYPE, core.CITY_TYPE].map(coinType => ({
-        coinType, totalBalance: '50000', metadata: { decimals: 6 }, usdMicros: 50_000n,
+        coinType, totalBalance: '25000000', metadata: { decimals: 6 }, usdMicros: 25_000_000n,
         targetRoute: { coinOut: { amount: 100_000_000n } },
     }));
     a.state.holdings.forEach(row => a.state.selected.add(row.coinType));
     const routes = [];
     a.state.routerPromise = Promise.resolve({
         async getCompleteTradeRouteGivenAmountIn(args) {
-            return { coinOut: { type: args.coinOutType, amount: args.coinOutType === core.USDC_TYPE ? 50_000n : 100_000_000n } };
+            return { coinOut: { type: args.coinOutType, amount: args.coinOutType === core.USDC_TYPE ? 25_000_000n : 100_000_000n } };
         },
         async addTransactionForCompleteTradeRoute({ tx, completeRoute }) {
             routes.push(completeRoute);
