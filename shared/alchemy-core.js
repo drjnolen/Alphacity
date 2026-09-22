@@ -8,6 +8,12 @@
 
     const SUI_TYPE = '0x2::sui::SUI';
     const CITY_TYPE = '0x308fa16c7aead43e3a49a4ff2e76205ba2a12697234f4fe80a2da66515284060::city::CITY';
+    const LOFI_TYPE = '0xf22da9a24ad027cccb5f2d496cbe91de953d363513db08a3a734d361c7c17503::LOFI::LOFI';
+    const TARGETS = Object.freeze({
+        CITY: Object.freeze({ coinType: CITY_TYPE, symbol: 'CITY', decimals: 9 }),
+        LOFI: Object.freeze({ coinType: LOFI_TYPE, symbol: 'LOFI', decimals: null }),
+    });
+    const MIN_HOLDING_USD_MICROS = 50_000n;
     const USDC_TYPE = '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC';
     const USD_MICROS_PER_DOLLAR = 1_000_000n;
     const CITY_DECIMALS = 9;
@@ -45,9 +51,9 @@
         ].some(pattern => type.includes(pattern));
     }
 
-    function exclusionReason(coinType) {
+    function exclusionReason(coinType, target = TARGETS.CITY) {
         if (sameCoinType(coinType, SUI_TYPE)) return 'Gas coin';
-        if (sameCoinType(coinType, CITY_TYPE)) return 'Already CITY';
+        if (sameCoinType(coinType, target.coinType)) return `Already ${target.symbol}`;
         if (isStructuredHolding(coinType)) return 'LP, vault, receipt, or staking token';
         return '';
     }
@@ -97,9 +103,9 @@
         return Number.isFinite(timestamp) && timestamp > 0 && now >= timestamp && now - timestamp <= maxAgeMs;
     }
 
-    function classifyHolding(holding) {
+    function classifyHolding(holding, target = TARGETS.CITY) {
         const totalBalance = safeBigInt(holding?.totalBalance);
-        const excluded = exclusionReason(holding?.coinType);
+        const excluded = exclusionReason(holding?.coinType, target);
         if (excluded) return { code: 'excluded', label: 'Excluded', reason: excluded, eligible: false };
         if (totalBalance <= 0n) return { code: 'empty', label: 'Empty', reason: 'Zero balance', eligible: false };
         if (!holding?.metadata || clampDecimals(holding.metadata.decimals) === null) {
@@ -112,18 +118,21 @@
         if (usdMicros < 0n) {
             return { code: 'unverified', label: 'Unverified', reason: 'Invalid valuation result', eligible: false };
         }
+        if (usdMicros < MIN_HOLDING_USD_MICROS) {
+            return { code: 'below-minimum', label: 'Below $0.05', reason: 'Holding is worth less than $0.05', eligible: false };
+        }
         if (usdMicros >= USD_MICROS_PER_DOLLAR) {
             return { code: 'above-threshold', label: '$1 or more', reason: 'Holding is not below the $1 threshold', eligible: false };
         }
-        if (!holding.cityRoute || routeOutputAmount(holding.cityRoute) <= 0n) {
-            return { code: 'no-city-route', label: 'No CITY route', reason: holding.routeError || 'No executable route to CITY', eligible: false };
+        if (!holding.targetRoute || routeOutputAmount(holding.targetRoute) <= 0n) {
+            return { code: 'no-target-route', label: `No ${target.symbol} route`, reason: holding.routeError || `No executable route to ${target.symbol}`, eligible: false };
         }
-        return { code: 'eligible', label: 'Eligible', reason: 'Executable value is below $1', eligible: true };
+        return { code: 'eligible', label: 'Eligible', reason: 'Executable value is at least $0.05 and below $1', eligible: true };
     }
 
-    function selectInitialHoldings(holdings, limit = DEFAULT_BATCH_LIMIT) {
+    function selectInitialHoldings(holdings, limit = DEFAULT_BATCH_LIMIT, target = TARGETS.CITY) {
         return (holdings || [])
-            .filter(holding => classifyHolding(holding).eligible)
+            .filter(holding => classifyHolding(holding, target).eligible)
             .sort((left, right) => {
                 const a = safeBigInt(left.usdMicros);
                 const b = safeBigInt(right.usdMicros);
@@ -133,24 +142,28 @@
             .map(holding => normalizeCoinType(holding.coinType));
     }
 
-    function selectionTotals(holdings, selectedTypes, slippagePercent) {
+    function selectionTotals(holdings, selectedTypes, slippagePercent, target = TARGETS.CITY) {
         const selected = new Set((selectedTypes || []).map(normalizeCoinType));
         let usdMicros = 0n;
-        let cityAmount = 0n;
+        let targetAmount = 0n;
         let count = 0;
         for (const holding of holdings || []) {
             if (!selected.has(normalizeCoinType(holding.coinType))) continue;
-            if (!classifyHolding(holding).eligible) continue;
+            if (!classifyHolding(holding, target).eligible) continue;
             usdMicros += safeBigInt(holding.usdMicros);
-            cityAmount += routeOutputAmount(holding.cityRoute);
+            targetAmount += routeOutputAmount(holding.targetRoute);
             count += 1;
         }
         return {
             count,
             usdMicros,
-            cityAmount,
-            minimumCityAmount: minimumOutput(cityAmount, slippagePercent),
+            targetAmount,
+            minimumTargetAmount: minimumOutput(targetAmount, slippagePercent),
         };
+    }
+
+    function isVisibleHolding(holding) {
+        return holding?.usdMicros != null && safeBigInt(holding.usdMicros, -1n) >= MIN_HOLDING_USD_MICROS;
     }
 
     function gasUsedNet(gasUsed) {
@@ -164,6 +177,10 @@
     return Object.freeze({
         SUI_TYPE,
         CITY_TYPE,
+        LOFI_TYPE,
+        TARGETS,
+        MIN_HOLDING_USD_MICROS,
+        isVisibleHolding,
         USDC_TYPE,
         USD_MICROS_PER_DOLLAR,
         CITY_DECIMALS,

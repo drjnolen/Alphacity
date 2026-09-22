@@ -34,7 +34,7 @@ test('Alchemy uses the universal wallet connector and is discoverable as a free 
 
 test('Alchemy composes, simulates, and only then enables execution', () => {
     assert.match(source, /addTransactionForCompleteTradeRoute/);
-    assert.match(source, /mergeCoins\(cityCoins\[0\]/);
+    assert.match(source, /mergeCoins\(targetCoins\[0\]/);
     assert.match(source, /simulateTransaction/);
     assert.match(source, /include:\s*\{\s*effects:\s*true,\s*balanceChanges:\s*true/);
     assert.ok(source.indexOf('simulateTransaction') < source.indexOf("$('confirm-button').disabled = false"));
@@ -44,12 +44,12 @@ test('Alchemy composes, simulates, and only then enables execution', () => {
 
 test('Alchemy refreshes selected valuation and CITY routes concurrently', () => {
     assert.match(source, /PREPARE_QUOTE_CONCURRENCY = 5/);
-    assert.match(source, /Promise\.allSettled\(\[usdQuote, cityQuote\]\)/);
+    assert.match(source, /Promise\.allSettled\(\[usdQuote, targetQuote\]\)/);
     assert.match(source, /quoteSelectedHolding/);
 });
 
 test('Alchemy UI discloses its conservative eligibility and batch behavior', () => {
-    assert.match(html, /fresh executable value below \$1/i);
+    assert.match(html, /fresh executable value of at least \$0.05 and below \$1/i);
     assert.match(html, /Only verified, routable balances below \$1 can be selected/i);
     assert.match(html, /up to 10 token types in one atomic transaction/i);
     assert.match(html, /within 90 seconds of simulation/i);
