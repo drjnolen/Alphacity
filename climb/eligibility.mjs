@@ -4,8 +4,8 @@ export const REQUIRED_CITY=5000000n*10n**9n;
 const amount=value=>{if(!/^\d+$/.test(String(value)))throw Error('Invalid CITY balance response.');return BigInt(value);};
 export async function fetchEligibility(rpc,address){
  if(!/^0x[0-9a-f]{64}$/i.test(address))throw Error('Invalid Sui wallet address.');
- const balance=await rpc('suix_getBalance',[address,CITY_TYPE]);
- const liquid=amount(balance?.totalBalance);let staked=0n,cursor=null;const cursors=new Set(),objects=new Set();
+ async function readStakes(){
+ let staked=0n,cursor=null;const cursors=new Set(),objects=new Set();
  do{
   const page=await rpc('suix_getOwnedObjects',[address,{filter:{StructType:CITY_STAKING_TYPE},options:{showContent:true}},cursor,50]);
   if(!Array.isArray(page?.data))throw Error('Unable to verify staked CITY.');
@@ -14,6 +14,11 @@ export async function fetchEligibility(rpc,address){
   if(!page.nextCursor||cursors.has(page.nextCursor))throw Error('Unable to finish staking verification.');
   cursor=page.nextCursor;cursors.add(cursor);
  }while(true);
+ return staked;
+ }
+ // Independent reads share latency; every stake page must still verify successfully.
+ const [balance,staked]=await Promise.all([rpc('suix_getBalance',[address,CITY_TYPE]),readStakes()]);
+ const liquid=amount(balance?.totalBalance);
  return {liquid,staked,total:liquid+staked,allowed:liquid+staked>=REQUIRED_CITY};
 }
 export const formatCity=value=>new Intl.NumberFormat('en-US',{maximumFractionDigits:0}).format(Number(value/10n**9n));
