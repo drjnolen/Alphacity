@@ -18,7 +18,7 @@ function app() {
         console, setTimeout: () => 1, clearTimeout() {}, AbortController,
     });
     const source = fs.readFileSync(path.join(__dirname, '../alchemy/app-source.js'), 'utf8').replace(/^import .*;\r?\n/gm, '');
-    vm.runInContext(source + '\n globalThis.app = { state, quoteHolding, quoteSelectedHolding, renderHoldings, renderSummary, handleTargetChange, scanWallet, prepareAlchemy, executeAlchemy };', context);
+    vm.runInContext(source + '\n globalThis.app = { state, fetchMetadata, quoteHolding, quoteSelectedHolding, renderHoldings, renderSummary, handleTargetChange, scanWallet, prepareAlchemy, executeAlchemy };', context);
     return { ...context.app, element, window: context.window, context };
 }
 
@@ -106,6 +106,78 @@ test('holdings renderer hides tiny and unpriced balances while showing the bound
     assert.doesNotMatch(a.element('holdings-list').innerHTML, /TINY|UNKNOWN/);
 });
 
+test('GraphQL recovers decimals and renders exact ETH, DEEP, and LOFI balances', async () => {
+    const a = app();
+    const fixtures = [
+        { coinType: '0xd0e89b2af5e4910726fbcd8b8dd37bb79b29e5f83f7491bca830e94f7f226d29::eth::ETH', decimals: 8, symbol: 'ETH', raw: '2597', formatted: '0.00002597 ETH' },
+        { coinType: '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP', decimals: 6, symbol: 'DEEP', raw: '179497293', formatted: '179.497293 DEEP' },
+        { coinType: core.LOFI_TYPE, decimals: 9, symbol: 'LOFI', raw: '1433290126393', formatted: '1433.290126393 LOFI' },
+    ];
+    let rpcCalls = 0;
+    let graphqlCalls = 0;
+    a.window.AlphaCitySui = {
+        async rpc() { rpcCalls += 1; throw new Error('Rate limited'); },
+        async graphql(query, { coinType }) {
+            graphqlCalls += 1;
+            assert.match(query, /coinMetadata\(coinType: \$coinType\)/);
+            return { coinMetadata: fixtures.find(row => row.coinType === coinType) };
+        },
+    };
+    a.state.address = '0x123';
+    for (const fixture of fixtures) {
+        const [metadata, duplicate] = await Promise.all([a.fetchMetadata(fixture.coinType), a.fetchMetadata(fixture.coinType)]);
+        assert.equal(metadata, duplicate);
+        a.state.holdings.push({ coinType: fixture.coinType, totalBalance: fixture.raw, metadata,
+            usdMicros: 100_000n, targetRoute: { coinOut: { amount: 1000n } } });
+        assert.equal(await a.fetchMetadata(fixture.coinType), metadata);
+    }
+    a.renderHoldings();
+    for (const fixture of fixtures) assert.ok(a.element('holdings-list').innerHTML.includes(fixture.formatted));
+    assert.equal(rpcCalls, 3);
+    assert.equal(graphqlCalls, 3);
+});
+
+test('metadata lookup retries and does not cache failure or trust ticker aliases', async () => {
+    const a = app();
+    let calls = 0;
+    let recovered = false;
+    a.window.AlphaCitySui = {
+        async rpc() {
+            calls += 1;
+            return recovered ? { decimals: 6, symbol: 'LOFI' } : { decimals: null, symbol: 'LOFI' };
+        },
+        async graphql() { throw new Error('Unavailable'); },
+    };
+    assert.equal(await a.fetchMetadata(core.LOFI_TYPE), null);
+    assert.equal(calls, 2);
+    recovered = true;
+    assert.equal((await a.fetchMetadata(core.LOFI_TYPE)).decimals, 6);
+    assert.equal(calls, 3);
+    await a.fetchMetadata('0xabc::LOFI::LOFI');
+    assert.equal(calls, 4, 'same symbol at a different package must get its own lookup');
+
+    const b = app();
+    let attempts = 0;
+    b.window.AlphaCitySui = { async rpc() {
+        attempts += 1;
+        if (attempts === 1) throw new Error('Temporary failure');
+        return { decimals: 8, symbol: 'ETH' };
+    } };
+    assert.equal((await b.fetchMetadata('0xdef::eth::ETH')).decimals, 8);
+    assert.equal(attempts, 2);
+});
+
+test('unknown decimals show an explicit full-balance label instead of raw token counts', () => {
+    const a = app();
+    a.state.address = '0x123';
+    a.state.holdings = [{ coinType: '0xabc::dust::DUST', totalBalance: '987654321123456789', metadata: null,
+        usdMicros: 100_000n, targetRoute: { coinOut: { amount: 1000n } } }];
+    a.renderHoldings();
+    const html = a.element('holdings-list').innerHTML;
+    assert.match(html, /Full balance · decimals unavailable/);
+    assert.doesNotMatch(html, /987654321123456789|Unverified|disabled/);
+});
+
 test('scans beyond 40 tokens and displays valued holdings without target routes or metadata', async () => {
     const a = app();
     a.state.address = '0x123';
@@ -136,14 +208,14 @@ test('scans beyond 40 tokens and displays valued holdings without target routes 
     assert.equal(valuedTypes.length, 131);
     assert.ok(peak <= 3);
     assert.equal(a.state.holdings.length, 131);
-    assert.deepEqual([...a.state.selected], [balances[128].coinType]);
+    assert.deepEqual([...a.state.selected], [balances[128].coinType, balances[130].coinType]);
     const html = a.element('holdings-list').innerHTML;
     assert.equal((html.match(/class="holding-checkbox/g) || []).length, 3);
     assert.match(html, /TOKEN_128/);
     assert.match(html, /No CITY route/);
-    assert.match(html, /Coin metadata is unavailable/);
+    assert.match(html, /Full balance · decimals unavailable/);
     assert.match(html, /\$0\.010001 liquidation value/);
-    assert.match(a.element('alchemy-status').textContent, /checked all 131 token types\. 3 worth more than \$0\.01; 1 ready/);
+    assert.match(a.element('alchemy-status').textContent, /checked all 131 token types\. 3 worth more than \$0\.01; 2 ready/);
 });
 
 test('renders scan results progressively and stops scheduling work after wallet changes', async () => {
@@ -214,13 +286,14 @@ test('prepares one simulated LOFI transaction and refuses execution after a targ
         setSender(address) { this.sender = address; }
     };
     a.state.holdings = [core.USDC_TYPE, core.CITY_TYPE].map(coinType => ({
-        coinType, totalBalance: '25000000', metadata: { decimals: 6 }, usdMicros: 25_000_000n,
+        coinType, totalBalance: '25000000', metadata: null, usdMicros: 25_000_000n,
         targetRoute: { coinOut: { amount: 100_000_000n } },
     }));
     a.state.holdings.forEach(row => a.state.selected.add(row.coinType));
     const routes = [];
     a.state.routerPromise = Promise.resolve({
         async getCompleteTradeRouteGivenAmountIn(args) {
+            assert.equal(args.coinInAmount, 25_000_000n);
             return { coinOut: { type: args.coinOutType, amount: args.coinOutType === core.USDC_TYPE ? 25_000_000n : 100_000_000n } };
         },
         async addTransactionForCompleteTradeRoute({ tx, completeRoute }) {
@@ -241,6 +314,7 @@ test('prepares one simulated LOFI transaction and refuses execution after a targ
     assert.ok(routes.every(route => route.coinOut.type === core.LOFI_TYPE));
     assert.equal(a.state.prepared.tx, simulated);
     assert.equal(a.state.prepared.targetType, core.LOFI_TYPE);
+    assert.ok(a.state.prepared.rows.every(row => row.metadata === null));
     assert.equal(commands[0][0], 'merge');
     assert.equal(commands[1][0], 'transfer');
     assert.equal(a.element('preflight-min-city').textContent, '0.198');
