@@ -50,14 +50,14 @@ test('requires metadata, a valuation, and a CITY route', () => {
     assert.equal(core.classifyHolding(holding({ targetRoute: null })).code, 'no-target-route');
 });
 
-test('selects only the highest-value eligible holdings up to the batch cap', () => {
+test('selects the lowest-value eligible holdings first up to the batch cap', () => {
     const rows = [
         holding({ coinType: '0x1::a::A', usdMicros: 100_000n }),
         holding({ coinType: '0x2::b::B', usdMicros: 900_000n }),
         holding({ coinType: '0x3::c::C', usdMicros: 500_000n }),
         holding({ coinType: '0x4::d::D', usdMicros: 1_500_000n }),
     ];
-    assert.deepEqual(core.selectInitialHoldings(rows, 2), ['0x4::d::D', '0x2::b::B']);
+    assert.deepEqual(core.selectInitialHoldings(rows, 2), ['0x1::a::A', '0x3::c::C']);
     assert.equal(core.DEFAULT_BATCH_LIMIT, 10);
 });
 

@@ -450,12 +450,9 @@ async function scanWallet() {
             return { ...quotable[index], quoteError: errorMessage(result) };
         }), ...overflow];
         state.holdings.sort((left, right) => {
-            const a = core.classifyHolding(left, state.target);
-            const b = core.classifyHolding(right, state.target);
-            if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
             const aUsd = core.safeBigInt(left.usdMicros, -1n);
             const bUsd = core.safeBigInt(right.usdMicros, -1n);
-            return aUsd === bUsd ? symbolFor(left).localeCompare(symbolFor(right)) : (aUsd > bUsd ? -1 : 1);
+            return aUsd === bUsd ? symbolFor(left).localeCompare(symbolFor(right)) : (aUsd < bUsd ? -1 : 1);
         });
         state.selected = new Set(core.selectInitialHoldings(state.holdings, core.DEFAULT_BATCH_LIMIT, state.target));
         const eligible = state.holdings.filter(holding => core.classifyHolding(holding, state.target).eligible).length;

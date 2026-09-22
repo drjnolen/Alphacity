@@ -68,7 +68,7 @@ test('scan quotes larger holdings but only selects those below five dollars', as
         const values = [49_999n, 50_000n, 1_000_000n, 4_999_999n, 5_000_000n, 20_000_000n];
         const balances = values.map((value, index) => ({ coinType: `0xabc::dust::D${index}`, totalBalance: String(value) }));
         a.window.AlphaCitySui = { async rpc(method) {
-            return method === 'suix_getCoinMetadata' ? { decimals: 9 } : balances;
+            return method === 'suix_getCoinMetadata' ? { decimals: 9 } : [...balances].reverse();
         } };
         const outputRequests = [];
         a.state.routerPromise = Promise.resolve({ async getCompleteTradeRouteGivenAmountIn(args) {
@@ -76,6 +76,11 @@ test('scan quotes larger holdings but only selects those below five dollars', as
             return { coinOut: { amount: args.coinInAmount } };
         } });
         await a.scanWallet();
+        assert.deepEqual(Array.from(a.state.holdings, row => row.usdMicros), values);
+        const rendered = a.element('holdings-list').innerHTML;
+        for (let index = 1; index < 5; index += 1) {
+            assert.ok(rendered.indexOf(`::D${index}`) < rendered.indexOf(`::D${index + 1}`));
+        }
         assert.equal(outputRequests.length, 5);
         assert.ok(outputRequests.every(args => args.coinOutType === target.coinType));
         assert.deepEqual([...a.state.selected].sort(), balances.slice(1, 4).map(row => row.coinType));

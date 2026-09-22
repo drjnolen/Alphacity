@@ -138,7 +138,7 @@
             .sort((left, right) => {
                 const a = safeBigInt(left.usdMicros);
                 const b = safeBigInt(right.usdMicros);
-                return a === b ? normalizeCoinType(left.coinType).localeCompare(normalizeCoinType(right.coinType)) : (a > b ? -1 : 1);
+                return a === b ? normalizeCoinType(left.coinType).localeCompare(normalizeCoinType(right.coinType)) : (a < b ? -1 : 1);
             })
             .slice(0, Math.max(0, Number(limit) || 0))
             .map(holding => normalizeCoinType(holding.coinType));
