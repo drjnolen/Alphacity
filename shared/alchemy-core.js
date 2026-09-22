@@ -16,6 +16,7 @@
     const MIN_HOLDING_USD_MICROS = 50_000n;
     const USDC_TYPE = '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC';
     const USD_MICROS_PER_DOLLAR = 1_000_000n;
+    const AUTO_SELECT_MAX_USD_MICROS = 5_000_000n;
     const CITY_DECIMALS = 9;
     const DEFAULT_BATCH_LIMIT = 10;
     const DEFAULT_QUOTE_MAX_AGE_MS = 30_000;
@@ -121,18 +122,19 @@
         if (usdMicros < MIN_HOLDING_USD_MICROS) {
             return { code: 'below-minimum', label: 'Below $0.05', reason: 'Holding is worth less than $0.05', eligible: false };
         }
-        if (usdMicros >= USD_MICROS_PER_DOLLAR) {
-            return { code: 'above-threshold', label: '$1 or more', reason: 'Holding is not below the $1 threshold', eligible: false };
-        }
         if (!holding.targetRoute || routeOutputAmount(holding.targetRoute) <= 0n) {
             return { code: 'no-target-route', label: `No ${target.symbol} route`, reason: holding.routeError || `No executable route to ${target.symbol}`, eligible: false };
         }
-        return { code: 'eligible', label: 'Eligible', reason: 'Executable value is at least $0.05 and below $1', eligible: true };
+        if (usdMicros >= AUTO_SELECT_MAX_USD_MICROS) {
+            return { code: 'manual-selection', label: 'Manual selection', reason: 'Holdings worth $5 or more require manual selection', eligible: true };
+        }
+        return { code: 'eligible', label: 'Eligible', reason: 'Eligible for automatic selection below $5', eligible: true };
     }
 
     function selectInitialHoldings(holdings, limit = DEFAULT_BATCH_LIMIT, target = TARGETS.CITY) {
         return (holdings || [])
-            .filter(holding => classifyHolding(holding, target).eligible)
+            .filter(holding => classifyHolding(holding, target).eligible
+                && safeBigInt(holding.usdMicros) < AUTO_SELECT_MAX_USD_MICROS)
             .sort((left, right) => {
                 const a = safeBigInt(left.usdMicros);
                 const b = safeBigInt(right.usdMicros);
@@ -183,6 +185,7 @@
         isVisibleHolding,
         USDC_TYPE,
         USD_MICROS_PER_DOLLAR,
+        AUTO_SELECT_MAX_USD_MICROS,
         CITY_DECIMALS,
         DEFAULT_BATCH_LIMIT,
         DEFAULT_QUOTE_MAX_AGE_MS,

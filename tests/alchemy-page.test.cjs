@@ -49,8 +49,9 @@ test('Alchemy refreshes selected valuation and CITY routes concurrently', () => 
 });
 
 test('Alchemy UI discloses its conservative eligibility and batch behavior', () => {
-    assert.match(html, /fresh executable value of at least \$0.05 and below \$1/i);
-    assert.match(html, /Only verified, routable balances below \$1 can be selected/i);
+    assert.match(html, /at least \$0.05 and below \$5 are auto-selected/i);
+    assert.match(html, /\$5 or more are selectable but unchecked by default/i);
+    assert.match(html, /Each selection swaps the full token balance/i);
     assert.match(html, /up to 10 token types in one atomic transaction/i);
     assert.match(html, /within 90 seconds of simulation/i);
     assert.match(html, /No funds move until your wallet approves/i);

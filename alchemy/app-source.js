@@ -176,7 +176,7 @@ async function quoteHolding(holding, router) {
         return quoted;
     }
 
-    if (quoted.usdMicros < core.MIN_HOLDING_USD_MICROS || quoted.usdMicros >= core.USD_MICROS_PER_DOLLAR) {
+    if (quoted.usdMicros < core.MIN_HOLDING_USD_MICROS) {
         quoted.quotedAt = Date.now();
         return quoted;
     }
@@ -229,7 +229,7 @@ async function quoteSelectedHolding(holding, router) {
 
 function classificationClasses(code) {
     if (code === 'eligible') return 'border-green-500/30 bg-green-500/10 text-green-300';
-    if (code === 'above-threshold') return 'border-purple-500/30 bg-purple-500/10 text-purple-300';
+    if (code === 'manual-selection') return 'border-purple-500/30 bg-purple-500/10 text-purple-300';
     if (code === 'no-target-route') return 'border-amber-500/30 bg-amber-500/10 text-amber-200';
     return 'border-gray-600 bg-gray-800 text-gray-400';
 }
@@ -245,9 +245,7 @@ function holdingRow(holding) {
     const targetAmount = core.routeOutputAmount(holding.targetRoute);
     const detail = classification.eligible
         ? `${core.formatUsdMicros(holding.usdMicros)} liquidation value · ≈ ${core.formatUnits(targetAmount, state.target.decimals, 4)} ${state.target.symbol}`
-        : classification.code === 'above-threshold'
-            ? `${core.formatUsdMicros(holding.usdMicros)} quoted liquidation value`
-            : classification.reason;
+        : classification.reason;
     return `
         <label class="holding-row ${classification.eligible ? 'holding-row-selectable' : ''}">
             <input
@@ -322,7 +320,7 @@ function renderSummary() {
 
     const overflow = Math.max(0, eligibleCount - core.DEFAULT_BATCH_LIMIT);
     $('batch-note').textContent = overflow
-        ? `${eligibleCount} eligible holdings found. Alchemy prepares up to ${core.DEFAULT_BATCH_LIMIT} per transaction; ${overflow} remain unselected for another pass.`
+        ? `${eligibleCount} eligible holdings found. Select up to ${core.DEFAULT_BATCH_LIMIT} per transaction; deselect a holding to make room for another.`
         : `Safety limit: up to ${core.DEFAULT_BATCH_LIMIT} token types in one atomic transaction.`;
 }
 
@@ -464,8 +462,8 @@ async function scanWallet() {
         const unverified = state.holdings.length - eligible;
         setStatus(
             eligible
-                ? `Scan complete: ${eligible} holding${eligible === 1 ? '' : 's'} verified from $0.05 to under $1 with a ${state.target.symbol} route. ${unverified} other holding${unverified === 1 ? '' : 's'} left untouched.`
-                : `Scan complete. No holdings met both the $0.05-to-under-$1 valuation and executable ${state.target.symbol}-route requirements.`,
+                ? `Scan complete: ${eligible} holding${eligible === 1 ? '' : 's'} verified at $0.05 or more with a ${state.target.symbol} route. ${state.selected.size} auto-selected below $5 (up to ${core.DEFAULT_BATCH_LIMIT}); holdings worth $5 or more can be selected manually. ${unverified} other holding${unverified === 1 ? '' : 's'} left untouched.`
+                : `Scan complete. No holdings met both the minimum-$0.05 valuation and executable ${state.target.symbol}-route requirements.`,
             eligible ? 'success' : 'warning',
         );
     } catch (error) {
