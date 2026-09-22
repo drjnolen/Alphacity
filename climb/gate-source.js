@@ -1,7 +1,9 @@
+import {createGameLoader} from './game-loader.mjs';
 import {verifyPersonalMessageSignature} from '@mysten/sui/verify';
 import {readAccessCache,writeAccessCache} from './access-cache.mjs';
 import {fetchEligibility,formatCity} from './eligibility.mjs';
 const el=id=>document.getElementById(id),panel=el('climb-gate'),game=el('climb-game'),status=el('access-status'),verify=el('verify-access');
+const loadGame=createGameLoader({document,importGame:()=>import('/climb/assets/game.js')});
 let wallet=null,epoch=0,authorized=null,unmount=null,checking=false,connector;
 function lock(message){authorized=null;if(unmount){unmount();unmount=null;}game.hidden=true;panel.hidden=false;status.textContent=message;}
 function balanceText(b){el('liquid-city').textContent=formatCity(b.liquid);el('staked-city').textContent=formatCity(b.staked);}
@@ -15,6 +17,8 @@ async function enter(){
   const saved=cached(address);
   const result=saved?.allowed?saved:await balances(address);if(requestEpoch!==epoch)return;balanceText(result);
   if(!result.allowed){lock('At least 5,000,000 CITY held or staked is required.');return;}
+  // Overlap asset transfer with the ownership prompt, but never mount before verification.
+  const assets=loadGame();assets.catch(()=>{});
   if(!saved?.allowed){
   status.textContent='Confirm wallet ownership. Sign the access message in your wallet; no transaction or fee.';
   const message=new TextEncoder().encode('Alpha City Climb access\nOrigin: '+location.origin+'\nWallet: '+address+'\nNonce: '+crypto.randomUUID()+'\nIssued: '+new Date().toISOString());
@@ -27,7 +31,7 @@ async function enter(){
   remember(address,confirmed);
   }
   status.textContent='Loading your climb…';
-  const module=await import('/climb/assets/game.js');if(requestEpoch!==epoch)return;
+  const module=await assets;if(requestEpoch!==epoch)return;
   if(unmount)unmount();unmount=module.mountGame(game,address);authorized=address;panel.hidden=true;game.hidden=false;
   el('membership-status').textContent='5M CITY access verified';
  }catch(error){if(requestEpoch===epoch)lock(error.message||'Access could not be verified. Please retry.');}

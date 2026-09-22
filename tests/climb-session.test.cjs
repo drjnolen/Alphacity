@@ -27,7 +27,7 @@ test('connected eligible session mounts automatically without RPC or signing, di
  writeAccessCache(s,address,{liquid:5000000n*10n**9n,staked:0n,total:5000000n*10n**9n});
  const elements=new Map();let onChange,mounts=0,unmounts=0;
  let source=fs.readFileSync('climb/gate-source.js','utf8').replace(/^import .*;$/gm,'').replace("import('/climb/assets/game.js')","Promise.resolve(gameModule)");
- const ctx={readAccessCache,writeAccessCache,sessionStorage:s,formatCity:String,queueMicrotask,setInterval(){},document:{getElementById(id){if(!elements.has(id))elements.set(id,{addEventListener(){}});return elements.get(id)},addEventListener(){}},window:{addEventListener(){},AlphaCitySui:{},AlphaCityWalletConnector:{create(options){onChange=options.onChange;return {}}}},gameModule:{mountGame(){mounts++;return ()=>unmounts++}}};
+ const ctx={createGameLoader:({importGame})=>importGame,readAccessCache,writeAccessCache,sessionStorage:s,formatCity:String,queueMicrotask,setInterval(){},document:{getElementById(id){if(!elements.has(id))elements.set(id,{addEventListener(){}});return elements.get(id)},addEventListener(){}},window:{addEventListener(){},AlphaCitySui:{},AlphaCityWalletConnector:{create(options){onChange=options.onChange;return {}}}},gameModule:{mountGame(){mounts++;return ()=>unmounts++}}};
  vm.runInNewContext(source,ctx);onChange({address});await new Promise(r=>setImmediate(r));
  assert.equal(mounts,1);assert.equal(elements.get('climb-game').hidden,false);
  onChange(null);assert.equal(unmounts,1);assert.equal(elements.get('climb-game').hidden,true);
