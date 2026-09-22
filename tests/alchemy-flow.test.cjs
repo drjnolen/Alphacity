@@ -22,7 +22,7 @@ function app() {
     return { ...context.app, element, window: context.window, context };
 }
 
-test('quotes LOFI and skips output routes for holdings below five cents', async () => {
+test('quotes LOFI and skips output routes for holdings at or below one cent', async () => {
     const a = app();
     a.state.target = { ...core.TARGETS.LOFI, decimals: 9 };
     const calls = [];
@@ -30,14 +30,14 @@ test('quotes LOFI and skips output routes for holdings below five cents', async 
         calls.push(args);
         return { coinOut: { amount: 123_456_789n } };
     } };
-    const dust = { coinType: core.USDC_TYPE, totalBalance: '50000', metadata: { decimals: 6 } };
+    const dust = { coinType: core.USDC_TYPE, totalBalance: '10001', metadata: { decimals: 6 } };
     const quoted = await a.quoteHolding(dust, router);
     assert.equal(calls[0].coinOutType, core.LOFI_TYPE);
     assert.equal(core.classifyHolding(quoted, a.state.target).eligible, true);
     await a.quoteSelectedHolding(dust, router);
     assert.equal(calls[1].coinOutType, core.LOFI_TYPE);
     calls.length = 0;
-    await a.quoteHolding({ ...dust, totalBalance: '49999' }, router);
+    await a.quoteHolding({ ...dust, totalBalance: '10000' }, router);
     assert.equal(calls.length, 0);
 });
 
@@ -46,7 +46,7 @@ test('target switching clears selections and prepared transactions', () => {
     assert.equal(a.state.target.symbol, 'CITY');
     a.state.prepared = { tx: {} };
     a.state.selected.add('dust');
-    a.state.holdings = [{ usdMicros: 50_000n }];
+    a.state.holdings = [{ usdMicros: 10_001n }];
     a.element('target-token').value = 'LOFI';
     a.handleTargetChange();
     assert.equal(a.state.target.coinType, core.LOFI_TYPE);
@@ -65,7 +65,7 @@ test('scan quotes larger holdings but only selects those below five dollars', as
         const a = app();
         a.state.address = '0x123';
         a.state.target = target;
-        const values = [49_999n, 50_000n, 1_000_000n, 4_999_999n, 5_000_000n, 20_000_000n];
+        const values = [10_000n, 10_001n, 1_000_000n, 4_999_999n, 5_000_000n, 20_000_000n];
         const balances = values.map((value, index) => ({ coinType: `0xabc::dust::D${index}`, totalBalance: String(value) }));
         a.window.AlphaCitySui = { async rpc(method) {
             return method === 'suix_getCoinMetadata' ? { decimals: 9 } : [...balances].reverse();
@@ -97,13 +97,88 @@ test('holdings renderer hides tiny and unpriced balances while showing the bound
     const a = app();
     a.state.address = '0x123';
     a.state.holdings = [
-        { coinType: '0xa::a::TINY', usdMicros: 49_999n },
+        { coinType: '0xa::a::TINY', usdMicros: 10_000n },
         { coinType: '0xb::b::UNKNOWN', usdMicros: null },
-        { coinType: '0xc::c::VISIBLE', usdMicros: 50_000n },
+        { coinType: '0xc::c::VISIBLE', usdMicros: 10_001n },
     ];
     a.renderHoldings();
     assert.match(a.element('holdings-list').innerHTML, /VISIBLE/);
     assert.doesNotMatch(a.element('holdings-list').innerHTML, /TINY|UNKNOWN/);
+});
+
+test('scans beyond 40 tokens and displays valued holdings without target routes or metadata', async () => {
+    const a = app();
+    a.state.address = '0x123';
+    const balances = Array.from({ length: 131 }, (_, index) => ({
+        coinType: `0xabc::dust::TOKEN_${index}`, totalBalance: '1000000',
+    }));
+    a.window.AlphaCitySui = { async rpc(method, [type]) {
+        if (method !== 'suix_getCoinMetadata') return balances;
+        return type === balances[130].coinType ? null : { decimals: 6 };
+    } };
+    const valuedTypes = [];
+    let active = 0;
+    let peak = 0;
+    a.state.routerPromise = Promise.resolve({ async getCompleteTradeRouteGivenAmountIn(args) {
+        active += 1;
+        peak = Math.max(peak, active);
+        await Promise.resolve();
+        active -= 1;
+        const index = Number(args.coinInType.split('_').at(-1));
+        if (args.coinOutType === core.USDC_TYPE) {
+            valuedTypes.push(args.coinInType);
+            return { coinOut: { amount: index < 128 ? 10_000n : 10_001n } };
+        }
+        if (index === 129) throw new Error('No route found');
+        return { coinOut: { amount: 123_000_000n } };
+    } });
+    await a.scanWallet();
+    assert.equal(valuedTypes.length, 131);
+    assert.ok(peak <= 3);
+    assert.equal(a.state.holdings.length, 131);
+    assert.deepEqual([...a.state.selected], [balances[128].coinType]);
+    const html = a.element('holdings-list').innerHTML;
+    assert.equal((html.match(/class="holding-checkbox/g) || []).length, 3);
+    assert.match(html, /TOKEN_128/);
+    assert.match(html, /No CITY route/);
+    assert.match(html, /Coin metadata is unavailable/);
+    assert.match(html, /\$0\.010001 liquidation value/);
+    assert.match(a.element('alchemy-status').textContent, /checked all 131 token types\. 3 worth more than \$0\.01; 1 ready/);
+});
+
+test('renders scan results progressively and stops scheduling work after wallet changes', async () => {
+    const a = app();
+    a.state.address = '0x123';
+    const balances = Array.from({ length: 9 }, (_, index) => ({
+        coinType: `0xabc::dust::TOKEN_${index}`, totalBalance: '1000000',
+    }));
+    a.window.AlphaCitySui = { async rpc(method) { return method === 'suix_getCoinMetadata' ? { decimals: 6 } : balances; } };
+    let release;
+    const paused = new Promise(resolve => { release = resolve; });
+    let notifyFourth;
+    const fourth = new Promise(resolve => { notifyFourth = resolve; });
+    let valuationCalls = 0;
+    a.state.routerPromise = Promise.resolve({ async getCompleteTradeRouteGivenAmountIn(args) {
+        if (args.coinOutType === core.USDC_TYPE) {
+            valuationCalls += 1;
+            if (valuationCalls === 4) notifyFourth();
+            if (valuationCalls > 1) await paused;
+        }
+        return { coinOut: { amount: 25_000n } };
+    } });
+    const scanning = a.scanWallet();
+    await fourth;
+    assert.equal(a.state.scanning, true);
+    assert.match(a.element('holdings-list').innerHTML, /TOKEN_0/);
+    assert.match(a.element('holdings-list').innerHTML, /disabled/);
+    a.state.scanNonce += 1;
+    a.state.holdings = [];
+    a.element('alchemy-status').textContent = 'New wallet';
+    release();
+    await scanning;
+    assert.equal(valuationCalls, 4);
+    assert.equal(a.state.holdings.length, 0);
+    assert.equal(a.element('alchemy-status').textContent, 'New wallet');
 });
 
 test('scan uses target metadata decimals and excludes LOFI when selected', async () => {
@@ -120,8 +195,8 @@ test('scan uses target metadata decimals and excludes LOFI when selected', async
     await a.scanWallet();
     assert.equal(a.state.target.decimals, 6);
     assert.equal(a.state.holdings.length, 0);
-    a.state.holdings = [{ coinType: core.USDC_TYPE, totalBalance: '50000', metadata: { decimals: 6 },
-        usdMicros: 50_000n, targetRoute: { coinOut: { amount: 1_250_000n } } }];
+    a.state.holdings = [{ coinType: core.USDC_TYPE, totalBalance: '10001', metadata: { decimals: 6 },
+        usdMicros: 10_001n, targetRoute: { coinOut: { amount: 1_250_000n } } }];
     a.state.selected.add(core.USDC_TYPE);
     a.renderSummary();
     assert.equal(a.element('expected-city').textContent, '1.25');

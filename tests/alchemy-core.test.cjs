@@ -34,7 +34,7 @@ test('formats integer balances without floating point loss', () => {
 });
 
 test('auto-selects below five dollars and allows manual selection at or above five', () => {
-    for (const value of [50_000n, 999_999n, 1_000_000n, 4_999_999n, 5_000_000n, 5_000_001n, 100_000_000n]) {
+    for (const value of [10_001n, 999_999n, 1_000_000n, 4_999_999n, 5_000_000n, 5_000_001n, 100_000_000n]) {
         const row = holding({ usdMicros: value });
         assert.equal(core.classifyHolding(row).eligible, true);
         assert.equal(core.selectInitialHoldings([row]).length, value < 5_000_000n ? 1 : 0);
@@ -85,16 +85,16 @@ test('recognizes fresh quotes and calculates net gas', () => {
     }), 135n);
 });
 
-test('only displays verified holdings worth at least five cents', () => {
-    for (const value of [null, undefined, 'invalid', -1n, 0n, 49_999n]) {
+test('only displays verified holdings worth more than one cent', () => {
+    for (const value of [null, undefined, 'invalid', -1n, 0n, 10_000n]) {
         assert.equal(core.isVisibleHolding(holding({ usdMicros: value })), false);
         assert.equal(core.classifyHolding(holding({ usdMicros: value })).eligible, false);
     }
-    for (const value of [50_000n, 999_999n, 1_000_000n]) {
+    for (const value of [10_001n, 999_999n, 1_000_000n]) {
         assert.equal(core.isVisibleHolding(holding({ usdMicros: value })), true);
     }
-    assert.equal(core.classifyHolding(holding({ usdMicros: 50_000n })).eligible, true);
-    assert.deepEqual(core.selectInitialHoldings([holding({ usdMicros: 49_999n })]), []);
+    assert.equal(core.classifyHolding(holding({ usdMicros: 10_001n })).eligible, true);
+    assert.deepEqual(core.selectInitialHoldings([holding({ usdMicros: 10_000n })]), []);
 });
 
 test('excludes the selected output token and allows the other target as input', () => {
