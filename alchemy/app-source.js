@@ -11,6 +11,7 @@ const EXPLORER_TX_URL = 'https://suiscan.xyz/mainnet/tx/';
 
 const state = {
     address: '',
+    target: core.TARGETS.CITY,
     walletConnector: null,
     routerPromise: null,
     holdings: [],
@@ -153,7 +154,7 @@ async function quoteHolding(holding, router) {
         ...holding,
         usdMicros: null,
         usdRoute: null,
-        cityRoute: null,
+        targetRoute: null,
         quoteError: '',
         routeError: '',
         quotedAt: 0,
@@ -175,15 +176,15 @@ async function quoteHolding(holding, router) {
         return quoted;
     }
 
-    if (quoted.usdMicros >= core.USD_MICROS_PER_DOLLAR) {
+    if (quoted.usdMicros < core.MIN_HOLDING_USD_MICROS || quoted.usdMicros >= core.USD_MICROS_PER_DOLLAR) {
         quoted.quotedAt = Date.now();
         return quoted;
     }
 
     try {
-        quoted.cityRoute = await fetchRoute(router, holding.coinType, core.CITY_TYPE, holding.totalBalance);
+        quoted.targetRoute = await fetchRoute(router, holding.coinType, state.target.coinType, holding.totalBalance);
     } catch (error) {
-        quoted.routeError = errorMessage(error) || 'No executable CITY route';
+        quoted.routeError = errorMessage(error) || `No executable ${state.target.symbol} route`;
     }
     quoted.quotedAt = Date.now();
     return quoted;
@@ -194,7 +195,7 @@ async function quoteSelectedHolding(holding, router) {
         ...holding,
         usdMicros: null,
         usdRoute: null,
-        cityRoute: null,
+        targetRoute: null,
         quoteError: '',
         routeError: '',
         quotedAt: 0,
@@ -208,8 +209,8 @@ async function quoteSelectedHolding(holding, router) {
         ? Promise.resolve({ route: null, amount: core.safeBigInt(holding.totalBalance) })
         : fetchRoute(router, holding.coinType, core.USDC_TYPE, holding.totalBalance)
             .then(route => ({ route, amount: core.routeOutputAmount(route) }));
-    const cityQuote = fetchRoute(router, holding.coinType, core.CITY_TYPE, holding.totalBalance);
-    const [usdResult, cityResult] = await Promise.allSettled([usdQuote, cityQuote]);
+    const targetQuote = fetchRoute(router, holding.coinType, state.target.coinType, holding.totalBalance);
+    const [usdResult, targetResult] = await Promise.allSettled([usdQuote, targetQuote]);
 
     if (usdResult.status === 'fulfilled') {
         quoted.usdRoute = usdResult.value.route;
@@ -217,10 +218,10 @@ async function quoteSelectedHolding(holding, router) {
     } else {
         quoted.quoteError = errorMessage(usdResult.reason) || 'No executable USDC valuation route';
     }
-    if (cityResult.status === 'fulfilled') {
-        quoted.cityRoute = cityResult.value;
+    if (targetResult.status === 'fulfilled') {
+        quoted.targetRoute = targetResult.value;
     } else {
-        quoted.routeError = errorMessage(cityResult.reason) || 'No executable CITY route';
+        quoted.routeError = errorMessage(targetResult.reason) || `No executable ${state.target.symbol} route`;
     }
     quoted.quotedAt = Date.now();
     return quoted;
@@ -229,21 +230,21 @@ async function quoteSelectedHolding(holding, router) {
 function classificationClasses(code) {
     if (code === 'eligible') return 'border-green-500/30 bg-green-500/10 text-green-300';
     if (code === 'above-threshold') return 'border-purple-500/30 bg-purple-500/10 text-purple-300';
-    if (code === 'no-city-route') return 'border-amber-500/30 bg-amber-500/10 text-amber-200';
+    if (code === 'no-target-route') return 'border-amber-500/30 bg-amber-500/10 text-amber-200';
     return 'border-gray-600 bg-gray-800 text-gray-400';
 }
 
 function holdingRow(holding) {
-    const classification = core.classifyHolding(holding);
+    const classification = core.classifyHolding(holding, state.target);
     const normalizedType = core.normalizeCoinType(holding.coinType);
     const checked = state.selected.has(normalizedType);
     const decimals = holding.metadata?.decimals;
     const balance = decimals === undefined
         ? core.safeBigInt(holding.totalBalance).toString()
         : core.formatUnits(holding.totalBalance, decimals, 6);
-    const cityAmount = core.routeOutputAmount(holding.cityRoute);
+    const targetAmount = core.routeOutputAmount(holding.targetRoute);
     const detail = classification.eligible
-        ? `${core.formatUsdMicros(holding.usdMicros)} liquidation value · ≈ ${core.formatUnits(cityAmount, core.CITY_DECIMALS, 4)} CITY`
+        ? `${core.formatUsdMicros(holding.usdMicros)} liquidation value · ≈ ${core.formatUnits(targetAmount, state.target.decimals, 4)} ${state.target.symbol}`
         : classification.code === 'above-threshold'
             ? `${core.formatUsdMicros(holding.usdMicros)} quoted liquidation value`
             : classification.reason;
@@ -279,29 +280,32 @@ function renderHoldings() {
         list.innerHTML = '<div class="empty-state"><span class="spinner text-brand-secondary"></span><span>Scanning balances and checking routes…</span></div>';
         return;
     }
-    if (!state.holdings.length) {
-        list.innerHTML = '<div class="empty-state">No non-SUI, non-CITY fungible balances were found.</div>';
+    const visible = state.holdings.filter(core.isVisibleHolding);
+    if (!visible.length) {
+        list.innerHTML = '<div class="empty-state">No holdings with a verified value of at least $0.05 were found.</div>';
         return;
     }
-    list.innerHTML = state.holdings.map(holdingRow).join('');
+    list.innerHTML = visible.map(holdingRow).join('');
     list.querySelectorAll('.holding-checkbox').forEach(input => {
         input.addEventListener('change', handleSelectionChange);
     });
 }
 
 function selectionTotals() {
-    return core.selectionTotals(state.holdings, [...state.selected], state.slippage);
+    return core.selectionTotals(state.holdings, [...state.selected], state.slippage, state.target);
 }
 
 function renderSummary() {
+    $('target-token').disabled = state.scanning || state.preparing || state.executing;
+    document.querySelectorAll('[data-target-symbol]').forEach(element => { element.textContent = state.target.symbol; });
     const totals = selectionTotals();
     $('selected-count').textContent = String(totals.count);
     $('selected-value').textContent = core.formatUsdMicros(totals.usdMicros);
-    $('expected-city').textContent = core.formatUnits(totals.cityAmount, core.CITY_DECIMALS, 4);
-    $('minimum-city').textContent = core.formatUnits(totals.minimumCityAmount, core.CITY_DECIMALS, 4);
+    $('expected-city').textContent = core.formatUnits(totals.targetAmount, state.target.decimals, 4);
+    $('minimum-city').textContent = core.formatUnits(totals.minimumTargetAmount, state.target.decimals, 4);
 
     const prepare = $('prepare-button');
-    const eligibleCount = state.holdings.filter(holding => core.classifyHolding(holding).eligible).length;
+    const eligibleCount = state.holdings.filter(holding => core.classifyHolding(holding, state.target).eligible).length;
     if (!state.address) {
         prepare.textContent = 'Connect Wallet to Scan';
         prepare.disabled = true;
@@ -312,7 +316,7 @@ function renderSummary() {
         prepare.textContent = eligibleCount ? 'Select Tokens to Alchemize' : 'No Eligible Tokens';
         prepare.disabled = true;
     } else {
-        prepare.textContent = `Prepare ${totals.count} Token${totals.count === 1 ? '' : 's'} → CITY`;
+        prepare.textContent = `Prepare ${totals.count} Token${totals.count === 1 ? '' : 's'} → ${state.target.symbol}`;
         prepare.disabled = state.preparing || state.executing;
     }
 
@@ -392,11 +396,15 @@ async function scanWallet() {
     render();
 
     try {
+        const targetMetadata = await fetchMetadata(state.target.coinType);
+        if (nonce !== state.scanNonce) return;
+        if (!targetMetadata) throw new Error(`Could not verify ${state.target.symbol} metadata. Rescan to try again.`);
+        state.target = { ...state.target, decimals: targetMetadata.decimals };
         const balances = await rpc('suix_getAllBalances', [state.address]);
         if (nonce !== state.scanNonce) return;
         const candidates = (balances || [])
             .filter(balance => core.safeBigInt(balance.totalBalance) > 0n)
-            .filter(balance => !core.exclusionReason(balance.coinType))
+            .filter(balance => !core.exclusionReason(balance.coinType, state.target))
             .map(balance => ({
                 coinType: balance.coinType,
                 totalBalance: String(balance.totalBalance),
@@ -405,7 +413,7 @@ async function scanWallet() {
                 metadata: null,
                 usdMicros: null,
                 usdRoute: null,
-                cityRoute: null,
+                targetRoute: null,
                 quoteError: '',
                 routeError: '',
                 quotedAt: 0,
@@ -425,7 +433,7 @@ async function scanWallet() {
         }));
         if (!quotable.length) {
             state.holdings = overflow;
-            setStatus('Scan complete. No non-SUI, non-CITY fungible balances were found.', 'success');
+            setStatus('Scan complete. No holdings with a verified value of at least $0.05 were found.', 'success');
             return;
         }
 
@@ -436,7 +444,7 @@ async function scanWallet() {
             quotable,
             SCAN_QUOTE_CONCURRENCY,
             holding => quoteHolding(holding, router),
-            (complete, total) => setStatus(`Checking executable USDC values and CITY routes… ${complete}/${total}`, 'info'),
+            (complete, total) => setStatus(`Checking executable USDC values and ${state.target.symbol} routes… ${complete}/${total}`, 'info'),
         );
         if (nonce !== state.scanNonce) return;
         state.holdings = [...quoted.map((result, index) => {
@@ -444,20 +452,20 @@ async function scanWallet() {
             return { ...quotable[index], quoteError: errorMessage(result) };
         }), ...overflow];
         state.holdings.sort((left, right) => {
-            const a = core.classifyHolding(left);
-            const b = core.classifyHolding(right);
+            const a = core.classifyHolding(left, state.target);
+            const b = core.classifyHolding(right, state.target);
             if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
             const aUsd = core.safeBigInt(left.usdMicros, -1n);
             const bUsd = core.safeBigInt(right.usdMicros, -1n);
             return aUsd === bUsd ? symbolFor(left).localeCompare(symbolFor(right)) : (aUsd > bUsd ? -1 : 1);
         });
-        state.selected = new Set(core.selectInitialHoldings(state.holdings));
-        const eligible = state.holdings.filter(holding => core.classifyHolding(holding).eligible).length;
+        state.selected = new Set(core.selectInitialHoldings(state.holdings, core.DEFAULT_BATCH_LIMIT, state.target));
+        const eligible = state.holdings.filter(holding => core.classifyHolding(holding, state.target).eligible).length;
         const unverified = state.holdings.length - eligible;
         setStatus(
             eligible
-                ? `Scan complete: ${eligible} holding${eligible === 1 ? '' : 's'} verified below $1 with a CITY route. ${unverified} other holding${unverified === 1 ? '' : 's'} left untouched.`
-                : `Scan complete. No holdings met both the under-$1 valuation and executable CITY-route requirements.`,
+                ? `Scan complete: ${eligible} holding${eligible === 1 ? '' : 's'} verified from $0.05 to under $1 with a ${state.target.symbol} route. ${unverified} other holding${unverified === 1 ? '' : 's'} left untouched.`
+                : `Scan complete. No holdings met both the $0.05-to-under-$1 valuation and executable ${state.target.symbol}-route requirements.`,
             eligible ? 'success' : 'warning',
         );
     } catch (error) {
@@ -490,7 +498,7 @@ async function refreshSelectedQuotes(selected) {
             throw new Error(`${symbolFor(holding)} no longer has a spendable balance`);
         }
         const refreshed = await quoteSelectedHolding({ ...holding, totalBalance: String(balance.totalBalance) }, router);
-        const classification = core.classifyHolding(refreshed);
+        const classification = core.classifyHolding(refreshed, state.target);
         if (!classification.eligible) throw new Error(`${symbolFor(holding)} is no longer eligible: ${classification.reason}`);
         return refreshed;
     });
@@ -517,7 +525,8 @@ async function prepareAlchemy() {
     state.preparing = true;
     invalidatePrepared();
     setBusyButton($('prepare-button'), true, 'Refreshing quotes…', 'Prepare Alchemy');
-    setStatus('Refreshing balances, values, and CITY routes before building…', 'info');
+    renderSummary();
+    setStatus(`Refreshing balances, values, and ${state.target.symbol} routes before building…`, 'info');
 
     try {
         const address = state.address;
@@ -531,21 +540,21 @@ async function prepareAlchemy() {
 
         const router = await getRouter();
         let tx = new Transaction();
-        const cityCoins = [];
+        const targetCoins = [];
         setStatus('Composing the atomic multi-route transaction…', 'info');
         for (const holding of refreshed) {
             const added = await router.addTransactionForCompleteTradeRoute({
                 tx,
-                completeRoute: holding.cityRoute,
+                completeRoute: holding.targetRoute,
                 slippage: state.slippage / 100,
                 walletAddress: address,
             });
             tx = added.tx;
-            if (!added.coinOutId) throw new Error(`Aftermath did not return a CITY output for ${symbolFor(holding)}`);
-            cityCoins.push(added.coinOutId);
+            if (!added.coinOutId) throw new Error(`Aftermath did not return a ${state.target.symbol} output for ${symbolFor(holding)}`);
+            targetCoins.push(added.coinOutId);
         }
-        if (cityCoins.length > 1) tx.mergeCoins(cityCoins[0], cityCoins.slice(1));
-        tx.transferObjects([cityCoins[0]], address);
+        if (targetCoins.length > 1) tx.mergeCoins(targetCoins[0], targetCoins.slice(1));
+        tx.transferObjects([targetCoins[0]], address);
         tx.setSender(address);
 
         setStatus('Simulating gas and on-chain execution…', 'info');
@@ -561,12 +570,13 @@ async function prepareAlchemy() {
         const effects = parsed.transaction.effects;
         if (effects.status?.success === false) throw new Error(failureMessage(parsed.transaction));
 
-        const totals = core.selectionTotals(refreshed, refreshed.map(row => row.coinType), state.slippage);
+        const totals = core.selectionTotals(refreshed, refreshed.map(row => row.coinType), state.slippage, state.target);
         const gasMist = core.gasUsedNet(effects.gasUsed);
         state.prepared = {
             tx,
             rows: refreshed,
             address,
+            targetType: state.target.coinType,
             totals,
             gasMist,
             quotedAt: Math.min(...refreshed.map(row => Number(row.quotedAt) || 0)),
@@ -574,7 +584,7 @@ async function prepareAlchemy() {
         };
         schedulePreparedExpiry(state.prepared);
         $('preflight-token-count').textContent = String(totals.count);
-        $('preflight-min-city').textContent = core.formatUnits(totals.minimumCityAmount, core.CITY_DECIMALS, 4);
+        $('preflight-min-city').textContent = core.formatUnits(totals.minimumTargetAmount, state.target.decimals, 4);
         $('preflight-gas').textContent = `${core.formatUnits(gasMist, 9, 6)} SUI`;
         $('preflight-panel').hidden = false;
         $('confirm-button').disabled = false;
@@ -612,9 +622,9 @@ function transactionDigest(result) {
 
 async function executeAlchemy() {
     if (!state.prepared || state.executing) return;
-    if (state.prepared.address !== state.address) {
+    if (state.prepared.address !== state.address || state.prepared.targetType !== state.target.coinType) {
         invalidatePrepared();
-        setStatus('The connected wallet changed. Prepare the transaction again.', 'warning');
+        setStatus('The connected wallet or target changed. Prepare the transaction again.', 'warning');
         return;
     }
     if (!preparedIsFresh(state.prepared)) {
@@ -624,6 +634,7 @@ async function executeAlchemy() {
     }
 
     state.executing = true;
+    renderSummary();
     if (state.preparedExpiryTimer) clearTimeout(state.preparedExpiryTimer);
     state.preparedExpiryTimer = null;
     const button = $('confirm-button');
@@ -666,6 +677,15 @@ function handleWalletChange(session) {
     if (state.address) scanWallet();
 }
 
+function handleTargetChange() {
+    if (state.scanning || state.preparing || state.executing) return;
+    const target = core.TARGETS[$('target-token').value];
+    if (!target || target.coinType === state.target.coinType) return;
+    state.target = target;
+    resetForWallet();
+    if (state.address) scanWallet();
+}
+
 function bindSlippage() {
     document.querySelectorAll('.slippage-button').forEach(button => {
         button.addEventListener('click', () => {
@@ -694,6 +714,7 @@ function init() {
     $('rescan-button').addEventListener('click', () => scanWallet());
     $('prepare-button').addEventListener('click', () => prepareAlchemy());
     $('confirm-button').addEventListener('click', () => executeAlchemy());
+    $('target-token').addEventListener('change', handleTargetChange);
     bindSlippage();
     render();
 }

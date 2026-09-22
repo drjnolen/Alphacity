@@ -9,7 +9,7 @@ function holding(overrides = {}) {
         totalBalance: '123000000',
         metadata: { decimals: 9, symbol: 'DUST', name: 'Dust' },
         usdMicros: 750_000n,
-        cityRoute: { coinOut: { amount: 25_000_000_000n } },
+        targetRoute: { coinOut: { amount: 25_000_000_000n } },
         ...overrides,
     };
 }
@@ -43,7 +43,7 @@ test('applies the strict under-one-dollar eligibility boundary', () => {
 test('requires metadata, a valuation, and a CITY route', () => {
     assert.equal(core.classifyHolding(holding({ metadata: null })).code, 'unverified');
     assert.equal(core.classifyHolding(holding({ usdMicros: null })).code, 'unverified');
-    assert.equal(core.classifyHolding(holding({ cityRoute: null })).code, 'no-city-route');
+    assert.equal(core.classifyHolding(holding({ targetRoute: null })).code, 'no-target-route');
 });
 
 test('selects only the highest-value eligible holdings up to the batch cap', () => {
@@ -59,14 +59,14 @@ test('selects only the highest-value eligible holdings up to the batch cap', () 
 
 test('computes aggregate minimum output using BigInt', () => {
     const rows = [
-        holding({ coinType: '0x1::a::A', usdMicros: 100_000n, cityRoute: { coinOut: { amount: 1000n } } }),
-        holding({ coinType: '0x2::b::B', usdMicros: 200_000n, cityRoute: { coinOut: { amount: 2000n } } }),
+        holding({ coinType: '0x1::a::A', usdMicros: 100_000n, targetRoute: { coinOut: { amount: 1000n } } }),
+        holding({ coinType: '0x2::b::B', usdMicros: 200_000n, targetRoute: { coinOut: { amount: 2000n } } }),
     ];
     const totals = core.selectionTotals(rows, rows.map(row => row.coinType), 1);
     assert.equal(totals.count, 2);
     assert.equal(totals.usdMicros, 300_000n);
-    assert.equal(totals.cityAmount, 3000n);
-    assert.equal(totals.minimumCityAmount, 2970n);
+    assert.equal(totals.targetAmount, 3000n);
+    assert.equal(totals.minimumTargetAmount, 2970n);
 });
 
 test('recognizes fresh quotes and calculates net gas', () => {
@@ -79,4 +79,28 @@ test('recognizes fresh quotes and calculates net gas', () => {
         storageRebate: '20',
         nonRefundableStorageFee: '5',
     }), 135n);
+});
+
+test('only displays verified holdings worth at least five cents', () => {
+    for (const value of [null, undefined, 'invalid', -1n, 0n, 49_999n]) {
+        assert.equal(core.isVisibleHolding(holding({ usdMicros: value })), false);
+        assert.equal(core.classifyHolding(holding({ usdMicros: value })).eligible, false);
+    }
+    for (const value of [50_000n, 999_999n, 1_000_000n]) {
+        assert.equal(core.isVisibleHolding(holding({ usdMicros: value })), true);
+    }
+    assert.equal(core.classifyHolding(holding({ usdMicros: 50_000n })).eligible, true);
+    assert.deepEqual(core.selectInitialHoldings([holding({ usdMicros: 49_999n })]), []);
+});
+
+test('excludes the selected output token and allows the other target as input', () => {
+    const lofi = core.TARGETS.LOFI;
+    assert.equal(core.exclusionReason(core.LOFI_TYPE, lofi), 'Already LOFI');
+    assert.equal(core.exclusionReason(core.CITY_TYPE, lofi), '');
+    assert.equal(core.exclusionReason(core.LOFI_TYPE), '');
+    const city = holding({ coinType: core.CITY_TYPE });
+    assert.equal(core.classifyHolding(city, lofi).eligible, true);
+    assert.deepEqual(core.selectInitialHoldings([city], 10, lofi), [core.CITY_TYPE]);
+    assert.equal(core.selectionTotals([city], [city.coinType], 1, lofi).count, 1);
+    assert.equal(core.classifyHolding(holding({ targetRoute: null }), lofi).label, 'No LOFI route');
 });
