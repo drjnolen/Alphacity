@@ -20,10 +20,20 @@ Direct player attacks, all damaging signature hits, and enemy hits have a 2% cha
 
 ## Assets
 
-All game art is local to game/public/art and built beneath /climb/assets/art. Bosses and elite types use seventeen individually isolated PNGs with measured SVG framing. No Sites URL, authentication bypass, or image-generation service is needed at runtime.
+All game art is local to game/public/art and built beneath /climb/assets/art. Browser rendering uses high-quality WebP copies at the original dimensions, including seventeen individually isolated commander images with measured SVG framing. Original PNGs remain available for cached older clients and future exports. No Sites URL, authentication bypass, or image-generation service is needed at runtime.
 
 ## Expedition builds
 
 Each class now has two four-node doctrine branches. Bosses grant insight and offer calibration, active, or passive overclock choices. Use Expedition doctrine to learn talents and equip up to three gear abilities alongside the signature. All choices reset at the end of the climb. See [EXPEDITION-BUILDS.md](./EXPEDITION-BUILDS.md) for mechanics, limits, and validation.
 
 Campaigns now restart in district 1 with all operatives at level 1 after death, manual ending, or final completion. Only minted equipment survives, alongside the standard starter kit. Use **End campaign** during play or beside **Resume operation** in the safehouse; confirmation explains the reset. Active legacy saves continue until their campaign ends. See [EXPEDITION-BUILDS.md](./EXPEDITION-BUILDS.md) for the full persistence rules.
+
+## Loading performance
+
+The 33 runtime images total 10,911,798 bytes instead of 59,870,166 bytes (81.8% less). The seven artwork files requested by the initial operation screen total 2,309,106 bytes instead of 15,938,388 bytes (85.5% less). These are asset-transfer measurements, not end-to-end load-time guarantees: connection speed, wallet prompts and RPC availability still matter.
+
+WebP exports use quality 90, preserve image dimensions and exact alpha channels, and keep existing sprite crop coordinates. Regenerate with `python climb/scripts/optimize-art.py` using Pillow with WebP support. The checked-in manifest records sizes, dimensions and hashes; CI needs no image encoder.
+
+The entrance uses its own small stylesheet. Wallet scripts defer execution until HTML is parsed. Once holdings qualify, game JavaScript and CSS download together while a fresh session completes its ownership prompt. Mounting still waits for ownership verification and the final holdings check; cached eligible sessions still reuse the existing site verification. Failed stylesheet loads time out with a retryable message. Liquid and paginated staking reads run concurrently, still requiring both to succeed.
+
+No combat rules, balances, progression, save format or access thresholds changed. Validation covers asset identity/dimensions, loader readiness and retry, cached-session entry, disconnect races, fresh-session authorization, stake pagination, original art framing, terrain movement and critical damage.

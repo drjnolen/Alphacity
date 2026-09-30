@@ -23,5 +23,5 @@ export const ENEMY_ART: Record<string, string> = {
 
 export function enemyArt(enemy?: Pick<Enemy, 'name'>): string | undefined {
  const asset = enemy && ENEMY_ART[enemy.name];
- return asset ? `/climb/assets/art/commanders/${asset}.png` : undefined;
+ return asset ? `/climb/assets/art/commanders/${asset}.webp` : undefined;
 }

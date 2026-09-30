@@ -18,7 +18,7 @@ test('every boss and elite commander resolves unique standalone art, including e
  assert.equal(names.size,17);assert.equal(assets.size,17);
  const hashes=new Set(Object.keys(ENEMY_ART).map(name=>{
   const bytes=readFileSync(new URL(`../public${enemyArt({name}).replace('/climb/assets','')}`,import.meta.url));
-  assert.equal(bytes.subarray(1,4).toString(),'PNG');
+  assert.equal(bytes.subarray(0,4).toString(),'RIFF');assert.equal(bytes.subarray(8,12).toString(),'WEBP');
   return createHash('sha256').update(bytes).digest('hex');
  }));
  assert.equal(hashes.size,17);

@@ -1,0 +1,338 @@
+{
+  "format": "WebP",
+  "quality": 90,
+  "resized": false,
+  "alphaLossless": true,
+  "assets": [
+    {
+      "source": "alpha-chainbreaker.png",
+      "runtime": "alpha-chainbreaker.webp",
+      "width": 1024,
+      "height": 1024,
+      "sourceBytes": 1920417,
+      "runtimeBytes": 285476,
+      "sourceSha256": "9b6bed18436b6134457262efda828abf58506b8b6701b0553dc6f3a650bb0b7c",
+      "runtimeSha256": "617aaaed7db11097ee99d5bafe6d363609ef172d8fc935b11f574c5b08ba7727"
+    },
+    {
+      "source": "alpha-coinbroker.png",
+      "runtime": "alpha-coinbroker.webp",
+      "width": 1024,
+      "height": 1024,
+      "sourceBytes": 2215693,
+      "runtimeBytes": 386414,
+      "sourceSha256": "51f36c88cd4677a11f7ee089902e1b198b1ec9d77e889a4b5c3bacf3e03b123c",
+      "runtimeSha256": "5139a217f4ad18a3b1101c0eca9d2785087d7f4424f41286525e3a23d9666621"
+    },
+    {
+      "source": "alpha-district-features.png",
+      "runtime": "alpha-district-features.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 2220505,
+      "runtimeBytes": 576850,
+      "sourceSha256": "a3bd37de40e735bb846092d51ce28849bbc8d200dc186caa26fcbfee6ecb914f",
+      "runtimeSha256": "2da3a1828f14cc6725f3c60e1382a6c929783dafd49babebb31875bc4bb5b510"
+    },
+    {
+      "source": "alpha-districts.png",
+      "runtime": "alpha-districts.webp",
+      "width": 1536,
+      "height": 1024,
+      "sourceBytes": 3233329,
+      "runtimeBytes": 533234,
+      "sourceSha256": "c37c602b3611a66b431e35dbdc55cc21fcf80a9d7e8fe7feadafb92e1d08abc9",
+      "runtimeSha256": "8704c3857b20cdefad41d9413f7285545553ecdd86f383a6718d77e4935710eb"
+    },
+    {
+      "source": "alpha-enemy-bodies.png",
+      "runtime": "alpha-enemy-bodies.webp",
+      "width": 1774,
+      "height": 887,
+      "sourceBytes": 1458365,
+      "runtimeBytes": 352246,
+      "sourceSha256": "194d94d36b806d9d1d22c0364501365618a1861e1a9aeac151ce4c3bfec7f923",
+      "runtimeSha256": "5211d613630b82c4c9522f5b916929d751879c2cdda693eae21f69d52949c53d"
+    },
+    {
+      "source": "alpha-equipment-expansion.png",
+      "runtime": "alpha-equipment-expansion.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 2004074,
+      "runtimeBytes": 444820,
+      "sourceSha256": "ac9d04bb06645710cc2b47024dfe1184cb12fe794ac1669ada81ef40f918b92f",
+      "runtimeSha256": "6acb12def268fe824550e94c28202344eea6a91e31ccfbbc5e1dcad728f5bc54"
+    },
+    {
+      "source": "alpha-equipment.png",
+      "runtime": "alpha-equipment.webp",
+      "width": 1536,
+      "height": 1024,
+      "sourceBytes": 2467954,
+      "runtimeBytes": 219132,
+      "sourceSha256": "b3e1f151b14a915dd21f16bcb178fd02427f525d8be222cbab2cc1e9026af7d5",
+      "runtimeSha256": "98d124140e935367e7386b428c98666d6e924801328585091deaada8b216d454"
+    },
+    {
+      "source": "alpha-floors.png",
+      "runtime": "alpha-floors.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 3247999,
+      "runtimeBytes": 566654,
+      "sourceSha256": "e528e267393cc68431dfa9d2870f8f7ab583af27443fe3305ce388c27ef8bb41",
+      "runtimeSha256": "75ed2335f8a073beb8911509abacfa8f74b293c23e060aab21e2a0dd7e02fe43"
+    },
+    {
+      "source": "alpha-glitchborn.png",
+      "runtime": "alpha-glitchborn.webp",
+      "width": 1024,
+      "height": 1024,
+      "sourceBytes": 1703871,
+      "runtimeBytes": 234576,
+      "sourceSha256": "66b0ee785f98e1bd872958e2bd8c1247267ca459be8cd2ccf833c789baedb19a",
+      "runtimeSha256": "c57d2c9538d1aee85d99713c44ec3788f375af59ff31da89a5334b7833230603"
+    },
+    {
+      "source": "alpha-minions.png",
+      "runtime": "alpha-minions.webp",
+      "width": 1774,
+      "height": 887,
+      "sourceBytes": 2839018,
+      "runtimeBytes": 412688,
+      "sourceSha256": "8f9f726440233c0ae7a841f56aac2d6243ac48e9a5165456afba53ee362e4dac",
+      "runtimeSha256": "ee1f3bc6f5c9ef869329158f8448867803b69577b643cc6cc237f2be108088f1"
+    },
+    {
+      "source": "alpha-neuralife.png",
+      "runtime": "alpha-neuralife.webp",
+      "width": 1024,
+      "height": 1024,
+      "sourceBytes": 2272249,
+      "runtimeBytes": 167130,
+      "sourceSha256": "023cac03dd0f088718d4b944eb6cd00cb15ffa5d6d5ea9eed7345c64fe2314ed",
+      "runtimeSha256": "9465ec52e6a3f95da97f2814a9336b7cbf7f2ae12e101783856d2e2fd29fcc5a"
+    },
+    {
+      "source": "alpha-nodewalker.png",
+      "runtime": "alpha-nodewalker.webp",
+      "width": 1024,
+      "height": 1024,
+      "sourceBytes": 2393050,
+      "runtimeBytes": 205454,
+      "sourceSha256": "f76db71ea2707352331204a9c3aeccca81d84f7d5207d8d60734a9e528f138ed",
+      "runtimeSha256": "4b983ff4dc288a094688652d88848031c2a4113bf07b7cddb5e2265a1520ce20"
+    },
+    {
+      "source": "alpha-obstacles.png",
+      "runtime": "alpha-obstacles.webp",
+      "width": 2172,
+      "height": 724,
+      "sourceBytes": 1670037,
+      "runtimeBytes": 390188,
+      "sourceSha256": "6543f11867a45fd586048ccd8edb2168f721940ae54de8540cd865485ab24393",
+      "runtimeSha256": "24c74771a89ee413d2d1e99dcd81d06d166c9132998fbcf0dc7d35b00a367fdb"
+    },
+    {
+      "source": "alpha-overlord.png",
+      "runtime": "alpha-overlord.webp",
+      "width": 1024,
+      "height": 1024,
+      "sourceBytes": 1863420,
+      "runtimeBytes": 251212,
+      "sourceSha256": "fd76133fc7414118e3a9e97ecc5f7ff7856f263923465630e12fb6c4a1bf3a1c",
+      "runtimeSha256": "0f1d2cfd1d14756514bcb11ce5b2b4773fb8543df139bba395f0082bee6b3561"
+    },
+    {
+      "source": "alpha-rebel-bodies.png",
+      "runtime": "alpha-rebel-bodies.webp",
+      "width": 1774,
+      "height": 887,
+      "sourceBytes": 1736282,
+      "runtimeBytes": 439510,
+      "sourceSha256": "760b2da70a46c01f16fe0c81bbf7206ed2e6fda4fa7113f18d5929b52d476347",
+      "runtimeSha256": "4d7c5b02ab2a61522e0384c0c952a4035e1be0d1fef3f55feb7142827e0c2bf4"
+    },
+    {
+      "source": "alpha-singularity.png",
+      "runtime": "alpha-singularity.webp",
+      "width": 1024,
+      "height": 1024,
+      "sourceBytes": 1736876,
+      "runtimeBytes": 225780,
+      "sourceSha256": "eda96d26dbaf0a81d0975e10c6ed6480b8930e4a7277e8d655cd3000f7335dee",
+      "runtimeSha256": "3c8b83805e3a7ae962d5cf4598a96f4108efcf2ea2b8a539af88c382cba82731"
+    },
+    {
+      "source": "commanders/admiral-lockjaw.png",
+      "runtime": "commanders/admiral-lockjaw.webp",
+      "width": 1145,
+      "height": 1374,
+      "sourceBytes": 1814412,
+      "runtimeBytes": 357008,
+      "sourceSha256": "e13f929a7783e9de07be9b8123fcb345974d1f6ab520ef9d9e80b80990395a2b",
+      "runtimeSha256": "3bce8f2f7f02e37f4f210317638d6c2b7f2e8ec9cd455abf76c9938d1113293b"
+    },
+    {
+      "source": "commanders/bliss-curator.png",
+      "runtime": "commanders/bliss-curator.webp",
+      "width": 1145,
+      "height": 1374,
+      "sourceBytes": 1250812,
+      "runtimeBytes": 326056,
+      "sourceSha256": "a793f17084cc6f73974e839fcb3b6705dc58bd71e4a47f0cb80a13b4e4eedc1f",
+      "runtimeSha256": "370b8c9a3327b2a771c618180c5aa1732800e0eba1eb78035843fdb747a8503c"
+    },
+    {
+      "source": "commanders/censor-prime.png",
+      "runtime": "commanders/censor-prime.webp",
+      "width": 1145,
+      "height": 1374,
+      "sourceBytes": 1251051,
+      "runtimeBytes": 310966,
+      "sourceSha256": "34f07ed514b91e7a37f2720139554707bd89e758cb2b477aec8e40e1b0a54266",
+      "runtimeSha256": "3401e7fac9f7646d8b223bc6a6b10fd1d5cf852520fce8d6fe033e2d67d2d5af"
+    },
+    {
+      "source": "commanders/compliance-titan.png",
+      "runtime": "commanders/compliance-titan.webp",
+      "width": 1234,
+      "height": 1275,
+      "sourceBytes": 1545021,
+      "runtimeBytes": 291560,
+      "sourceSha256": "bb7e8e47f634e155fe5e1cfb6db88d248aeca7c185f5074e78a6e74b3bccc495",
+      "runtimeSha256": "0540b37d67ed42f6ae264393d214daa1a22c67802c4b2e2af521886921f60b10"
+    },
+    {
+      "source": "commanders/debt-collector.png",
+      "runtime": "commanders/debt-collector.webp",
+      "width": 1145,
+      "height": 1374,
+      "sourceBytes": 1491635,
+      "runtimeBytes": 291840,
+      "sourceSha256": "4cf03ad13f15f59e371cf69f538dedd2e0b1bbc8e25dc405cfd546badbea4a05",
+      "runtimeSha256": "b66e6bbd02a863b51594ecbd43c7344f1b2cbd210602d9f79f2bac0fd25a1aee"
+    },
+    {
+      "source": "commanders/elite-audit-drone.png",
+      "runtime": "commanders/elite-audit-drone.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1441007,
+      "runtimeBytes": 252968,
+      "sourceSha256": "10a4fcac876692a8d1b54a14fd40c63600aef4b1e58120f3ba8527e90d28fef3",
+      "runtimeSha256": "2d58270ab1d7a5690ab00dbd5d97563edc4508dcb88dd5bfd98e00f7d5be6826"
+    },
+    {
+      "source": "commanders/elite-correction-surgeon.png",
+      "runtime": "commanders/elite-correction-surgeon.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1473094,
+      "runtimeBytes": 350206,
+      "sourceSha256": "348c5124dce573d85df3f2397353031e55846b6ddae128e11dd830ec294ea74e",
+      "runtimeSha256": "4e12d8ab801635330a38e8877bb6b09c2ef69daa472e67c474c20b83c77770aa"
+    },
+    {
+      "source": "commanders/elite-debt-enforcer.png",
+      "runtime": "commanders/elite-debt-enforcer.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1819922,
+      "runtimeBytes": 351190,
+      "sourceSha256": "586c117c93d7170e8210d4f6c88f6a51c7c8febd74ff4887e929b40d76930243",
+      "runtimeSha256": "556f28db7b5be1429348ab19a99e20860f5600a7d431d9f1b7b87b26c4e34d30"
+    },
+    {
+      "source": "commanders/elite-devotion-gunner.png",
+      "runtime": "commanders/elite-devotion-gunner.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1032084,
+      "runtimeBytes": 263546,
+      "sourceSha256": "329784d18f6ce98ad7daaf322a889f49ab2bf5bd1aae86944654d133231e15b6",
+      "runtimeSha256": "920407aa2680e0d0770d845a4f36374f0f96c83d68f42dd01c299a674f786ff1"
+    },
+    {
+      "source": "commanders/elite-gilded-praetorian.png",
+      "runtime": "commanders/elite-gilded-praetorian.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1269586,
+      "runtimeBytes": 257624,
+      "sourceSha256": "04694fc27433d8dba6d2e763244d2151886b437c1d9401f52ec39d71f0199983",
+      "runtimeSha256": "fdcf446fa91d23c5139c5617e3ed83f31b4344bb366161644c7dc51259b01053"
+    },
+    {
+      "source": "commanders/elite-implant-militia.png",
+      "runtime": "commanders/elite-implant-militia.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1672401,
+      "runtimeBytes": 315352,
+      "sourceSha256": "e4f33b456eea77995349344bbd5d7db89080db03a0dfb38cbc38feb44c5bd6a2",
+      "runtimeSha256": "1b99e2a961c81eccfd26c90c4a38c9ce07e328335c9ebdd1dff80ac5b028d33c"
+    },
+    {
+      "source": "commanders/elite-ledger-executioner.png",
+      "runtime": "commanders/elite-ledger-executioner.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1031980,
+      "runtimeBytes": 252960,
+      "sourceSha256": "87c1e0c73804431f3bc2e26f89e9702fa189632be21d6423cd552daf17755f67",
+      "runtimeSha256": "993b94adb4109bf83f4698694e7159a19acc80a3d26b37ac9810e4041257893b"
+    },
+    {
+      "source": "commanders/elite-neural-nullifier.png",
+      "runtime": "commanders/elite-neural-nullifier.webp",
+      "width": 1254,
+      "height": 1254,
+      "sourceBytes": 1859130,
+      "runtimeBytes": 356544,
+      "sourceSha256": "1010c3938822102b1ca39c74c16ac9acfea5bfc783a52cb61757f2969cc274e0",
+      "runtimeSha256": "0b2cb22726c9c24f3a61d90b0f817df7f2dcd01befc806391214f725fb80089c"
+    },
+    {
+      "source": "commanders/erasure-engine.png",
+      "runtime": "commanders/erasure-engine.webp",
+      "width": 1243,
+      "height": 1266,
+      "sourceBytes": 1534039,
+      "runtimeBytes": 325778,
+      "sourceSha256": "d36576beec22345a2fd5e2d207c4f38660887ef949600160c24d8295297eb0f2",
+      "runtimeSha256": "73463f0615bc44ca3159511ee3a728ed63962de3273d7c1c974a7e0b06334c8a"
+    },
+    {
+      "source": "commanders/judicator-zero.png",
+      "runtime": "commanders/judicator-zero.webp",
+      "width": 1145,
+      "height": 1374,
+      "sourceBytes": 1535088,
+      "runtimeBytes": 293948,
+      "sourceSha256": "a0441a9b6248fe99321205ade250c6e9916193e5993204e4b2c2922d4b7d306d",
+      "runtimeSha256": "518010172efc060f52d408b48eb1973f8633a2c930c9ae494584fb6bffa4f908"
+    },
+    {
+      "source": "commanders/sovereign-aurex.png",
+      "runtime": "commanders/sovereign-aurex.webp",
+      "width": 1145,
+      "height": 1374,
+      "sourceBytes": 1652423,
+      "runtimeBytes": 394320,
+      "sourceSha256": "6dc3949a43a9a5b6dd414b2c500100833c310363177344e5637a2b36247c2b5c",
+      "runtimeSha256": "f2b66e53b9ce58014713e479663c2a2e867a3377d51cafebba513924588223d0"
+    },
+    {
+      "source": "commanders/warrant-hound.png",
+      "runtime": "commanders/warrant-hound.webp",
+      "width": 1246,
+      "height": 1262,
+      "sourceBytes": 1213342,
+      "runtimeBytes": 228568,
+      "sourceSha256": "dd992e9f123e04ca6a35b047d83fbdc51e4ca50233c4a0cf939d9d6264453d3c",
+      "runtimeSha256": "580f0ac875778605ed0c6c87c6439d01ab69e2a76135688155e5be818c7331c1"
+    }
+  ]
+}

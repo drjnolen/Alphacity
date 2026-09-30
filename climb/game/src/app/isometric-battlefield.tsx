@@ -25,7 +25,7 @@ function Bodies({ id }: { id: string }) {
   return <>{BODY_BOUNDS.map(([x, y, w, h], i) => <symbol key={i} id={`${id}-body-${i}`} viewBox={`${x} ${y} ${w} ${h}`} preserveAspectRatio="xMidYMax meet" overflow="hidden">
     {/* A viewBox scales the atlas but does not isolate its pixels in letterboxed space. */}
     <g clipPath={`url(#${id}-bounds-${i})`}>
-      <image href={`/climb/assets/art/alpha-${i < 4 ? 'rebel' : 'enemy'}-bodies.png`} width="1774" height="887" clipPath={i < 4 ? `url(#${id}-crop-${i})` : undefined}/>
+      <image href={`/climb/assets/art/alpha-${i < 4 ? 'rebel' : 'enemy'}-bodies.webp`} width="1774" height="887" clipPath={i < 4 ? `url(#${id}-crop-${i})` : undefined}/>
     </g>
   </symbol>)}
     {BODY_BOUNDS.map(([x,y,width,height],i)=><clipPath key={`bounds-${i}`} id={`${id}-bounds-${i}`} clipPathUnits="userSpaceOnUse"><rect x={x} y={y} width={width} height={height}/></clipPath>)}
@@ -55,7 +55,7 @@ function Ground({ cell, chapter, id }: { cell: TerrainCell; chapter: number; id:
   return <g aria-hidden="true">
     <Prism x0={cell.x-.5} y0={cell.y-.5} x1={cell.x+.5} y1={cell.y+.5} height={cell.height} id={id}/>
     <g transform={`matrix(.76 -.38 .76 .38 ${center.x-76} ${center.y})`} pointerEvents="none">
-      <svg width="100" height="100" viewBox={`${atlasX} ${atlasY} ${418/BOARD_COLUMNS} ${418/BOARD_ROWS}`} preserveAspectRatio="none" className="iso-floor-texture"><image href="/climb/assets/art/alpha-floors.png" width="1254" height="1254"/></svg>
+      <svg width="100" height="100" viewBox={`${atlasX} ${atlasY} ${418/BOARD_COLUMNS} ${418/BOARD_ROWS}`} preserveAspectRatio="none" className="iso-floor-texture"><image href="/climb/assets/art/alpha-floors.webp" width="1254" height="1254"/></svg>
     </g>
     <polygon points={diamond(center,75,37.5)} className="iso-grid-edge"/>
   </g>;
@@ -127,7 +127,7 @@ function EnvironmentProp({id,chapter,center}:{id:string;chapter:number;center:Po
  const [x,y,w,h]=FEATURE_BOUNDS[chapter-1],low=chapter===3,width=low?122:112,height=low?70:126;
  return <svg x={center.x-width/2} y={center.y-height+9} width={width} height={height} viewBox={`${x} ${y} ${w} ${h}`} preserveAspectRatio="xMidYMax meet" overflow="hidden" className={`iso-environment-prop iso-environment-${chapter}`} pointerEvents="none">
   <defs><clipPath id={id} clipPathUnits="userSpaceOnUse"><rect x={x} y={y} width={w} height={h}/></clipPath></defs>
-  <image href="/climb/assets/art/alpha-district-features.png" width="1254" height="1254" clipPath={`url(#${id})`}/>
+  <image href="/climb/assets/art/alpha-district-features.webp" width="1254" height="1254" clipPath={`url(#${id})`}/>
  </svg>;
 }
 
@@ -181,7 +181,7 @@ export default function IsometricBattlefield({ run, actionMode, clockSlot='weapo
               {previewStep>0&&<g className="iso-path-step"><circle cx={center.x} cy={center.y} r="11"/><text x={center.x} y={center.y+5} textAnchor="middle">{previewStep}</text></g>}
               {cell.stair&&!enemy&&!player&&previewStep<1&&<text x={center.x} y={center.y+5} textAnchor="middle" className="iso-stair-mark">↟</text>}
               {!blocked&&<text x={center.x} y={center.y+28} textAnchor="middle" className="iso-coordinate">{tileLabel(p)}{cell.stair?' ↗':cell.height>0?` · +${cell.height}`:''}</text>}
-              {blocked&&!feature&&<g transform={`translate(${center.x-49},${center.y-98})`} pointerEvents="none"><svg width="98" height="110" viewBox={`${chapter.terrain*724} 0 724 724`}><image href="/climb/assets/art/alpha-obstacles.png" width="2172" height="724"/></svg></g>}
+              {blocked&&!feature&&<g transform={`translate(${center.x-49},${center.y-98})`} pointerEvents="none"><svg width="98" height="110" viewBox={`${chapter.terrain*724} 0 724 724`}><image href="/climb/assets/art/alpha-obstacles.webp" width="2172" height="724"/></svg></g>}
               {(player||enemy)&&!traveling&&<g transform={`translate(${center.x},${center.y-3})`} className="iso-unit-group">
                 <ellipse rx={enemy?.type==='boss'?34:25} ry="10" className="iso-contact-shadow"/>
                 {player&&<path d="M-31 0 L0 15 L31 0 M-31 -4 L0 -19 L31 -4" className="iso-player-marker"/>}

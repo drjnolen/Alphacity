@@ -9,7 +9,7 @@ import { itemDescription, type RecordBook } from '@/lib/progression';
 
 export function EquipmentArt({id,className=''}:{id:ItemId;className?:string}){
  const item=itemFor(id),boxes=['0 0 627 550','627 0 627 550','0 550 627 704','627 550 627 704'];
- return item.art<6?<span role="img" aria-label={item.name} className={`item-art item-art-${item.art} ${className}`}/>:<svg role="img" aria-label={item.name} className={`item-art equipment-new-art ${className}`} viewBox={boxes[item.art-6]} overflow="hidden"><image href="/climb/assets/art/alpha-equipment-expansion.png" width="1254" height="1254"/></svg>;
+ return item.art<6?<span role="img" aria-label={item.name} className={`item-art item-art-${item.art} ${className}`}/>:<svg role="img" aria-label={item.name} className={`item-art equipment-new-art ${className}`} viewBox={boxes[item.art-6]} overflow="hidden"><image href="/climb/assets/art/alpha-equipment-expansion.webp" width="1254" height="1254"/></svg>;
 }
 export function EquipmentInventory({book,run,active,onEquip,compact=false}:{book:RecordBook;run:Run;active:boolean;onEquip:(id:string)=>void;compact?:boolean}){
  const [slot,setSlot]=useState<Slot|'all'>(compact?'weapon':'all'),[selected,setSelected]=useState<Equipment|null>(null);
