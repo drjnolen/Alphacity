@@ -75,7 +75,7 @@ async function queryGraphql(graphqlUrl, query, variables, fetchImpl) {
     return payload.data;
 }
 
-async function queryScheduleTypeOrigin(graphqlUrl, packageId, fetchImpl = fetch) {
+async function queryScheduleTypeOrigin(graphqlUrl, packageId, fetchImpl = fetch, moduleName = 'sluice_v2', structName = 'VestingScheduleV2') {
     const data = await queryGraphql(graphqlUrl, `
         query SluiceV2TypeOrigin($package: SuiAddress!) {
             object(address: $package) {
@@ -83,7 +83,7 @@ async function queryScheduleTypeOrigin(graphqlUrl, packageId, fetchImpl = fetch)
             }
         }`, { package: packageId }, fetchImpl);
     const origin = data.object?.asMovePackage?.typeOrigins?.find(
-        type => type.module === 'sluice_v2' && type.struct === 'VestingScheduleV2',
+        type => type.module === moduleName && type.struct === structName,
     );
     if (!origin?.definingId) throw new Error('Configured package does not define the Sluice V2 schedule type');
     return normalizeAddress(origin.definingId);
@@ -129,7 +129,7 @@ function nestedByteVectors(value) {
     return Array.isArray(source) ? source.map(byteVector) : [];
 }
 
-async function querySchedules(graphqlUrl, packageId, fetchImpl = fetch) {
+async function querySchedules(graphqlUrl, packageId, fetchImpl = fetch, moduleName = 'sluice_v2', structName = 'VestingScheduleV2') {
     const query = `
         query SluiceV2Schedules($type: String!, $after: String) {
             objects(first: 50, after: $after, filter: { type: $type }) {
@@ -148,7 +148,7 @@ async function querySchedules(graphqlUrl, packageId, fetchImpl = fetch) {
     let after = null;
     do {
         const data = await queryGraphql(graphqlUrl, query, {
-            type: `${packageId}::sluice_v2::VestingScheduleV2`, after,
+            type: `${packageId}::${moduleName}::${structName}`, after,
         }, fetchImpl);
         const connection = data.objects;
         if (!Array.isArray(connection?.nodes) || typeof connection?.pageInfo?.hasNextPage !== 'boolean') {

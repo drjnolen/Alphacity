@@ -1,0 +1,23 @@
+[Unit]
+Description=Sluice Moon or Die keeper
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=moonordie
+WorkingDirectory=/opt/alphacity
+EnvironmentFile=/etc/moonordie/keeper.env
+ExecStart=/usr/bin/node scripts/moonordie-keeper.js --watch
+Restart=always
+RestartSec=5
+TimeoutStopSec=90
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
