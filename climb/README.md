@@ -4,6 +4,8 @@ The nine-district tactical game lives at /climb/. The existing GitHub Pages work
 
 ## Build and test
 
+The shared Hall of Resistance leaderboard is available in the game menu and appears after death, manual campaign ending, or completing the climb. It uses a small Cloudflare Worker and D1 database deployed alongside the static site. See [LEADERBOARD.md](./LEADERBOARD.md) for timing, wallet authentication, offline behavior and the required Cloudflare token permissions.
+
 Run npm ci, then npm run build:climb. This installs the isolated game package from its lockfile, produces /climb/assets/game.js and game.css, copies the art, and bundles the wallet gate. Run npm test and npm run test:climb. Serve the repository root over HTTP to preview /climb/; opening the HTML file directly is not supported.
 
 ## Access

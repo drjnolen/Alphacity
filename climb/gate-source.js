@@ -1,3 +1,4 @@
+import {createLeaderboardClient} from './leaderboard-client.mjs';
 import {verifyPersonalMessageSignature} from '@mysten/sui/verify';
 import {readAccessCache,writeAccessCache} from './access-cache.mjs';
 import {fetchEligibility,formatCity} from './eligibility.mjs';
@@ -28,7 +29,7 @@ async function enter(){
   }
   status.textContent='Loading your climb…';
   const module=await import('/climb/assets/game.js');if(requestEpoch!==epoch)return;
-  if(unmount)unmount();unmount=module.mountGame(game,address);authorized=address;panel.hidden=true;game.hidden=false;
+  if(unmount)unmount();unmount=module.mountGame(game,address,{leaderboard:createLeaderboardClient({wallet:address,sign:message=>connector.signPersonalMessage(message),isCurrent:()=>requestEpoch===epoch&&wallet?.address===address,storage:sessionStorage,origin:location.origin})});authorized=address;panel.hidden=true;game.hidden=false;
   el('membership-status').textContent='5M CITY access verified';
  }catch(error){if(requestEpoch===epoch)lock(error.message||'Access could not be verified. Please retry.');}
  finally{if(requestEpoch===epoch){checking=false;verify.disabled=!wallet;}}

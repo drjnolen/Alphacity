@@ -3,3 +3,4 @@ node_modules/
 
 climb/assets/
 climb/gate.js
+api/climb-leaderboard/.wrangler*
