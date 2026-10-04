@@ -1,3 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '../shared/tailwind-compat.css';
+@import 'tailwindcss/utilities.css' source(none);
+@config './tailwind.config.cjs';
+@source './index.html';
+@source './operator-app.js';
+@source './operator/index.html';
+@source '../mint/index.html';

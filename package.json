@@ -2,8 +2,8 @@
   "name": "alpha-city-static-site",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -c tailwind.config.cjs -i ./intel/tailwind.input.css -o ./intel/tailwind.css --minify",
-    "build:paylink-css": "tailwindcss -c pay/tailwind.config.cjs -i ./pay/tailwind.input.css -o ./pay/tailwind.css --minify",
+    "build:css": "node scripts/build-css.mjs intel",
+    "build:paylink-css": "node scripts/build-css.mjs pay",
     "build:telemetry": "node scripts/build-telemetry-config.js",
     "build:paylink": "esbuild shared/paylink-client-source.js --bundle --minify --format=iife --global-name=AlphaCityPaylinkBundle --platform=browser --target=es2022 --outfile=shared/paylink-client.js",
     "build:paylink-request": "esbuild shared/paylink-request-source.js --bundle --minify --format=iife --global-name=AlphaCityPaylinkRequestBundle --platform=browser --target=es2022 --outfile=shared/paylink-request.js",
@@ -12,7 +12,7 @@
     "build:alchemy": "esbuild alchemy/app-source.js --bundle --minify --format=iife --global-name=AlphaCityAlchemyBundle --platform=browser --target=es2022 --outfile=alchemy/app.js",
     "build:launchpad": "esbuild launchpad/app-source.js --bundle --minify --format=iife --global-name=AlphaCityLaunchpadBundle --platform=browser --target=es2022 --outfile=launchpad/app.js",
     "build:mint": "esbuild mint/app-source.js --bundle --minify --format=iife --global-name=AlphaCityMintBundle --platform=browser --target=es2022 --outfile=mint/app.js",
-    "build:launchpad-css": "tailwindcss -c launchpad/tailwind.config.cjs -i ./launchpad/tailwind.input.css -o ./launchpad/tailwind.css --minify",
+    "build:launchpad-css": "node scripts/build-css.mjs launchpad",
     "launchpad:prepare": "node scripts/launchpad-project.cjs prepare",
     "launchpad:validate": "node scripts/launchpad-project.cjs validate",
     "launchpad:media": "node scripts/launchpad-r2-publish.cjs",
@@ -28,7 +28,9 @@
     "qrcode": "1.5.4"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
     "esbuild": "0.28.1",
-    "tailwindcss": "3.4.17"
+    "postcss": "8.5.28",
+    "tailwindcss": "4.3.3"
   }
 }

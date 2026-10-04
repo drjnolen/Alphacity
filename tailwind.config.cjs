@@ -1,5 +1,4 @@
 module.exports = {
-    content: ['./intel/index.html'],
     theme: {
         extend: {
             fontFamily: {

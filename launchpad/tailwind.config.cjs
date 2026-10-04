@@ -1,10 +1,4 @@
 module.exports = {
-    content: [
-        './launchpad/index.html',
-        './launchpad/operator-app.js',
-        './launchpad/operator/index.html',
-        './mint/index.html',
-    ],
     theme: {
         extend: {
             fontFamily: { sans: ['Inter', 'sans-serif'] },
