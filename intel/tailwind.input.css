@@ -1,3 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '../shared/tailwind-compat.css';
+@import 'tailwindcss/utilities.css' source(none);
+@config '../tailwind.config.cjs';
+@source './index.html';

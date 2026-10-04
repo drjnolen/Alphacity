@@ -167,7 +167,7 @@ test('Paylink dependencies are exact and included in the normal production build
     assert.equal(packageJson.dependencies.qrcode, '1.5.4');
     assert.match(packageJson.scripts['build:paylink'], /paylink-client-source\.js/);
     assert.match(packageJson.scripts['build:paylink-request'], /paylink-request-source\.js/);
-    assert.match(packageJson.scripts['build:paylink-css'], /pay\/tailwind\.css/);
+    assert.equal(packageJson.scripts['build:paylink-css'], 'node scripts/build-css.mjs pay');
     assert.match(packageJson.scripts.build, /build:paylink/);
     assert.match(packageJson.scripts.build, /build:paylink-css/);
     assert.match(page, /href="\/pay\/tailwind\.css"/);

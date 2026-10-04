@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import '../styles/shadcn.css';
 @custom-variant dark (&:is(.dark *));
 @theme inline { --color-background:var(--background);--color-foreground:var(--foreground);--color-popover:var(--popover);--color-popover-foreground:var(--foreground);--color-muted:var(--muted);--color-muted-foreground:var(--muted-foreground);--color-primary:var(--primary);--color-primary-foreground:#111917;--color-border:var(--border);--color-ring:var(--primary);--color-input:var(--border);--font-sans:'Segoe UI',Arial,sans-serif;--font-heading:Georgia,'Times New Roman',serif; }
 :root,.dark { --background:#0c1212;--foreground:#e9e8dd;--popover:#141f1e;--muted:#25322f;--muted-foreground:#a2aea8;--primary:#cfb17b;--border:#2b3934;--gold:#cfb17b;--teal:#91baa7;--serif:Georgia,'Times New Roman',serif; }
