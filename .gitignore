@@ -1,4 +1,13 @@
 node_modules/
+# LP Share runtime state must never be published with the website.
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.dpapi
+live-enabled.json
+admin-token
+.env
+.env.*
 .alphacity-r2/
 
 climb/assets/

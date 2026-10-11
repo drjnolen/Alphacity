@@ -1,0 +1,24 @@
+name: LP Share worker
+on:
+  pull_request:
+    paths: ['tools/lpshare/**', 'lpshare/**', '.github/workflows/lpshare.yml']
+  push:
+    branches: [main]
+    paths: ['tools/lpshare/**', 'lpshare/**', '.github/workflows/lpshare.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/lpshare/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: tools/lpshare
+      - run: npm run check && npm test && npm audit --audit-level=high
+        working-directory: tools/lpshare
+      - run: node --check lpshare/app.js
