@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <title>LP Share · Alpha City</title>
+    <link rel="stylesheet" href="/lpshare/style.css" />
+    <script defer src="/lpshare/app.js"></script>
+  </head>
+  <body>
+    <header>
+      <a href="/" class="brand"><span class="brand-icon">A</span> ALPHA CITY</a
+      ><span class="chip">PRIVATE TOOLS</span>
+    </header>
+    <main>
+      <div class="intro">
+        <div>
+          <p class="eyebrow">TREASURY / LP SHARE</p>
+          <h1>Put your liquidity<br />to work for everyone.</h1>
+          <p class="sub">
+            Claim your Cetus earnings. Convert to CITY.<br />Share with your
+            community, every two weeks.
+          </p>
+        </div>
+        <div class="flow">
+          <span><b>01</b> Claim fees & rewards</span
+          ><span><b>02</b> Convert to CITY</span
+          ><span><b>03</b> Distribute by weight</span>
+        </div>
+      </div>
+      <section id="connection" class="panel connection">
+        <div>
+          <p class="eyebrow">LOCAL WORKER</p>
+          <h2 id="connection-title">Your keys stay on your computer.</h2>
+          <p id="connection-copy">
+            This page prepares configuration. The free Windows worker handles
+            signing, storage, and scheduled runs.
+          </p>
+        </div>
+        <div id="remote-setup">
+          <a
+            class="button primary"
+            href="http://127.0.0.1:4318/lpshare/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Open local dashboard ↗</a
+          >
+          <p class="small">
+            Start the worker first: <code>npm start</code> in
+            <code>tools/lpshare</code>.
+          </p>
+        </div>
+        <form id="login" hidden>
+          <label for="token">Local access token</label>
+          <div class="inline">
+            <input
+              id="token"
+              type="password"
+              autocomplete="off"
+              placeholder="From the worker terminal"
+              required
+            /><button class="primary">Unlock</button>
+          </div>
+        </form>
+      </section>
+      <p id="message" role="status" aria-live="polite"></p>
+      <div class="stats">
+        <section class="panel">
+          <p class="eyebrow">POSITION</p>
+          <strong>CITY / SUI</strong>
+          <p>Cetus burned LP</p>
+          <a
+            href="https://app.cetus.zone/position-detail/0xc05bc41f0f1113d5a949dfcdf1c69addeb7f4b9660475e43ed78e20233fcb8eb"
+            target="_blank"
+            rel="noopener noreferrer"
+            >View position ↗</a
+          >
+        </section>
+        <section class="panel">
+          <p class="eyebrow">ESTIMATED DISTRIBUTION</p>
+          <strong id="estimated">— <small>CITY</small></strong>
+          <p id="estimate-note">Preview to fetch current earnings</p>
+        </section>
+        <section class="panel">
+          <p class="eyebrow">NEXT SCHEDULED RUN</p>
+          <strong id="next">Not scheduled</strong>
+          <p id="mode">Live execution disabled</p>
+        </section>
+      </div>
+      <div class="workspace">
+        <section class="panel recipients">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">01 / RECIPIENTS</p>
+              <h2>Who shares the rewards?</h2>
+            </div>
+            <span class="chip" id="weight-total">0% allocated</span>
+          </div>
+          <p class="muted">
+            Percentages apply to actual CITY received. Changes apply to future
+            runs.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Wallet address</th>
+                  <th>Weight %</th>
+                  <th><span class="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="recipients"></tbody>
+            </table>
+          </div>
+          <p id="empty" class="empty">
+            No recipients yet. Add your first wallet to get started.
+          </p>
+          <div class="toolbar">
+            <button id="add">＋ Add wallet</button
+            ><button id="import-csv">Import CSV</button
+            ><button id="export-csv">Export CSV</button
+            ><input id="csv-file" type="file" accept=".csv,text/csv" hidden />
+          </div>
+        </section>
+        <section class="panel">
+          <p class="eyebrow">02 / SCHEDULE</p>
+          <h2>Every other week.</h2>
+          <label for="start">First run · local date & time</label
+          ><input id="start" type="datetime-local" /><label for="timezone"
+            >Timezone</label
+          ><input id="timezone" value="America/Denver" /><label class="check"
+            ><input id="paused" type="checkbox" checked /> Pause scheduled
+            runs</label
+          >
+          <p class="small">
+            The worker checks every 15 minutes. Your computer must be awake,
+            online, and signed in. Missed runs are caught up once.
+          </p>
+          <details>
+            <summary>Transaction settings</summary>
+            <label for="slippage">Maximum slippage (%)</label
+            ><input
+              id="slippage"
+              type="number"
+              min="0.01"
+              max="5"
+              step="0.01"
+              value="0.5"
+            /><label for="gas">SUI gas reserve</label
+            ><input id="gas" inputmode="decimal" value="1" />
+            <p class="small">
+              Gas comes from the owner’s separate SUI reserve. Independent
+              fair-value price impact is unavailable; a quote is not a price
+              guarantee.
+            </p>
+          </details>
+        </section>
+      </div>
+      <section class="panel actionbar">
+        <div>
+          <h2>Ready when you are.</h2>
+          <p id="save-note" class="muted">
+            Download your configuration, then import it into the local worker.
+          </p>
+        </div>
+        <div class="toolbar">
+          <button id="import-config">Import config</button
+          ><input
+            id="config-file"
+            type="file"
+            accept=".json,application/json"
+            hidden
+          /><button id="save">Download config</button
+          ><button id="preview">Preview earnings</button
+          ><button id="run" class="primary" disabled>Run now</button>
+        </div>
+      </section>
+      <section id="preview-panel" class="panel" hidden>
+        <p class="eyebrow">READ-ONLY PREVIEW</p>
+        <h2>Estimated payouts</h2>
+        <p id="preview-details" class="muted"></p>
+        <div id="preview-payouts"></div>
+        <p class="small">
+          Quotes and claims can change before execution. Payouts use confirmed
+          proceeds.
+        </p>
+      </section>
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ACTIVITY</p>
+            <h2>Every run, accounted for.</h2>
+          </div>
+          <button id="refresh">Refresh</button>
+        </div>
+        <div id="history" class="empty">
+          Connect to the local worker to see confirmed runs and transaction
+          links.
+        </div>
+        <details>
+          <summary>One-time fixed payout override</summary>
+          <p class="small">
+            Optional CSV: <code>label,address,amount</code>, where amount is
+            CITY. Applies only to the next manual run, replacing percentage
+            payouts. Unspent CITY stays recorded as that run’s retained balance.
+          </p>
+          <textarea
+            id="fixed"
+            rows="4"
+            placeholder="label,address,amount"
+          ></textarea>
+          <p class="small">
+            Leave blank to use percentage weights. If actual proceeds cannot
+            cover fixed amounts, the run holds funds for operator review.
+          </p>
+        </details>
+        <details>
+          <summary>Configuration audit</summary>
+          <pre id="audit">Connect to view audit history.</pre>
+        </details>
+      </section>
+      <footer>
+        LP Share
+        <span>Local signing · No hosting subscription · Sui mainnet</span
+        ><a
+          href="https://github.com/drjnolen/Alphacity/tree/main/tools/lpshare"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Setup guide ↗</a
+        >
+      </footer>
+    </main>
+    <dialog id="confirm">
+      <h2>Execute on Sui mainnet?</h2>
+      <p>
+        This will claim earnings, swap them to CITY, and send payouts using the
+        saved configuration. Network gas and swap costs apply.
+      </p>
+      <p id="confirm-version"></p>
+      <div class="toolbar">
+        <button id="cancel-run">Cancel</button
+        ><button id="confirm-run" class="primary">
+          Claim, swap & distribute
+        </button>
+      </div>
+    </dialog>
+  </body>
+</html>

@@ -1,5 +1,9 @@
 # Production builds
 
+The optional local LP Share worker uses its own dependencies and Node 24.12+.
+See [tools/lpshare/README.md](tools/lpshare/README.md). The unlinked `/lpshare/`
+page is static and needs no additional website build step.
+
 Use Node.js 22 or newer. Run `npm ci`, then `npm run build`. The full build also
 installs Climb's separately locked dependencies and builds the game and wallet gate.
 Run `npm test`, `npm run test:climb`, `npm audit --audit-level=high`, and

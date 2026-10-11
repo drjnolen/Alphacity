@@ -1,0 +1,31 @@
+{
+  "name": "alphacity-lpshare",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.12.0"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "start": "tsx src/cli.ts serve",
+    "preview": "tsx src/cli.ts preview",
+    "tick": "tsx src/cli.ts tick",
+    "cli": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@cetusprotocol/aggregator-sdk": "1.7.4",
+    "@cetusprotocol/burn-sdk": "1.3.3",
+    "@cetusprotocol/common-sdk": "1.4.3",
+    "@cetusprotocol/sui-clmm-sdk": "1.4.9",
+    "@js-temporal/polyfill": "0.5.1",
+    "@mysten/sui": "2.31.2",
+    "bn.js": "5.2.5"
+  },
+  "devDependencies": {
+    "@types/bn.js": "5.2.0",
+    "@types/node": "24.10.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}
