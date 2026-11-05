@@ -50,8 +50,9 @@ test('market, TVL, and weather data use bounded refresh caches', () => {
 test('watchlist market loads are single-flight and external news links are protocol-gated', () => {
     assert.match(html, /tokenAlertMarketCache\.promise/);
     assert.match(html, /function safeExternalUrl/);
-    assert.match(html, /url: safeExternalUrl\(art\.link\)/);
-    assert.match(html, /\.filter\(article => article\.url\)/);
+    const feeds = require('../shared/intel-feeds.js');
+    assert.equal(feeds.safeUrl('javascript:alert(1)'), '');
+    assert.equal(feeds.safeUrl('https://example.com/story'), 'https://example.com/story');
 });
 
 test('enriched alerts derive volume and sell pressure from the existing pair snapshot', () => {

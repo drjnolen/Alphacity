@@ -13,3 +13,4 @@ admin-token
 climb/assets/
 climb/gate.js
 api/climb-leaderboard/.wrangler*
+api/intel-data/.wrangler*

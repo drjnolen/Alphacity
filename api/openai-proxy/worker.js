@@ -31,62 +31,11 @@ export default {
       return handleCors(request, env, new Response(null, { status: 204 }));
     }
 
-    // ── GET requests (for the Nitter proxy) ─────────────────────────
-    if (request.method === 'GET') {
-      const urlObj = new URL(request.url);
-      if (urlObj.pathname === '/nitter' || urlObj.pathname.startsWith('/nitter')) {
-        const handle = urlObj.searchParams.get('handle');
-        if (!handle) {
-          return handleCors(
-            request,
-            env,
-            new Response(JSON.stringify({ error: 'Missing handle parameter' }), {
-              status: 400,
-              headers: { 'Content-Type': 'application/json' },
-            })
-          );
-        }
-
-        const instances = [
-          'https://xcancel.com',
-          'https://nitter.net',
-          'https://nitter.privacyredirect.com',
-          'https://nitter.poast.org'
-        ];
-
-        for (const instance of instances) {
-          try {
-            const feedUrl = `${instance}/${handle}/rss`;
-            const resp = await fetch(feedUrl, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-              signal: AbortSignal.timeout(2500)
-            });
-            if (resp.ok) {
-              const xml = await resp.text();
-              if (xml && xml.includes('<rss')) {
-                return handleCors(
-                  request,
-                  env,
-                  new Response(xml, {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/xml; charset=utf-8' },
-                  })
-                );
-              }
-            }
-          } catch (_) {}
-        }
-
-        return handleCors(
-          request,
-          env,
-          new Response(JSON.stringify({ error: 'Failed to fetch feed from all instances' }), {
-            status: 502,
-            headers: { 'Content-Type': 'application/json' },
-          })
-        );
-      }
-
+    // Retired public mirrors must not fan out upstream requests from older clients.
+    if (request.method === 'GET' && new URL(request.url).pathname === '/nitter') {
+      return handleCors(request, env, new Response(JSON.stringify({
+        error: 'Social feed retired; open the account on X for current posts',
+      }), { status: 410, headers: { 'Content-Type': 'application/json' } }));
     }
 
     // ── Only POST allowed for OpenAI requests ───────────────────────
@@ -185,7 +134,7 @@ function handleCors(request, env, response) {
   const headers = new Headers(response.headers);
   const urlObj = new URL(request.url);
   if (request.method === 'GET' && (
-    urlObj.pathname === '/nitter' || urlObj.pathname.startsWith('/nitter')
+    urlObj.pathname === '/nitter'
   )) {
     headers.set('Access-Control-Allow-Origin', '*');
   } else if (matched) {
