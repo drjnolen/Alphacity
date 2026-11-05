@@ -1,0 +1,39 @@
+name: Moon or Die contract
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/moonordie/**'
+      - 'shared/moonordie-core.cjs'
+      - 'scripts/moonordie-*.js'
+      - '.github/workflows/moonordie-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/moonordie/**'
+      - 'shared/moonordie-core.cjs'
+      - 'scripts/moonordie-*.js'
+      - '.github/workflows/moonordie-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  move-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned official Sui CLI and test immutable commitment lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/sui.tgz"
+          cli="$RUNNER_TEMP/moonordie-cli"
+          mkdir -p "$cli"
+          curl --fail --location --retry 3 --output "$archive" https://github.com/MystenLabs/sui/releases/download/mainnet-v1.73.2/sui-mainnet-v1.73.2-ubuntu-x86_64.tgz
+          echo "11894e0e65d6cb06cf1fa243dfe218bd4413ea7677600a3b0f7ca78863a4a9e0  $archive" | sha256sum --check
+          entry=$(tar -tzf "$archive" | awk '/(^|\/)sui$/ { name=$0 } END { print name }')
+          test -n "$entry"
+          tar -xzf "$archive" -C "$cli" "$entry"
+          "$cli/$entry" move test --path contracts/moonordie

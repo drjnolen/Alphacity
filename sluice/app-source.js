@@ -1,6 +1,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import core from '../shared/sluice-core.cjs';
+import moon from '../shared/moonordie-core.cjs';
 
 const {
     TRIGGERS,
@@ -47,6 +48,7 @@ const state = {
 let walletConnector = null;
 let schedulesRequest = null;
 let tokenPreviewSequence = 0;
+let creationInProgress = false;
 
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -62,6 +64,9 @@ function configuredAddress(value) {
 
 function v2Package() { return configuredAddress(CONFIG.v2PackageAddress); }
 function legacyPackage() { return configuredAddress(CONFIG.legacyPackageAddress); }
+function moonPackage() { return configuredAddress(CONFIG.moonordiePackageAddress); }
+function isMoonMode() { return $('schedule-mode').value === 'moonordie'; }
+function moonReady() { return moonPackage() && CONFIG.moonordieReady === true; }
 
 function showStatus(message, kind = 'info') {
     const banner = $('status-banner');
@@ -104,7 +109,7 @@ async function signAndExecute(tx, expectedAddress = state.address) {
     return result;
 }
 
-async function queryAllSchedules(packageId, moduleName, structName) {
+async function queryAllSchedules(packageId, moduleName, structName, parser = parseScheduleObject) {
     if (!packageId) return [];
     const output = [];
     let cursor = null;
@@ -114,7 +119,7 @@ async function queryAllSchedules(packageId, moduleName, structName) {
             options: { showContent: true, showType: true },
         }, cursor, 50]);
         for (const object of (page.data || [])) {
-            try { output.push(parseScheduleObject(object)); }
+            try { output.push(parser(object)); }
             catch (error) { console.warn('Skipping malformed Sluice schedule:', error, object); }
         }
         cursor = page.hasNextPage ? page.nextCursor : null;
@@ -125,11 +130,12 @@ async function queryAllSchedules(packageId, moduleName, structName) {
 async function loadSchedules() {
     $('refresh-schedules').disabled = true;
     try {
-        const [v2, v1] = await Promise.all([
+        const [v2, v1, commitments] = await Promise.all([
             queryAllSchedules(v2Package(), 'sluice_v2', 'VestingScheduleV2'),
             queryAllSchedules(legacyPackage(), 'sluice', 'VestingSchedule'),
+            queryAllSchedules(moonPackage(), 'moonordie', 'Commitment', moon.parseCommitment),
         ]);
-        state.schedules = [...v2, ...v1].sort((a, b) => Number(b.startTimeMs - a.startTimeMs));
+        state.schedules = [...v2, ...v1, ...commitments].sort((a, b) => Number(b.startTimeMs - a.startTimeMs));
         await hydrateMetadata(state.schedules);
         renderSchedules();
         await resolveClaimSchedule();
@@ -212,9 +218,10 @@ function renderGate() {
     } else {
         value.textContent = 'Checking CITY balance…';
     }
-    const unavailable = !v2Package();
-    submit.disabled = unavailable || !state.gate?.allowed;
-    $('deployment-status').hidden = !unavailable;
+    const unavailable = isMoonMode() ? !moonReady() : !v2Package();
+    submit.disabled = creationInProgress || unavailable || !state.gate?.allowed;
+    $('deployment-status').hidden = isMoonMode() || !unavailable;
+    $('moon-deployment-status').hidden = !isMoonMode() || !unavailable;
 }
 
 function element(tag, className, text) {
@@ -273,6 +280,10 @@ function renderSchedules() {
     }
 
     for (const schedule of filtered) {
+        if (schedule.mode === 'moonordie') {
+            container.append(renderMoonCommitment(schedule));
+            continue;
+        }
         const metadata = state.metadata.get(schedule.coinType) || { decimals: 0, symbol: schedule.coinType.split('::').at(-1) };
         const claimable = calculateClaimable(schedule, BigInt(Date.now()));
         const card = element('article', 'schedule-card');
@@ -402,8 +413,8 @@ async function validateTriggerFeed({ coinType, triggerKind, minLiquidityUsd }) {
     return observationFromPairs({ coinType, triggerKind, minLiquidityUsd }, pairs);
 }
 
-function oracleKeys() {
-    const keys = (CONFIG.oraclePublicKeys || []).map(value => {
+function oracleKeys(values = CONFIG.oraclePublicKeys || []) {
+    const keys = values.map(value => {
         const clean = String(value).replace(/^0x/, '');
         if (!/^[0-9a-f]{64}$/i.test(clean)) throw new Error('Runtime oracle public keys must be 32-byte hex values');
         return Array.from(clean.match(/../g), byte => parseInt(byte, 16));
@@ -413,6 +424,7 @@ function oracleKeys() {
 
 async function createSchedule(event) {
     event.preventDefault();
+    if (isMoonMode()) return createMoonCommitment();
     clearStatus();
     const packageId = v2Package();
     if (!packageId) throw new Error('Sluice V2 is not deployed/configured yet');
@@ -545,6 +557,7 @@ async function createSchedule(event) {
         }, recipient, amount, metadata.symbol);
     }
     event.target.reset();
+    toggleMode();
     $('token-preview').removeAttribute('data-kind');
     $('token-preview').textContent = 'Token metadata is verified before any amount is converted. Sluice never guesses decimals.';
     setDefaultDates();
@@ -755,14 +768,14 @@ async function previewToken() {
         const pair = selectPrimaryPair(pairs, coinType);
         if (!pair) throw new Error(`${metadata.symbol} has no exact-base-token DexScreener pair; market triggers cannot be serviced`);
         const summary = `${metadata.symbol} · ${metadata.decimals} decimals · ${pair.dexId || 'unknown'} ${pair.baseToken?.symbol || 'TOKEN'}/${pair.quoteToken?.symbol || 'PAIR'} · liquidity $${Number(pair.liquidity?.usd || 0).toLocaleString()} · market cap ${pair.marketCap == null ? 'unavailable' : `$${Number(pair.marketCap).toLocaleString()}`} · FDV ${pair.fdv == null ? 'unavailable' : `$${Number(pair.fdv).toLocaleString()}`}`;
-        const triggerKind = Number($('trigger-kind').value);
+        const triggerKind = isMoonMode() ? TRIGGERS.MARKET_CAP_USD : Number($('trigger-kind').value);
         if (triggerKind === TRIGGERS.TIME) {
             if (sequence !== tokenPreviewSequence) return;
             output.dataset.kind = 'ok';
             output.textContent = summary;
             return;
         }
-        const minLiquidityUsd = parseDecimalToBigInt($('minimum-liquidity').value || '0', 0);
+        const minLiquidityUsd = parseDecimalToBigInt($(isMoonMode() ? 'moon-liquidity' : 'minimum-liquidity').value || '0', 0);
         const observation = observationFromPairs({ coinType, triggerKind, minLiquidityUsd }, pairs);
         if (sequence !== tokenPreviewSequence) return;
         output.dataset.kind = 'ok';
@@ -784,6 +797,123 @@ function toggleTriggerFields() {
     if ($('coin-type').value.trim()) previewToken();
 }
 
+function toggleMode() {
+    const active = isMoonMode();
+    $('create-heading').textContent = active ? 'New Moon or Die commitment' : 'New vesting schedule';
+    $('create-version').textContent = active ? 'Moon or Die' : 'Contract V2';
+    for (const id of ['vesting-timeline', 'vesting-activation']) {
+        $(id).hidden = active;
+        $(id).disabled = active;
+    }
+    $('moon-fields').hidden = !active;
+    $('moon-fields').disabled = !active;
+    $('revocable-row').hidden = active;
+    $('recipient-options').hidden = active;
+    $('recipient-help').hidden = active;
+    const link = document.querySelector('input[name="recipient-mode"][value="link"]');
+    link.disabled = active;
+    if (active) document.querySelector('input[name="recipient-mode"][value="wallet"]').checked = true;
+    $('create-submit').textContent = active ? 'Create irreversible commitment' : 'Create on Sui';
+    toggleRecipient();
+    renderGate();
+    if ($('coin-type').value.trim()) previewToken();
+}
+
+async function createMoonCommitment() {
+    clearStatus();
+    if (!moonReady()) throw new Error('Moon or Die is not deployed and enabled yet');
+    if (!state.address) throw new Error('Connect a wallet first');
+    if (!$('moon-acknowledge').checked) throw new Error('Review and acknowledge the irreversible commitment');
+    const creatorAddress = state.address;
+    const packageId = moonPackage();
+    const beneficiary = normalizeAddress($('beneficiary').value.trim());
+    const coinType = normalizeCoinType($('coin-type').value);
+    const amountText = $('token-amount').value;
+    const target = parseDecimalToBigInt($('moon-target').value, 0);
+    const minLiquidity = parseDecimalToBigInt($('moon-liquidity').value, 0);
+    const deadlineValue = new Date($('moon-deadline').value).getTime();
+    if (!Number.isFinite(deadlineValue)) throw new Error('Enter a valid Moon or Die deadline');
+    const deadline = BigInt(deadlineValue);
+    const keys = oracleKeys(CONFIG.moonordieOraclePublicKeys || []);
+    const threshold = Number(CONFIG.moonordieOracleThreshold || 1);
+    if (!keys.length || !Number.isInteger(threshold) || threshold < 1 || threshold > keys.length || keys.length > 10
+        || new Set(keys.map(bytesToHex)).size !== keys.length) throw new Error('Invalid Moon or Die oracle policy');
+    const submit = $('create-submit');
+    submit.disabled = true;
+    try {
+        await refreshGate(creatorAddress);
+        if (!sameAddress(state.address, creatorAddress) || !state.gate?.allowed) throw new Error('Creation access must be verified for the connected wallet');
+        submit.disabled = true;
+        const metadata = await getMetadata(coinType);
+        const amount = parseDecimalToBigInt(amountText, metadata.decimals);
+        moon.validateCreate({ amount, beneficiary, target, deadline, minLiquidity, now: BigInt(Date.now()) });
+        await validateTriggerFeed({ coinType, triggerKind: TRIGGERS.MARKET_CAP_USD, minLiquidityUsd: minLiquidity });
+        const approved = confirm(`Irreversibly lock ${formatUnits(amount, metadata.decimals, metadata.decimals)} ${metadata.symbol || coinType}\nToken: ${coinType}\nBeneficiary: ${beneficiary}\nTarget: market cap at least $${target.toLocaleString()}\nDeadline: ${new Date(Number(deadline)).toLocaleString()}\nMinimum liquidity: $${minLiquidity.toLocaleString()}\n\nSuccess must be recorded on-chain before this deadline. Success unlocks the entire deposit forever. Otherwise ALL tokens become permanently unspendable. No cancellation or refund. Missed or late observations do not count. Continue?`);
+        if (!approved) return;
+        const configHash = await sha256Bytes(moon.configText({ coinType, minLiquidityUsd: minLiquidity }));
+        const reference = crypto.getRandomValues(new Uint8Array(16));
+        const tx = new Transaction();
+        const payment = await preparePayment(tx, coinType, amount, creatorAddress);
+        tx.moveCall({ target: `${packageId}::moonordie::create`, typeArguments: [coinType], arguments: [
+            payment, tx.pure.address(beneficiary), tx.pure.u64(target), tx.pure.u64(deadline), tx.pure.u64(minLiquidity),
+            tx.pure.vector('u8', configHash), tx.pure.vector('vector<u8>', keys), tx.pure.u8(threshold),
+            tx.pure.vector('u8', reference), tx.object(CLOCK_ID),
+        ] });
+        showStatus('Confirm the irreversible Moon or Die commitment in your wallet…', 'info');
+        await signAndExecute(tx, creatorAddress);
+        $('moon-acknowledge').checked = false;
+        showStatus('Moon or Die commitment created. It cannot be cancelled or modified.', 'success');
+        await sleep(1_000);
+        await refreshSchedules();
+    } finally { renderGate(); }
+}
+
+function renderMoonCommitment(c) {
+    const metadata = state.metadata.get(c.coinType) || { decimals: 0, symbol: c.coinType.split('::').at(-1) };
+    const amount = `${formatUnits(c.totalAmount, metadata.decimals, 6)} ${metadata.symbol}`;
+    const expired = c.status === moon.STATUSES.PENDING && BigInt(Date.now()) >= c.endTimeMs;
+    const label = expired ? 'Awaiting disposal' : ['Pending target', 'Unlocked forever', 'Claimed', 'Permanently disposed'][c.status];
+    const card = element('article', 'schedule-card');
+    const head = element('div', 'schedule-head');
+    const title = element('div');
+    title.append(element('strong', '', amount), element('span', 'schedule-id', `${shortAddress(c.id)} · Moon or Die`));
+    head.append(title, element('span', `status status-${c.status === 3 ? 2 : c.status}`, label));
+    card.append(head);
+    const rows = element('dl', 'schedule-grid');
+    for (const [key, value] of [
+        ['Creator', shortAddress(c.creator)], ['Beneficiary', shortAddress(c.beneficiary)],
+        ['Market-cap target', formatTarget(c)], ['Deadline', new Date(Number(c.endTimeMs)).toLocaleString()],
+        ['Claimable now', c.status === moon.STATUSES.SUCCESS ? amount : '0'], ['Policy', 'Irrevocable · all or nothing'],
+    ]) rows.append(element('dt', '', key), element('dd', '', value));
+    card.append(rows);
+    card.append(element('p', 'observation-note', c.status === moon.STATUSES.SUCCESS
+        ? 'Success is permanent. Claim anytime; a later market decline or deadline cannot dispose of these tokens.'
+        : 'Success must be recorded on-chain before the deadline. Disposal freezes tokens forever without reducing reported supply.'));
+    const actions = element('div', 'schedule-actions');
+    if (c.status === moon.STATUSES.SUCCESS) addAction(actions, 'Claim all tokens', () => moonAction(c, 'claim'), 'primary');
+    if (expired) addAction(actions, 'Finalize disposal', () => moonAction(c, 'dispose'), 'danger');
+    for (const [text, id] of [['View commitment', c.id], ['View frozen tokens', c.disposedCoin]]) {
+        if (!id) continue;
+        const link = element('a', 'small-button', text);
+        link.href = `https://suivision.xyz/object/${id}`;
+        link.target = '_blank'; link.rel = 'noopener noreferrer'; actions.append(link);
+    }
+    card.append(actions);
+    return card;
+}
+
+async function moonAction(c, action) {
+    if (!state.address) throw new Error('Connect a wallet to sponsor this transaction');
+    if (action === 'dispose' && !confirm('Permanently dispose of this expired Moon or Die deposit? The tokens will become unspendable forever.')) return;
+    const tx = new Transaction();
+    tx.moveCall({ target: `${moonPackage()}::moonordie::${action}`, typeArguments: [c.coinType],
+        arguments: action === 'claim' ? [tx.object(c.id)] : [tx.object(c.id), tx.object(CLOCK_ID)] });
+    await signAndExecute(tx);
+    showStatus(action === 'claim' ? 'All tokens were sent to the fixed beneficiary.' : 'Tokens were permanently frozen and can never be spent.', 'success');
+    await sleep(1_000);
+    await refreshSchedules();
+}
+
 function toggleRecipient() {
     const link = document.querySelector('input[name="recipient-mode"]:checked').value === 'link';
     $('beneficiary-label').textContent = link ? 'Recipient email or phone (not stored on-chain)' : 'Beneficiary Sui address';
@@ -798,12 +928,14 @@ function setDefaultDates() {
     $('start-date').value = local(start);
     $('end-date').value = local(end);
     $('trigger-deadline').value = local(deadline);
+    $('moon-deadline').value = local(deadline);
 }
 
 async function init() {
     setDefaultDates();
     toggleTriggerFields();
     toggleRecipient();
+    toggleMode();
     loadClaimPayload();
     renderGate();
     if (!window.AlphaCityWalletConnector) throw new Error('The shared wallet connector did not load');
@@ -811,10 +943,20 @@ async function init() {
         button: $('connect-wallet'),
         onChange: handleWalletChange,
     });
-    $('create-form').addEventListener('submit', event => createSchedule(event).catch(error => showStatus(error.message, 'error')));
+    $('create-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        if (creationInProgress) return;
+        creationInProgress = true;
+        renderGate();
+        try { await createSchedule(event); }
+        catch (error) { showStatus(error.message, 'error'); }
+        finally { creationInProgress = false; renderGate(); }
+    });
     $('refresh-schedules').addEventListener('click', refreshSchedules);
     $('schedule-filter').addEventListener('change', event => { state.filter = event.target.value; renderSchedules(); });
     $('trigger-kind').addEventListener('change', toggleTriggerFields);
+    $('schedule-mode').addEventListener('change', toggleMode);
+    $('moon-liquidity').addEventListener('blur', previewToken);
     document.querySelectorAll('input[name="recipient-mode"]').forEach(input => input.addEventListener('change', toggleRecipient));
     $('coin-type').addEventListener('blur', previewToken);
     $('minimum-liquidity').addEventListener('blur', () => {

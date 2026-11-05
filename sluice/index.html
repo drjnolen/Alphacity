@@ -13,7 +13,7 @@
     <script src="/sluice/config.js"></script>
     <script src="/shared/wallet-sync.js" defer></script>
     <script src="/shared/wallet-connector.js" defer></script>
-    <script src="/sluice/app.js?v=4" defer></script>
+    <script src="/sluice/app.js?v=5" defer></script>
 </head>
 <body>
     <header class="site-header">
@@ -66,9 +66,9 @@
                 <div class="panel-heading">
                     <div>
                         <p class="eyebrow">Create</p>
-                        <h2>New vesting schedule</h2>
+                        <h2 id="create-heading">New vesting schedule</h2>
                     </div>
-                    <span class="version-pill">Contract V2</span>
+                    <span class="version-pill" id="create-version">Contract V2</span>
                 </div>
 
                 <div id="deployment-status" class="notice warning">
@@ -77,15 +77,21 @@
                 <div id="gate-status" class="notice"></div>
 
                 <form id="create-form">
+                    <label for="schedule-mode">Release mode</label>
+                    <select id="schedule-mode">
+                        <option value="vesting">Vesting schedule</option>
+                        <option value="moonordie">Moon or Die</option>
+                    </select>
+                    <div id="moon-deployment-status" class="notice warning" hidden>Moon or Die is awaiting its immutable contract deployment and continuous keeper. Creation is disabled until both are configured.</div>
                     <fieldset>
                         <legend>Recipient</legend>
-                        <div class="segmented">
+                        <div class="segmented" id="recipient-options">
                             <label><input type="radio" name="recipient-mode" value="wallet" checked><span>Wallet</span></label>
                             <label><input type="radio" name="recipient-mode" value="link"><span>Private claim link</span></label>
                         </div>
                         <label for="beneficiary" id="beneficiary-label">Beneficiary Sui address</label>
                         <input id="beneficiary" autocomplete="off" required placeholder="0x…">
-                        <p class="field-help">Claim links use an ephemeral on-chain beneficiary. The secret stays in the URL fragment and is never sent to the web server.</p>
+                        <p class="field-help" id="recipient-help">Claim links use an ephemeral on-chain beneficiary. The secret stays in the URL fragment and is never sent to the web server.</p>
                     </fieldset>
 
                     <fieldset>
@@ -97,7 +103,7 @@
                         <input id="token-amount" inputmode="decimal" autocomplete="off" required placeholder="100000">
                     </fieldset>
 
-                    <fieldset>
+                    <fieldset id="vesting-timeline">
                         <legend>Timeline</legend>
                         <div class="two-columns">
                             <div><label for="start-date">Not before / start</label><input id="start-date" type="datetime-local" required></div>
@@ -113,7 +119,7 @@
                         </select>
                     </fieldset>
 
-                    <fieldset>
+                    <fieldset id="vesting-activation">
                         <legend>Activation</legend>
                         <label for="trigger-kind">Trigger</label>
                         <select id="trigger-kind">
@@ -151,7 +157,19 @@
                         </div>
                     </fieldset>
 
-                    <label class="check-row"><input id="revocable" type="checkbox" checked><span><strong>Revocable</strong><small>Cancellation pays already vested tokens first, then refunds only the unvested balance.</small></span></label>
+                    <fieldset id="moon-fields" hidden disabled>
+                        <legend>Moon or Die</legend>
+                        <label for="moon-target">Market-cap target (whole USD, at or above)</label>
+                        <input id="moon-target" inputmode="numeric" value="1000000" required>
+                        <label for="moon-deadline">Deadline</label>
+                        <input id="moon-deadline" type="datetime-local" required>
+                        <label for="moon-liquidity">Minimum primary-pair liquidity (whole USD)</label>
+                        <input id="moon-liquidity" inputmode="numeric" value="10000" required>
+                        <p class="notice warning">One qualifying market-cap observation must be recorded on-chain before the deadline. Success unlocks all tokens forever, even if the price later falls. Otherwise the entire deposit becomes eligible for permanent disposal. There is no cancellation, refund, or deadline extension.</p>
+                        <p class="field-help">Disposal permanently freezes the tokens in an unspendable Sui object; it does not reduce reported total supply. The keeper submits transactions automatically, but outages or missed price spikes can result in disposal. Late observations are not accepted. Finalization can occur after the deadline if the keeper is delayed.</p>
+                        <label class="check-row"><input id="moon-acknowledge" type="checkbox" required><span>I understand this irreversible commitment, the fixed beneficiary, and the risk of missed or late observations.</span></label>
+                    </fieldset>
+                    <label class="check-row" id="revocable-row"><input id="revocable" type="checkbox" checked><span><strong>Revocable</strong><small>Cancellation pays already vested tokens first, then refunds only the unvested balance.</small></span></label>
                     <button id="create-submit" class="button primary full" type="submit" disabled>Create on Sui</button>
                 </form>
             </aside>

@@ -1,0 +1,10 @@
+[package]
+name = "moonordie"
+version = "0.0.1"
+edition = "2024.beta"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "1f6e1e6dd72dc75ac4037b3d4e38e73b133c5ef6" }
+
+[addresses]
+moonordie = "0x0"

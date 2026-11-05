@@ -15,6 +15,10 @@ const config = {
     legacyPackageAddress,
     oraclePublicKeys,
     oracleThreshold: Number(process.env.SLUICE_ORACLE_THRESHOLD || 1),
+    moonordiePackageAddress: process.env.MOONORDIE_PACKAGE_ADDRESS || '',
+    moonordieReady: process.env.MOONORDIE_READY === 'true',
+    moonordieOraclePublicKeys: String(process.env.MOONORDIE_ORACLE_PUBLIC_KEYS || '').split(/[\s,]+/).filter(Boolean),
+    moonordieOracleThreshold: Number(process.env.MOONORDIE_ORACLE_THRESHOLD || 1),
 };
 
 const output = `// Generated at deploy time from public repository variables.\nwindow.SLUICE_CONFIG = Object.freeze(${JSON.stringify(config, null, 4)});\n`;
