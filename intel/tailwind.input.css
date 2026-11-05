@@ -2,3 +2,4 @@
 @import 'tailwindcss/utilities.css' source(none);
 @config '../tailwind.config.cjs';
 @source './index.html';
+@source './widgets.js';
