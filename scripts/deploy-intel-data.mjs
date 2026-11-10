@@ -30,6 +30,6 @@ for (let attempt = 0; attempt < 5; attempt++) {
     if (healthy) break;
     await new Promise(resolve => setTimeout(resolve, 2000));
 }
-if (!healthy) throw new Error('Intel data health check failed; stopping Pages publication.');
+if (!healthy) throw new Error('Intel data health check failed; service deployment failed.');
 await writeFile(new URL('intel/data-config.json', root), JSON.stringify({ endpoint }) + '\n');
 console.log('Intel data Worker is ready; public endpoint configuration generated.');

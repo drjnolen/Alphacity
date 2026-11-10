@@ -1,0 +1,42 @@
+name: Deploy Climb leaderboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/climb-leaderboard/**'
+      - '.github/workflows/deploy-climb.yml'
+      - 'scripts/deploy-climb-leaderboard.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-climb
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check service regressions
+        run: node --test tests/climb-leaderboard.test.cjs
+      - name: Install Wrangler
+        run: npm install --global wrangler@4
+      - name: Deploy service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/deploy-climb-leaderboard.mjs
+      - name: Save public endpoint for first-time configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: climb-public-endpoint
+          path: climb/leaderboard-config.json
+          if-no-files-found: error
