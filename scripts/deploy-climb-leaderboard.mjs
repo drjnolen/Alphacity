@@ -38,7 +38,7 @@ try {
     if(healthy)break;
     await new Promise(resolve=>setTimeout(resolve,2000));
   }
-  if(!healthy)throw Error('The leaderboard health check failed. Pages publication stopped; existing site stays deployed.');
+  if(!healthy)throw Error('The leaderboard health check failed; service deployment failed.');
   await writeFile(new URL('climb/leaderboard-config.json',root),JSON.stringify({endpoint})+'\n');
   console.log('Climb leaderboard is ready; public endpoint configuration generated.');
 } finally {await unlink(generated).catch(()=>{});}

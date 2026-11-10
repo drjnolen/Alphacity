@@ -32,7 +32,7 @@ test('the tools portal targets the intel route and no analyze route remains', ()
 });
 
 test('the Pages workflow injects runtime configuration into the deployed intel page', () => {
-    assert.match(deployment, /sed -i [^\n]+ intel\/index\.html/);
+    assert.match(deployment, /node scripts\/build-service-config\.mjs/);
     assert.doesNotMatch(deployment, /analyze\/index\.html/);
     assert.match(intel, /__OPENAI_PROXY_URL__/);
 });

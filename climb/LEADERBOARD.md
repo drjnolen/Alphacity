@@ -23,14 +23,14 @@ This is a casual community leaderboard, **not an authoritative game server**. Se
 
 ## Deployment
 
-The website remains on GitHub Pages. `api/climb-leaderboard/worker.mjs` runs on Cloudflare Workers with a D1 binding. The existing Pages deployment workflow now runs `scripts/deploy-climb-leaderboard.mjs` before publishing:
+The website remains on GitHub Pages. `api/climb-leaderboard/worker.mjs` runs on Cloudflare Workers with a D1 binding. The independent `Deploy Climb leaderboard` workflow runs `scripts/deploy-climb-leaderboard.mjs` when backend files change or when manually requested:
 
 1. Reuse or create the `alphacity-climb-leaderboard` D1 database in the existing Cloudflare account.
 2. Apply the idempotent initial schema without dropping records.
 3. Deploy the Worker with D1 and per-IP rate-limit bindings, plus a daily expired-session/run cleanup.
-4. Check the live read endpoint and write its URL into `climb/leaderboard-config.json` for the Pages artifact.
+4. Check the live read endpoint and write its URL into `climb/leaderboard-config.json` for the public-endpoint workflow artifact. Configure `CLIMB_LEADERBOARD_URL` once for Pages, as described in [deployment operations](../docs/deployment.md).
 
-The repository already has `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` secrets. The token must include **D1: Edit** and **Workers Scripts: Edit**, plus access to read the account's workers.dev subdomain. Enable that subdomain in Cloudflare if not already present. Secret contents and permissions cannot be verified from their names. Missing permission or a failed health check stops publication with an actionable error; the already-deployed site is unaffected. The script never upgrades the Cloudflare plan or adds paid products.
+The repository already has `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` secrets. The token must include **D1: Edit** and **Workers Scripts: Edit**, plus access to read the account's workers.dev subdomain. Enable that subdomain in Cloudflare if not already present. Secret contents and permissions cannot be verified from their names. Missing permission or a failed health check fails only the leaderboard deployment; website publication and other backend workflows remain independent. The script never upgrades the Cloudflare plan or adds paid products.
 
 The checked-in Wrangler database ID is a local-development placeholder, replaced in a temporary config during deployment. The checked-in public endpoint is null, so undeployed checkouts clearly show the unavailable state rather than a fabricated local leaderboard. Do not manually deploy the placeholder as production.
 

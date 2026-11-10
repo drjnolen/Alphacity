@@ -4,7 +4,7 @@ The Intel page uses this public, read-only Worker to avoid downloading DefiLlama
 
 ## Deployment
 
-The existing Pages workflow runs `scripts/deploy-intel-data.mjs` after installing Wrangler 4. It uses the existing `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` secrets (Workers Scripts edit and account subdomain read access, already used by the Climb deployment). It deploys `alphacity-intel-data`, checks `/health`, then writes the public URL to `intel/data-config.json`. A failed deployment or health check stops Pages publication.
+The independent `Deploy Intel data` workflow runs `scripts/deploy-intel-data.mjs` with Wrangler 4 and the existing Cloudflare secrets. It deploys the Worker, checks `/health`, and uploads the generated public endpoint config as an artifact. Failure affects only this service deployment. Pages publication never calls Cloudflare. See [deployment operations](../../docs/deployment.md) for one-time URL configuration.
 
 The checked-in config has an empty endpoint. Local development can run `wrangler dev --config api/intel-data/wrangler.json` and point that config at the local HTTP origin. The page only allows HTTP endpoints when both the page and endpoint are on loopback hosts. Do not commit a local endpoint. No production deployment is performed by the tests or by opening a PR.
 
