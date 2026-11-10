@@ -15,11 +15,11 @@ test('signal methodology is compact, tiered, and includes a financial disclaimer
     assert.match(analyzeHtml, /not financial advice/i);
 });
 
-test('X ecosystem cards are reordered by parsed tweet timestamp', () => {
-    assert.match(analyzeHtml, /function tweetTimestamp\(pubDate\)/);
-    assert.match(analyzeHtml, /function sortXFeedByMostRecent\(container\)/);
-    assert.match(analyzeHtml, /b\.dataset\.tweetTimestamp[\s\S]*a\.dataset\.tweetTimestamp/);
-    assert.match(analyzeHtml, /sortXFeedByMostRecent\(container\)/);
+test('retired social mirrors are replaced by honest direct-profile links', () => {
+    assert.match(analyzeHtml, /Ecosystem on X/);
+    assert.match(analyzeHtml, /Live posts are unavailable here/);
+    assert.doesNotMatch(analyzeHtml, /fetchNitterFeed|FALLBACK_NITTER|nitter_cache/);
+    assert.doesNotMatch(proxyWorker, /https:\/\/.*(?:nitter|xcancel)/);
 });
 
 test('Notes Terminal replaces Side Quest and obsolete proxy code is removed', () => {

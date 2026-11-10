@@ -24,6 +24,9 @@
     <script defer src="/shared/trade-alerts.js"></script>
     <script defer src="/shared/alpha-signals.js"></script>
     <script defer src="/shared/lp-tools.js"></script>
+    <script defer src="/shared/intel-feeds.js"></script>
+    <script defer src="/shared/token-safety.js"></script>
+    <script defer src="/intel/widgets.js"></script>
     <!-- Gated tools access check -->
     <script defer src="/shared/tools-gate.js?v=20260716"></script>
 
@@ -485,6 +488,7 @@
                         </button>
                     </div>
 
+                    <p id="widget-apy-status" class="text-[10px] text-gray-400" aria-live="polite"></p>
                     <div class="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1" id="widget-apy-list">
                         <p class="text-xs text-gray-600 py-4 text-center animate-pulse">Scanning SUI pools...</p>
                     </div>
@@ -496,12 +500,12 @@
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>🛡️</span> Token Safety Checker
                         </h3>
-                        <span id="widget-sniffer-status" class="text-[9px] text-gray-600 uppercase tracking-wider font-mono">Ready</span>
+                        <span id="widget-sniffer-status" class="text-[9px] text-gray-600 uppercase tracking-wider font-mono" aria-live="polite">Ready</span>
                     </div>
 
                     <!-- Input Form -->
                     <div class="flex gap-1.5">
-                        <input type="text" id="widget-sniffer-input" class="watchlist-input text-[11px] py-1.5 px-2.5 flex-1" placeholder="Token Address or Coin Type..." autocomplete="off" spellcheck="false">
+                        <input type="text" id="widget-sniffer-input" class="watchlist-input text-[11px] py-1.5 px-2.5 flex-1" placeholder="0x…::module::TOKEN" aria-label="Full Sui coin type" autocomplete="off" spellcheck="false">
                         <button id="widget-sniffer-scan-btn" class="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
                             Scan
                         </button>
@@ -509,7 +513,7 @@
 
                     <!-- Scan Results Panel (Hidden by default) -->
                     <div id="widget-sniffer-results" class="hidden space-y-3 pt-2">
-                        <!-- Score & Status Header -->
+                        <!-- Data Coverage Header -->
                         <div class="flex items-center justify-between bg-dark-bg/60 p-3 rounded-lg border border-gray-800">
                             <div>
                                 <h4 id="sniffer-token-name" class="text-white font-bold text-sm truncate max-w-[150px]">—</h4>
@@ -517,13 +521,14 @@
                             </div>
                             <div class="text-right flex items-center gap-2">
                                 <div class="flex flex-col items-end">
-                                    <span id="sniffer-safety-score" class="text-xl font-bold font-mono">100/100</span>
-                                    <span class="text-[8px] text-gray-500 uppercase tracking-wider font-semibold">Safety Score</span>
+                                    <span id="sniffer-safety-score" class="text-xl font-bold font-mono">0/5</span>
+                                    <span class="text-[8px] text-gray-500 uppercase tracking-wider font-semibold">Checks with data</span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Alerts / Checks List -->
+                        <p class="text-[10px] text-gray-400">Provider signals are not a guarantee of safety. Missing data stays unknown.</p>
                         <div class="space-y-1.5 max-h-[180px] overflow-y-auto pr-1" id="sniffer-alerts-list">
                             <!-- Populated dynamically -->
                         </div>
@@ -531,7 +536,7 @@
                         <!-- Liquidity & Supply Stats -->
                         <div class="grid grid-cols-2 gap-2 text-[10px] bg-dark-bg/40 p-2.5 rounded-lg border border-gray-800/60">
                             <div>
-                                <span class="text-gray-500 block">Total Liquidity</span>
+                                <span class="text-gray-500 block">Largest Pool Liquidity</span>
                                 <span id="sniffer-stat-liquidity" class="text-white font-semibold font-mono">—</span>
                             </div>
                             <div>
@@ -543,7 +548,7 @@
                         <!-- Top Holders Section -->
                         <div class="space-y-1.5">
                             <div class="flex justify-between items-center text-[10px] text-gray-500 border-b border-gray-800/80 pb-1">
-                                <span>Top 10 Holder Concentration</span>
+                                <span>Reported Holder Share</span>
                                 <span id="sniffer-holder-concentration" class="text-white font-semibold font-mono">—</span>
                             </div>
                             <div id="sniffer-holders-list" class="space-y-1 max-h-[110px] overflow-y-auto pr-1">
@@ -609,16 +614,26 @@
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
                             <span>📰</span> News Terminal
                         </h3>
-                        <span id="news-status" class="text-[10px] text-gray-500 font-mono">Loading...</span>
+                        <div class="flex items-center gap-2">
+                            <span id="news-status" class="text-[10px] text-gray-400 font-mono" aria-live="polite">Loading…</span>
+                            <button id="news-refresh" type="button" class="text-[10px] text-gray-300 hover:text-white disabled:opacity-50">Refresh</button>
+                        </div>
                     </div>
-                    <div class="flex gap-1.5 overflow-x-auto pb-1 border-b border-gray-800/60">
+                    <div class="flex gap-1.5 overflow-x-auto pb-1 border-b border-gray-800/60" role="tablist" aria-label="News categories">
                         <button class="news-tab-btn active px-2.5 py-1.5 rounded text-[10px] font-semibold bg-brand-primary/10 border border-brand-primary/20 text-brand-primary cursor-pointer whitespace-nowrap" data-category="sui">Sui Ecosystem</button>
                         <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="crypto">Crypto News</button>
                         <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="macro">Financial Macro</button>
                         <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="good">Good News</button>
                         <button class="news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap" data-category="science">Science News</button>
                     </div>
-                    <div id="news-content" class="space-y-3 overflow-y-auto pr-1" style="height: 320px;">
+                    <label class="flex items-center gap-2 text-[10px] text-gray-400">
+                        Source
+                        <select id="news-source-filter" class="bg-dark-bg border border-gray-700 rounded px-2 py-1 text-gray-300" aria-label="News source">
+                            <option value="">All sources</option>
+                        </select>
+                    </label>
+                    <p id="news-source-status" class="text-[10px] text-gray-400 leading-relaxed" aria-live="polite"></p>
+                    <div id="news-content" class="space-y-3 overflow-y-auto pr-1" style="height: 320px;" role="tabpanel" aria-label="News articles">
                         <p class="text-xs text-gray-600 py-8 text-center font-medium">Loading news feed...</p>
                     </div>
                 </div>
@@ -627,13 +642,12 @@
                 <div id="x-feed-widget" class="glass-panel deferred-widget p-5 rounded-xl space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-dark-text-secondary flex items-center gap-2">
-                            <span class="text-brand-primary">⚡</span> X Ecosystem Tracker
+                            <span class="text-brand-primary">⚡</span> Ecosystem on X
                         </h3>
-                        <button id="x-feed-refresh" class="text-[10px] text-dark-text-secondary hover:text-white transition-colors cursor-pointer" title="Refresh tweets">
-                            Refresh
-                        </button>
+
                     </div>
                     
+                    <p class="text-[10px] text-gray-400">Live posts are unavailable here. Open a profile for its latest updates.</p>
                     <div class="space-y-3 overflow-y-auto pr-1" style="height: 380px;" id="x-feed-container">
                         <!-- Generated dynamically -->
                     </div>
@@ -3269,7 +3283,7 @@ Return ONLY a valid JSON object with two string keys:
         intelWatchlistCache.clear();
         intelLoadedTabs.clear();
         try {
-            await Promise.all([fetchMarketPulse(), fetchTvl(), renderIntelTab(activeIntelTab(), { force: true })]);
+            await Promise.all([fetchMarketPulse({ force: true }), fetchTvl({ force: true }), renderIntelTab(activeIntelTab(), { force: true })]);
         } finally {
             icon.classList.remove('refresh-spin');
         }
@@ -3499,146 +3513,8 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // DYNAMIC NEWS TERMINAL WIDGET
     // =========================================================
-    let newsCache = { sui: null, crypto: null, macro: null, good: null, science: null };
-
-    async function loadNewsCategory(category) {
-        const container = document.getElementById('news-content');
-        const statusEl = document.getElementById('news-status');
-        if (!container || !statusEl) return;
-        
-        container.innerHTML = '<p class="text-xs text-gray-600 py-8 text-center">Loading news...</p>';
-        statusEl.textContent = 'Loading...';
-
-        if (newsCache[category]) {
-            renderNews(newsCache[category]);
-            statusEl.textContent = 'Updated';
-            return;
-        }
-
-        try {
-            let rssUrl = '';
-            if (category === 'sui') {
-                rssUrl = 'https://news.google.com/rss/search?q=sui+blockchain+OR+sui+cryptocurrency&hl=en-US&gl=US&ceid=US:en';
-            } else if (category === 'crypto') {
-                rssUrl = 'https://cointelegraph.com/rss';
-            } else if (category === 'macro') {
-                rssUrl = 'https://finance.yahoo.com/news/rssindex';
-            } else if (category === 'good') {
-                rssUrl = 'https://www.goodnewsnetwork.org/feed/';
-            } else if (category === 'science') {
-                rssUrl = 'https://www.sciencedaily.com/rss/all.xml';
-            }
-
-            const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
-            const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-            if (!resp.ok) throw new Error('Failed to fetch news feed');
-            const data = await resp.json();
-            if (data.status !== 'ok') throw new Error(data.message || 'Error parsing news feed');
-
-            let rawArticles = data.items || [];
-            
-            newsCache[category] = rawArticles.map(art => {
-                let ts = Date.now() / 1000;
-                if (art.pubDate) {
-                    try {
-                        let cleanDate = art.pubDate.trim();
-                        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(cleanDate)) {
-                            cleanDate += ' UTC';
-                        } else if (/^\d/.test(cleanDate)) {
-                            cleanDate = cleanDate.replace(' ', 'T');
-                        }
-                        ts = Math.floor(new Date(cleanDate).getTime() / 1000);
-                    } catch (_) {}
-                }
-                if (!Number.isFinite(ts)) ts = Math.floor(Date.now() / 1000);
-                
-                let title = art.title || '';
-                let source = data.feed?.title || 'News Feed';
-                
-                if (category === 'sui') {
-                    const parts = title.split(' - ');
-                    if (parts.length > 1) {
-                        source = parts.pop();
-                        title = parts.join(' - ');
-                    } else {
-                        source = 'Google News';
-                    }
-                } else if (category === 'macro') {
-                    source = 'Yahoo Finance';
-                } else if (category === 'good') {
-                    source = 'Good News Network';
-                } else if (category === 'science') {
-                    source = 'ScienceDaily';
-                } else if (category === 'crypto') {
-                    source = 'Cointelegraph';
-                }
-                
-                return {
-                    title: title,
-                    url: safeExternalUrl(art.link),
-                    published_on: ts,
-                    source: source
-                };
-            }).filter(article => article.url);
-
-            // Sort by published_on descending (most recent first)
-            newsCache[category].sort((a, b) => b.published_on - a.published_on);
-
-            renderNews(newsCache[category]);
-            statusEl.textContent = 'Updated';
-        } catch (err) {
-            console.error('Failed to load news:', err);
-            container.innerHTML = `
-                <div class="text-center py-8">
-                    <p class="text-xs text-red-400 mb-2">Failed to load news</p>
-                    <button class="px-3 py-1 bg-dark-card border border-gray-700 rounded text-xs text-white hover:border-brand-primary cursor-pointer" onclick="loadNewsCategory('${category}')">
-                        Retry
-                    </button>
-                </div>`;
-            statusEl.textContent = 'Error';
-        }
-    }
-
-    function renderNews(articles) {
-        const container = document.getElementById('news-content');
-        if (!container) return;
-        if (!articles || articles.length === 0) {
-            container.innerHTML = '<p class="text-xs text-gray-500 py-8 text-center">No articles found.</p>';
-            return;
-        }
-
-        container.innerHTML = articles.map(art => {
-            const timeStr = timeAgo(art.published_on * 1000);
-            return `
-                <a href="${escHtml(art.url)}" target="_blank" rel="noopener noreferrer" class="block p-3 rounded-lg bg-dark-bg/40 border border-gray-800/40 hover:border-brand-primary/30 hover:bg-dark-bg/60 transition-all group">
-                    <div class="flex gap-3">
-                        <div class="flex-1">
-                            <h4 class="text-xs font-semibold text-white group-hover:text-brand-secondary transition-colors line-clamp-2 leading-snug mb-1.5">
-                                ${escHtml(art.title)}
-                            </h4>
-                            <div class="flex items-center gap-2 text-[10px] text-dark-text-secondary">
-                                <span class="bg-gray-800 px-1.5 py-0.5 rounded text-[9px] font-bold text-gray-400">${escHtml(art.source)}</span>
-                                <span>•</span>
-                                <span>${timeStr}</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>`;
-        }).join('');
-    }
-
     function initNewsTerminal() {
-        document.querySelectorAll('.news-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const category = btn.getAttribute('data-category');
-                document.querySelectorAll('.news-tab-btn').forEach(b => {
-                    b.className = 'news-tab-btn px-2.5 py-1.5 rounded text-[10px] font-semibold text-dark-text-secondary hover:text-white cursor-pointer whitespace-nowrap';
-                });
-                btn.className = 'news-tab-btn active px-2.5 py-1.5 rounded text-[10px] font-semibold bg-brand-primary/10 border border-brand-primary/20 text-brand-primary cursor-pointer whitespace-nowrap';
-                loadNewsCategory(category);
-            });
-        });
-        loadNewsCategory('sui');
+        window.AlphaCityIntelWidgets.initNews();
     }
 
     // =========================================================
@@ -3869,213 +3745,8 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // X (TWITTER) ECOSYSTEM TRACKER
     // =========================================================
-    const FALLBACK_NITTER_INSTANCES = [
-        'https://nitter.net',
-        'https://xcancel.com',
-        'https://nitter.privacyredirect.com',
-        'https://nitter.poast.org'
-    ];
-
-    const X_ACCOUNTS = [
-        { name: 'Sui Network', handle: 'SuiNetwork' },
-        { name: 'DeepBook', handle: 'DeepBookonSui' },
-        { name: 'SuiNS', handle: 'SuiNSdapp' },
-        { name: 'Walrus Protocol', handle: 'WalrusProtocol' },
-        { name: 'Eman Abio', handle: 'EmanAbio' },
-        { name: 'Kostas Crypto', handle: 'kostascrypto' },
-        { name: 'Deep Trade', handle: '_deeptrade' },
-        { name: 'Evan Web3', handle: 'EvanWeb3' }
-    ];
-
-    function parseNitterRss(xmlText) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xmlText, "text/xml");
-        const items = doc.getElementsByTagName("item");
-        if (!items || items.length === 0) {
-            throw new Error("No items in RSS");
-        }
-        const firstItem = items[0];
-        const title = firstItem.getElementsByTagName("title")[0]?.textContent || '';
-        const description = firstItem.getElementsByTagName("description")[0]?.textContent || '';
-        const pubDate = firstItem.getElementsByTagName("pubDate")[0]?.textContent || '';
-        const link = firstItem.getElementsByTagName("link")[0]?.textContent || '';
-        return { title, description, pubDate, link };
-    }
-
-    async function fetchNitterFeed(username) {
-        const cacheKey = `nitter_cache_${username}`;
-        let cached = null;
-        try {
-            const raw = localStorage.getItem(cacheKey);
-            if (raw) {
-                cached = JSON.parse(raw);
-                if (cached && cached.timestamp && (Date.now() - cached.timestamp < 15 * 60 * 1000)) {
-                    console.log(`Using cached tweet for @${username}`);
-                    return cached.data;
-                }
-            }
-        } catch (e) {
-            console.warn(`Failed to read Nitter cache for @${username}:`, e);
-        }
-
-        const saveCache = (data) => {
-            try {
-                localStorage.setItem(cacheKey, JSON.stringify({
-                    timestamp: Date.now(),
-                    data
-                }));
-            } catch (e) {
-                console.warn(`Failed to write Nitter cache for @${username}:`, e);
-            }
-        };
-
-        const isWorkerConfigured = typeof OPENAI_PROXY_URL !== 'undefined' && 
-                                   OPENAI_PROXY_URL !== '__OPENAI_PROXY_URL__' && 
-                                   OPENAI_PROXY_URL.startsWith('http');
-        if (isWorkerConfigured) {
-            try {
-                const workerUrl = `${OPENAI_PROXY_URL}/nitter?handle=${username}`;
-                const resp = await fetchWithTimeout(workerUrl, {}, 6000);
-                if (resp.ok) {
-                    const xmlText = await resp.text();
-                    const parsed = parseNitterRss(xmlText);
-                    const descLower = (parsed.description || '').toLowerCase();
-                    if (descLower.includes('whitelist') || descLower.includes('plain request') || descLower.includes('xcancel')) {
-                        throw new Error("Worker proxy returned blocked Nitter feed");
-                    }
-                    saveCache(parsed);
-                    return parsed;
-                }
-            } catch (err) {
-                console.warn(`Worker proxy failed to fetch feed for @${username}:`, err);
-            }
-        }
-
-        for (const instance of FALLBACK_NITTER_INSTANCES) {
-            try {
-                const feedUrl = `${instance}/${username}/rss`;
-                const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
-                const resp = await fetchWithTimeout(url, {}, 4000);
-                if (!resp.ok) continue;
-                const data = await resp.json();
-                if (data.status === 'ok' && data.items && data.items.length > 0) {
-                    const item = data.items[0];
-                    const descLower = (item.description || '').toLowerCase();
-                    const titleLower = (item.title || '').toLowerCase();
-                    if (descLower.includes('whitelist') || descLower.includes('plain request') || descLower.includes('xcancel') || titleLower.includes('whitelist')) {
-                        console.warn(`Blocked Nitter response detected for @${username} on instance: ${instance}`);
-                        continue;
-                    }
-                    const parsed = {
-                        title: item.title,
-                        description: item.description,
-                        pubDate: item.pubDate,
-                        link: item.link
-                    };
-                    saveCache(parsed);
-                    return parsed;
-                }
-            } catch (_) {}
-        }
-        if (cached && cached.data) {
-            console.warn(`All network attempts failed. Using expired cache for @${username}`);
-            return cached.data;
-        }
-        throw new Error(`Failed to fetch feed for @${username} from all sources`);
-    }
-
-    function cleanNitterHtml(html) {
-        if (!html) return '';
-        let clean = html.replace(/<img[^>]*>/gi, '');
-        clean = clean.replace(/<video[^>]*>[\s\S]*?<\/video>/gi, '');
-        clean = clean.replace(/<a[^>]*>(?:Video|Image|GIF)<\/a>/gi, '');
-        clean = clean.replace(/https:\/\/(?:[a-zA-Z0-9.-]*nitter[a-zA-Z0-9.-]*|xcancel\.com)/gi, 'https://x.com');
-        clean = clean.replace(/<blockquote>/g, '<blockquote class="border-l-2 border-gray-700 pl-2 my-1 text-dark-text-secondary italic text-[11px]">');
-        clean = clean.replace(/<\/blockquote>/g, '</blockquote>');
-        clean = clean.replace(/<hr>/g, '');
-        clean = clean.replace(/(?:<br\s*\/?>\s*){2,}/gi, '<br>');
-        return clean.trim();
-    }
-
-    function truncateTweetHtml(html, maxLength, linkUrl) {
-        if (!html) return '';
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-        const text = tempDiv.textContent || tempDiv.innerText || '';
-        
-        if (text.length <= maxLength) {
-            return html;
-        }
-        
-        const truncatedText = text.substring(0, maxLength).trim() + '...';
-        return `${escHtml(truncatedText)} <a href="${escHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline font-medium ml-1">Read on X ↗</a>`;
-    }
-
-    function tweetTimestamp(pubDate) {
-        if (!pubDate) return 0;
-        let cleanDate = String(pubDate).trim();
-        if (/^\d{4}-\d{2}-\d{2} /.test(cleanDate)) {
-            cleanDate = cleanDate.replace(' ', 'T');
-        }
-        const timestamp = new Date(cleanDate).getTime();
-        return Number.isFinite(timestamp) ? timestamp : 0;
-    }
-
-    function sortXFeedByMostRecent(container) {
-        [...container.children]
-            .sort((a, b) => Number(b.dataset.tweetTimestamp || 0) - Number(a.dataset.tweetTimestamp || 0))
-            .forEach(card => container.appendChild(card));
-    }
-
-    async function loadXFeed() {
-        const container = document.getElementById('x-feed-container');
-        if (!container) return;
-
-        container.innerHTML = X_ACCOUNTS.map(ac => `
-            <div class="p-3 rounded-lg bg-dark-bg/40 border border-gray-800/60" id="tweet-card-${ac.handle}" data-tweet-timestamp="0">
-                <div class="flex items-center justify-between mb-1.5">
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-white">${ac.name}</span>
-                        <span class="text-[9px] text-gray-500">@${ac.handle}</span>
-                    </div>
-                    <span class="text-[9px] text-gray-500 font-mono" id="tweet-time-${ac.handle}">-</span>
-                </div>
-                <div class="text-[11px] text-dark-text-secondary leading-relaxed break-words" id="tweet-body-${ac.handle}">
-                    <span class="text-gray-600 animate-pulse">Loading...</span>
-                </div>
-            </div>
-        `).join('');
-
-        X_ACCOUNTS.forEach(ac => {
-            fetchNitterFeed(ac.handle).then(tweet => {
-                const bodyEl = document.getElementById(`tweet-body-${ac.handle}`);
-                const timeEl = document.getElementById(`tweet-time-${ac.handle}`);
-                const cardEl = document.getElementById(`tweet-card-${ac.handle}`);
-                if (bodyEl && timeEl && cardEl) {
-                    const ts = tweetTimestamp(tweet.pubDate);
-                    cardEl.dataset.tweetTimestamp = String(ts);
-                    sortXFeedByMostRecent(container);
-                    
-                    const tweetLink = tweet.link ? tweet.link.replace(/https:\/\/(?:[a-zA-Z0-9.-]*nitter[a-zA-Z0-9.-]*|xcancel\.com)/gi, 'https://x.com') : `https://x.com/${ac.handle}`;
-                    timeEl.innerHTML = `<a href="${escHtml(tweetLink)}" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-blue-400 font-medium">${ts ? timeAgo(ts) : 'time unavailable'} ↗</a>`;
-
-                    const cleanedHtml = cleanNitterHtml(tweet.description || tweet.title);
-                    bodyEl.innerHTML = truncateTweetHtml(cleanedHtml, 160, tweetLink);
-                }
-            }).catch(err => {
-                console.error(`Failed to load tweet for @${ac.handle}:`, err);
-                const bodyEl = document.getElementById(`tweet-body-${ac.handle}`);
-                if (bodyEl) {
-                    bodyEl.innerHTML = '<span class="text-red-400/80 text-[10px]">Failed to load tweet.</span>';
-                }
-            });
-        });
-    }
-
     function initXFeed() {
-        loadXFeed();
-        const refreshBtn = document.getElementById('x-feed-refresh');
-        if (refreshBtn) refreshBtn.addEventListener('click', loadXFeed);
+        window.AlphaCityIntelWidgets.initX();
     }
 
     // =========================================================
@@ -4939,131 +4610,9 @@ Return ONLY a valid JSON object with two string keys:
     // =========================================================
     // WIDGET: TOP YIELDS APY RADAR
     // =========================================================
-    const APY_REFRESH_MS = 15 * 60_000;
-    const APY_CACHE_STORAGE = 'ac_analyze_apy_cache_v1';
-    let apyInFlight = null;
     const poolAddressCache = new Map();
-
-    function readApyCache({ allowExpired = false } = {}) {
-        try {
-            const cached = JSON.parse(sessionStorage.getItem(APY_CACHE_STORAGE) || 'null');
-            if (!cached?.pools?.length) return null;
-            if (!allowExpired && Date.now() - Number(cached.ts || 0) >= APY_REFRESH_MS) return null;
-            return cached;
-        } catch (_) {
-            return null;
-        }
-    }
-
-    function writeApyCache(pools) {
-        try {
-            sessionStorage.setItem(APY_CACHE_STORAGE, JSON.stringify({ pools, ts: Date.now() }));
-        } catch (_) {}
-    }
-
-    async function fetchTopSuiPools({ force = false } = {}) {
-        if (!force) {
-            const cached = readApyCache();
-            if (cached) return cached.pools;
-        }
-        if (apyInFlight) return apyInFlight;
-
-        apyInFlight = (async () => {
-            try {
-                const response = await fetchWithTimeout('https://yields.llama.fi/pools', {}, 8000);
-                if (!response.ok) throw new Error('Yields fetch failed');
-                const payload = await response.json();
-                const topPools = (payload?.data || [])
-                    .filter(pool => pool.chain?.toLowerCase() === 'sui' && pool.tvlUsd >= 20000 && pool.apy > 0)
-                    .sort((a, b) => b.apy - a.apy)
-                    .slice(0, 5);
-
-                const resolved = await Promise.all(topPools.map(async pool => ({
-                    symbol: pool.symbol,
-                    project: pool.project || 'unknown',
-                    tvlUsd: Number(pool.tvlUsd || 0),
-                    apy: Number(pool.apy || 0),
-                    resolvedAddress: await resolvePoolAddress(pool.project || '', pool.underlyingTokens).catch(() => null),
-                })));
-                writeApyCache(resolved);
-                return resolved;
-            } catch (error) {
-                const stale = readApyCache({ allowExpired: true });
-                if (stale) return stale.pools;
-                throw error;
-            }
-        })();
-
-        try {
-            return await apyInFlight;
-        } finally {
-            apyInFlight = null;
-        }
-    }
-
-    async function initWidgetApyRadar() {
-        const refreshBtn = document.getElementById('widget-apy-refresh-btn');
-        if (!refreshBtn) return;
-
-        refreshBtn.addEventListener('click', () => {
-            renderWidgetApyRadar({ force: true });
-        });
-
-        renderWidgetApyRadar();
-        createVisibleInterval(() => renderWidgetApyRadar({ force: true }), APY_REFRESH_MS);
-    }
-
-    async function renderWidgetApyRadar({ force = false } = {}) {
-        const listEl = document.getElementById('widget-apy-list');
-        const refreshBtn = document.getElementById('widget-apy-refresh-btn');
-        if (!listEl) return;
-
-        if (refreshBtn) refreshBtn.classList.add('refresh-spin');
-        listEl.innerHTML = '<p class="text-xs text-gray-600 py-6 text-center animate-pulse">Scanning SUI pools...</p>';
-
-        try {
-            const resolvedPools = await fetchTopSuiPools({ force });
-            if (!resolvedPools.length) {
-                listEl.innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">No yield pools found.</p>';
-                return;
-            }
-
-            listEl.innerHTML = resolvedPools.map(p => {
-                const symbol = escHtml(p.symbol);
-                const rawProject = p.project || 'unknown';
-                const projectClean = formatApyProjectName(rawProject);
-                const badgeColor = getApyProjectBadgeColor(rawProject);
-                const tvlStr = p.tvlUsd >= 1000000 
-                    ? (p.tvlUsd / 1000000).toFixed(1) + 'M' 
-                    : (p.tvlUsd / 1000).toFixed(0) + 'k';
-                const apyVal = p.apy.toFixed(1);
-
-                return `
-                <a href="${getPoolDetailedUrl(rawProject, p.resolvedAddress)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between py-2 border-b border-gray-800/40 last:border-0 text-xs hover:bg-gray-800/20 transition-all rounded px-1.5 -mx-1.5 cursor-pointer block select-none">
-                    <div class="flex flex-col min-w-0">
-                        <div class="flex items-center gap-1.5 mb-0.5">
-                            <span class="text-white font-semibold truncate">${symbol}</span>
-                            <span class="text-[9px] font-bold font-mono px-1.5 py-0.2 rounded border uppercase tracking-wider ${badgeColor}">
-                                ${projectClean}
-                            </span>
-                        </div>
-                        <span class="text-[10px] text-gray-500 font-mono">TVL: $${tvlStr}</span>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-green-400 font-bold font-mono text-sm">${apyVal}%</div>
-                        <span class="text-[9px] text-gray-500 block uppercase font-mono">APY</span>
-                    </div>
-                </a>`;
-            }).join('');
-
-        } catch (err) {
-            console.error("APY Radar fetch failed:", err);
-            listEl.innerHTML = '<p class="text-xs text-red-400 py-4 text-center">Failed to load yields.</p>';
-        } finally {
-            if (refreshBtn) {
-                setTimeout(() => { refreshBtn.classList.remove('refresh-spin'); }, 800);
-            }
-        }
+    function initWidgetApyRadar() {
+        window.AlphaCityIntelWidgets.initYields();
     }
 
     function formatApyProjectName(proj) {
@@ -5085,7 +4634,9 @@ Return ONLY a valid JSON object with two string keys:
     }
 
     async function resolvePoolAddress(project, underlyingTokens) {
-        if (!underlyingTokens || underlyingTokens.length < 2) return null;
+        if (!Array.isArray(underlyingTokens) || underlyingTokens.length < 2) return null;
+        const targetDexId = project.includes('cetus') ? 'cetus' : project.includes('turbos') ? 'turbos' : project.includes('bluefin') ? 'bluefin' : '';
+        if (!targetDexId) return null;
         
         const token0 = normalizeSuiType(underlyingTokens[0]);
         const token1 = normalizeSuiType(underlyingTokens[1]);
@@ -5099,14 +4650,6 @@ Return ONLY a valid JSON object with two string keys:
             if (!res.ok) return null;
             const data = await res.json();
             if (!data.pairs) return null;
-
-            let targetDexId = '';
-            if (project.includes('cetus')) targetDexId = 'cetus';
-            else if (project.includes('turbos')) targetDexId = 'turbos';
-            else if (project.includes('bluefin')) targetDexId = 'bluefin';
-            
-            if (!targetDexId) return null;
-
             const pair = data.pairs.find(p => {
                 if (p.chainId !== 'sui' || p.dexId !== targetDexId) return false;
                 const base = normalizeSuiType(p.baseToken.address);
@@ -5147,340 +4690,8 @@ Return ONLY a valid JSON object with two string keys:
         return mapping[project] || 'https://defillama.com/yields';
     }
 
-    function getApyProjectBadgeColor(proj) {
-        if (proj.includes('cetus')) {
-            return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-        } else if (proj.includes('turbos')) {
-            return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-        } else if (proj.includes('bluefin')) {
-            return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
-        } else if (proj.includes('navi')) {
-            return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
-        } else if (proj.includes('scallop')) {
-            return 'bg-pink-500/10 text-pink-400 border-pink-500/20';
-        } else if (proj.includes('aftermath')) {
-            return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
-        }
-        return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
-    }
-
-    // =========================================================
-    // WIDGET: TOKEN SAFETY CHECKER
-    // =========================================================
-    async function initTokenSafetySniffer() {
-        const scanBtn = document.getElementById('widget-sniffer-scan-btn');
-        const snInput = document.getElementById('widget-sniffer-input');
-
-        if (!scanBtn || !snInput) return;
-
-        scanBtn.addEventListener('click', () => {
-            const val = snInput.value.trim();
-            if (!val) return;
-
-            // Validate format: expect a SUI coin type or package address
-            const isCoinType = /^0x[0-9a-fA-F]+::[a-zA-Z0-9_]+::[a-zA-Z0-9_]+$/.test(val);
-            const isPackageAddr = /^0x[0-9a-fA-F]+$/.test(val);
-            
-            if (!isCoinType && !isPackageAddr) {
-                alert("Please enter a valid SUI Coin Type (e.g. 0x2::sui::SUI) or package address.");
-                return;
-            }
-
-            scanTokenSafety(val);
-        });
-
-        snInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') scanBtn.click();
-        });
-    }
-
-    async function scanTokenSafety(inputAddress) {
-        const scanBtn = document.getElementById('widget-sniffer-scan-btn');
-        const statusEl = document.getElementById('widget-sniffer-status');
-        const resultsPanel = document.getElementById('widget-sniffer-results');
-        const alertsList = document.getElementById('sniffer-alerts-list');
-        const holdersList = document.getElementById('sniffer-holders-list');
-        
-        if (scanBtn) scanBtn.disabled = true;
-        if (statusEl) {
-            statusEl.textContent = "Scanning...";
-            statusEl.className = "text-[9px] text-brand-secondary font-mono animate-pulse";
-        }
-        if (resultsPanel) resultsPanel.classList.add('hidden');
-
-        try {
-            const coinType = normalizeSuiType(inputAddress);
-            let packageAddress = coinType;
-            if (coinType.includes('::')) {
-                packageAddress = coinType.split('::')[0];
-            }
-
-            // Fetch GoPlus and DexScreener in parallel
-            const [goPlusRes, dexRes] = await Promise.all([
-                fetchWithTimeout(`https://api.gopluslabs.io/api/v1/sui/token_security?contract_addresses=${encodeURIComponent(coinType)}`, {}, 8000).catch(() => null),
-                fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(coinType)}`, {}, 6000).catch(() => null)
-            ]);
-
-            let goPlusData = null;
-            if (goPlusRes && goPlusRes.ok) {
-                const json = await goPlusRes.json();
-                if (json && json.code === 1 && json.result) {
-                    const matchedKey = Object.keys(json.result).find(k => k.toLowerCase() === coinType.toLowerCase());
-                    if (matchedKey) {
-                        goPlusData = json.result[matchedKey];
-                    }
-                } else if (json && json.message) {
-                    console.warn("GoPlus return code not 1:", json.message);
-                }
-            }
-
-            // Fallback: if GoPlus failed to find the exact coinType, try querying with just the packageAddress
-            if (!goPlusData && packageAddress !== coinType) {
-                try {
-                    const fallbackRes = await fetchWithTimeout(`https://api.gopluslabs.io/api/v1/sui/token_security?contract_addresses=${encodeURIComponent(packageAddress)}`, {}, 6000);
-                    if (fallbackRes.ok) {
-                        const json = await fallbackRes.json();
-                        if (json && json.code === 1 && json.result) {
-                            const matchedKey = Object.keys(json.result).find(k => k.toLowerCase() === packageAddress.toLowerCase());
-                            if (matchedKey) {
-                                goPlusData = json.result[matchedKey];
-                            }
-                        }
-                    }
-                } catch (_) {}
-            }
-
-            let dexData = null;
-            if (dexRes && dexRes.ok) {
-                const json = await dexRes.json();
-                if (json && json.pairs && json.pairs.length > 0) {
-                    const suiPairs = json.pairs.filter(p => p.chainId === 'sui');
-                    if (suiPairs.length > 0) {
-                        suiPairs.sort((a, b) => parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0));
-                        dexData = suiPairs[0];
-                    }
-                }
-            }
-
-            if (!goPlusData) {
-                alert("Security data not found for this SUI address. Make sure the token is active and indexable.");
-                if (statusEl) {
-                    statusEl.textContent = "No Data";
-                    statusEl.className = "text-[9px] text-gray-500 font-mono";
-                }
-                return;
-            }
-
-            // Compute safety score and build alerts
-            let score = 100;
-            const alerts = [];
-
-            // 1. Trusted Token Badge
-            const isTrusted = goPlusData.trusted_token === "1";
-            if (isTrusted) {
-                alerts.push({
-                    type: 'green',
-                    text: 'Verified Token: Recognized as a trusted asset in the ecosystem.'
-                });
-            }
-
-            // 2. Mint Authority check
-            const isMintable = goPlusData.mintable?.value === "1";
-            const mintOwner = goPlusData.mintable?.cap_owner || '';
-            const isMintRevoked = !isMintable || mintOwner.toLowerCase() === 'immutable' || mintOwner === '';
-
-            if (!isMintRevoked) {
-                score -= 35;
-                alerts.push({
-                    type: 'red',
-                    text: `Mint Authority is Active: Creator can mint infinite tokens at any time (Supply dilution risk). Owner: ${shortAddr(mintOwner)}`
-                });
-            } else {
-                alerts.push({
-                    type: 'green',
-                    text: 'Mint Privilege Revoked: Token supply cannot be arbitrarily inflated.'
-                });
-            }
-
-            // 3. Blacklist / Freeze checks
-            const hasBlacklist = goPlusData.blacklist?.value === "1";
-            if (hasBlacklist) {
-                score -= 35;
-                alerts.push({
-                    type: 'red',
-                    text: 'Blacklist capability active: Creator can block users from trading or transfering tokens (Honeypot risk).'
-                });
-            } else {
-                alerts.push({
-                    type: 'green',
-                    text: 'No blacklist / freeze capability detected: Token transfers are unblocked.'
-                });
-            }
-
-            // 4. Liquidity Checks
-            if (dexData) {
-                const liquidity = parseFloat(dexData.liquidity?.usd || 0);
-                if (liquidity < 10000) {
-                    score -= 20;
-                    alerts.push({
-                        type: 'red',
-                        text: `Extremely Low Liquidity: total liquidity is $${liquidity.toLocaleString()} (High rug pull risk).`
-                    });
-                } else if (liquidity < 50000) {
-                    score -= 10;
-                    alerts.push({
-                        type: 'orange',
-                        text: `Moderate Liquidity: total liquidity is $${liquidity.toLocaleString()}.`
-                    });
-                } else {
-                    alerts.push({
-                        type: 'green',
-                        text: `Healthy Liquidity: total liquidity is $${liquidity.toLocaleString()}.`
-                    });
-                }
-            } else {
-                score -= 30;
-                alerts.push({
-                    type: 'red',
-                    text: 'No liquidity pools detected on major SUI DEXes. High risk of being untradable.'
-                });
-            }
-
-            // 5. Holder Concentration
-            const holders = goPlusData.holders || [];
-            if (holders.length > 0) {
-                // Sum top 3 non-exchange holders
-                let nonExchCount = 0;
-                let top3NonExchSum = 0;
-                holders.forEach(h => {
-                    if (nonExchCount < 3 && !h.tag) {
-                        top3NonExchSum += parseFloat(h.percent || 0) * 100;
-                        nonExchCount++;
-                    }
-                });
-
-                if (top3NonExchSum > 50) {
-                    score -= 15;
-                    alerts.push({
-                        type: 'red',
-                        text: `Extreme Concentration: Top 3 private wallets hold ${top3NonExchSum.toFixed(1)}% of total supply (High dump risk).`
-                    });
-                } else if (top3NonExchSum > 25) {
-                    score -= 5;
-                    alerts.push({
-                        type: 'orange',
-                        text: `Moderate Concentration: Top 3 private wallets hold ${top3NonExchSum.toFixed(1)}% of total supply.`
-                    });
-                } else {
-                    alerts.push({
-                        type: 'green',
-                        text: `Good Distribution: Top 3 private wallets hold ${top3NonExchSum.toFixed(1)}% of total supply.`
-                    });
-                }
-            }
-
-            score = Math.max(0, score);
-
-            // Render details
-            const nameEl = document.getElementById('sniffer-token-name');
-            const symEl = document.getElementById('sniffer-token-symbol');
-            const scoreEl = document.getElementById('sniffer-safety-score');
-            const statLiqEl = document.getElementById('sniffer-stat-liquidity');
-            const statSupplyEl = document.getElementById('sniffer-stat-supply');
-            const holderConcEl = document.getElementById('sniffer-holder-concentration');
-
-            if (nameEl) nameEl.textContent = goPlusData.name || dexData?.baseToken?.name || 'Unknown Coin';
-            if (symEl) symEl.textContent = goPlusData.symbol || dexData?.baseToken?.symbol || 'Unknown';
-            
-            if (scoreEl) {
-                scoreEl.textContent = `${score}/100`;
-                if (score >= 80) {
-                    scoreEl.className = "text-xl font-bold font-mono text-green-400";
-                } else if (score >= 50) {
-                    scoreEl.className = "text-xl font-bold font-mono text-orange-400";
-                } else {
-                    scoreEl.className = "text-xl font-bold font-mono text-red-400";
-                }
-            }
-
-            // Stats
-            if (statLiqEl) statLiqEl.textContent = dexData ? fmtUsd(dexData.liquidity?.usd) : 'None';
-            if (statSupplyEl) {
-                const rawSupply = parseFloat(goPlusData.total_supply || 0);
-                const decs = parseInt(goPlusData.decimals || 9);
-                // GoPlus returns raw amount, so we divide by decimals
-                const parsedSupply = rawSupply;
-                if (parsedSupply >= 1000000000) {
-                    statSupplyEl.textContent = (parsedSupply / 1000000000).toFixed(1) + 'B';
-                } else if (parsedSupply >= 1000000) {
-                    statSupplyEl.textContent = (parsedSupply / 1000000).toFixed(1) + 'M';
-                } else {
-                    statSupplyEl.textContent = parsedSupply.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                }
-            }
-
-            // Alerts list
-            if (alertsList) {
-                alertsList.innerHTML = alerts.map(a => {
-                    let indicator = '🟢';
-                    let textClass = 'text-gray-400';
-                    if (a.type === 'red') {
-                        indicator = '🔴';
-                        textClass = 'text-red-400 font-medium';
-                    } else if (a.type === 'orange') {
-                        indicator = '🟡';
-                        textClass = 'text-orange-400';
-                    }
-                    return `
-                    <div class="flex items-start gap-2 text-[10px] leading-relaxed py-1 border-b border-gray-800/20 last:border-0">
-                        <span>${indicator}</span>
-                        <span class="${textClass}">${escHtml(a.text)}</span>
-                    </div>`;
-                }).join('');
-            }
-
-            // Top Holders
-            if (holders.length > 0) {
-                const totalTop10Percent = holders.reduce((acc, h) => acc + (parseFloat(h.percent || 0) * 100), 0);
-                if (holderConcEl) holderConcEl.textContent = totalTop10Percent.toFixed(1) + '%';
-                
-                if (holdersList) {
-                    holdersList.innerHTML = holders.map((h, i) => {
-                        const addr = h.address;
-                        const pct = (parseFloat(h.percent || 0) * 100).toFixed(2) + '%';
-                        const tagHtml = h.tag ? `<span class="mini-badge bg-blue-900/30 text-blue-400 border border-blue-800/30 text-[8px] px-1 py-0 leading-none">${escHtml(h.tag)}</span>` : '';
-                        return `
-                        <div class="flex items-center justify-between text-[10px] py-1 border-b border-gray-800/40 last:border-0 font-mono">
-                            <div class="flex items-center gap-1.5 truncate">
-                                <span class="text-gray-500">${i + 1}.</span>
-                                <span class="text-gray-300 truncate w-20" title="${escHtml(addr)}">${shortAddr(addr)}</span>
-                                ${tagHtml}
-                            </div>
-                            <span class="text-white font-semibold">${pct}</span>
-                        </div>`;
-                    }).join('');
-                }
-            } else {
-                if (holderConcEl) holderConcEl.textContent = 'None';
-                if (holdersList) holdersList.innerHTML = '<p class="text-[10px] text-gray-500 py-2 text-center">No distribution data available.</p>';
-            }
-
-            if (resultsPanel) resultsPanel.classList.remove('hidden');
-            if (statusEl) {
-                statusEl.textContent = "Scanned";
-                statusEl.className = "text-[9px] text-green-500 font-mono";
-            }
-
-        } catch (err) {
-            console.error("Token safety checker error:", err);
-            alert("Scan failed. Unable to fetch security metrics.");
-            if (statusEl) {
-                statusEl.textContent = "Failed";
-                statusEl.className = "text-[9px] text-red-500 font-mono";
-            }
-        } finally {
-            if (scanBtn) scanBtn.disabled = false;
-        }
+    function initTokenSafetySniffer() {
+        window.AlphaCityIntelWidgets.initSafety();
     }
 
     // =========================================================
